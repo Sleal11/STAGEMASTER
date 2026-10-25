@@ -195,6 +195,10 @@ function renderDivider(state, finished) {
  */
 function renderHistory(state, finished) {
   var chips = state.setScores.map(function (set, index) {
+    // Super Tie Break decisivo (sustituye al set): se muestran sus puntos, ej. 10-8
+    if (set.superTiebreak) {
+      return buildSetChip('SUPER TB', set.tiebreak.A + '-' + set.tiebreak.B, false);
+    }
     // Si el set se decidió en tiebreak, se añade el detalle: 7-6 (8-6)
     var detail = set.tiebreak ? '(' + set.tiebreak.A + '-' + set.tiebreak.B + ')' : null;
     return buildSetChip('SET ' + (index + 1), set.A + '-' + set.B, false, detail);
@@ -204,7 +208,8 @@ function renderHistory(state, finished) {
   var setNumber = state.setScores.length + 1;
 
   if (!finished) {
-    chips.push(buildSetChip('SET ' + setNumber, 'EN CURSO', true));
+    var currentLabel = isDecidingSuperTiebreak(state) ? 'SUPER TB' : 'SET ' + setNumber;
+    chips.push(buildSetChip(currentLabel, 'EN CURSO', true));
   } else if (current.A.games > 0 || current.B.games > 0) {
     // Partido finalizado manualmente a mitad de set: mostramos el parcial
     chips.push(buildSetChip('SET ' + setNumber, current.A.games + '-' + current.B.games, false));
@@ -255,6 +260,17 @@ function isValidState(state) {
 /** El motor ya guarda 0/15/30/40/'AD' (normal) o 0,1,2... (tie break) */
 function formatPoints(points) {
   return String(points);
+}
+
+/**
+ * true si se está jugando un Super Tie Break que sustituye al set decisivo
+ * (reglamento FIP). Se distingue del súper tie break a 6-6 de un partido
+ * a 1 set porque en el decisivo no se ha jugado ningún game.
+ */
+function isDecidingSuperTiebreak(state) {
+  return state.phase === 'superTiebreak' &&
+         state.players.A.games === 0 &&
+         state.players.B.games === 0;
 }
 
 /** true si el próximo punto decide el game por punto de oro */

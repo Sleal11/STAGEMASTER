@@ -180,6 +180,7 @@
     var s    = deepCopy(state);
     var resultadoSet = { A: s.players.A.games, B: s.players.B.games };
     if (tiebreakScore) resultadoSet.tiebreak = tiebreakScore;
+    if (isDecidingSuperTiebreak(s)) resultadoSet.superTiebreak = true;
     s.setScores.push(resultadoSet);
     s.players[scorer].sets += 1;
     s.players.A.games  = 0;
@@ -192,7 +193,11 @@
     if (s.players[scorer].sets >= s.config.setsToWin) {
       s.status = 'finished';
       s.winner = scorer;
+      return s;
     }
+
+    // Reglamento FIP: el Super Tie Break sustituye al set decisivo
+    if (isDecidingSuperTiebreak(s)) s.phase = 'superTiebreak';
     return s;
   }
 
@@ -223,6 +228,13 @@
       state.players.A.sets === needed - 1 &&
       state.players.B.sets === needed - 1
     );
+  }
+
+  // Super Tie Break decisivo en lugar del último set (ver engine.js)
+  function isDecidingSuperTiebreak(state) {
+    return state.config.tiebreakType === 'superTiebreak' &&
+           state.config.setsToWin > 1 &&
+           isLastSet(state);
   }
 
   // Primer servidor del tiebreak (ver explicación en engine.js)

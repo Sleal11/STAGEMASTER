@@ -264,7 +264,7 @@ test('En Tie Break: marcador 7-6 → A vuelve a anotar → 8-6 → Tie Break ter
 // ═════════════════════════════════════════════════════════════════
 console.log('\nCASO 8: Super Tie Break 10-9 NO termina');
 
-test('Super Tie Break en último set: 10-9 → partido NO debe terminar', () => {
+test('Super Tie Break decisivo (1-1 en sets): 10-9 → partido NO debe terminar', () => {
   let estado = createMatch(config({
     scoringSystem: 'goldenPoint',
     totalSets:     3,
@@ -279,12 +279,9 @@ test('Super Tie Break en último set: 10-9 → partido NO debe terminar', () => 
   assert.strictEqual(estado.players.A.sets, 1, 'A debe tener 1 set');
   assert.strictEqual(estado.players.B.sets, 1, 'B debe tener 1 set');
 
-  // En el último set: llevar a 6-6 → debe entrar en Super Tie Break
-  for (let i = 0; i < 6; i++) {
-    estado = ganarGame(estado, 'A');
-    estado = ganarGame(estado, 'B');
-  }
+  // Reglamento FIP: con 1-1 en sets el Super Tie Break SUSTITUYE al tercer set
   assert.strictEqual(estado.phase, 'superTiebreak', 'Debe estar en superTiebreak');
+  assert.strictEqual(estado.players.A.games, 0, 'No se juegan games en el set decisivo');
 
   // Llevar Super TB a 9-9
   for (let i = 0; i < 9; i++) {
@@ -315,13 +312,9 @@ test('Super Tie Break: 10-9 → A vuelve a anotar → 11-9 → partido SÍ termi
     tiebreakType:  'superTiebreak',
   }));
 
-  // Preparar mismo escenario del caso 8
+  // Preparar mismo escenario del caso 8 (1-1 en sets → Super Tie Break)
   for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
   for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
-  for (let i = 0; i < 6; i++) {
-    estado = ganarGame(estado, 'A');
-    estado = ganarGame(estado, 'B');
-  }
 
   // Llevar Super TB a 9-9
   for (let i = 0; i < 9; i++) {
@@ -609,7 +602,7 @@ test('Tie Break ganado por B (5-7) → el set se registra como 6-7', () => {
   assert.strictEqual(estado.players.B.sets, 1);
 });
 
-test('Super Tie Break 11-9 → el set se registra como 7-6 con detalle 11-9', () => {
+test('Partido a 1 set con Super TB: a 6-6 se juega Super Tie Break y se registra 7-6 (11-9)', () => {
   let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak', totalSets: 1 }));
   for (let i = 0; i < 6; i++) {
     estado = ganarGame(estado, 'A');
@@ -680,6 +673,62 @@ test('Undo del punto que cierra el Tie Break → vuelve exactamente a 6-6 en tie
   assert.strictEqual(estado.players.A.points, 7);
   assert.strictEqual(estado.server, antes.server);
   assert.strictEqual(estado.setScores.length, 0);
+});
+
+// ═════════════════════════════════════════════════════════════════
+// REGLAMENTO FIP: el Super Tie Break sustituye al set decisivo
+// ═════════════════════════════════════════════════════════════════
+console.log('\nREGLAMENTO FIP: Super Tie Break en lugar del set decisivo');
+
+test('Best-of-3: con 1-0 en sets NO hay Super Tie Break (el set 2 es normal)', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  assert.strictEqual(estado.phase, 'normal', 'El set 2 debe jugarse con games normales');
+});
+
+test('Best-of-3: 6-6 en el set 2 → Tie Break normal (a 7), no súper', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) {
+    estado = ganarGame(estado, 'A');
+    estado = ganarGame(estado, 'B');
+  }
+  assert.strictEqual(estado.phase, 'tiebreak');
+});
+
+test('Super Tie Break decisivo 10-8 → se registra como {1-0, tiebreak 10-8, superTiebreak}', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
+  for (let i = 0; i < 8; i++) estado = applyMany(estado, ['pointA', 'pointB']); // 8-8
+  estado = applyMany(estado, ['pointB', 'pointB']);                              // 8-10
+
+  assert.deepStrictEqual(estado.setScores[2], { A: 0, B: 1, tiebreak: { A: 8, B: 10 }, superTiebreak: true });
+  assert.strictEqual(estado.winner, 'B');
+  assert.strictEqual(estado.players.B.sets, 2);
+});
+
+test('Best-of-5: el Super Tie Break solo llega con 2-2 en sets', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak', totalSets: 5 }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
+  assert.strictEqual(estado.phase, 'normal', 'Con 1-1 en best-of-5 sigue un set normal');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
+  assert.strictEqual(estado.phase, 'superTiebreak', 'Con 2-2 empieza el Super Tie Break');
+});
+
+test('Undo del primer punto del Super Tie Break no rompe la fase', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
+  estado = applyMany(estado, ['pointA', 'undo']);
+  assert.strictEqual(estado.phase, 'superTiebreak');
+  assert.strictEqual(estado.players.A.points, 0);
+  // Un undo más vuelve al último punto del set 2 (fase normal, B a 40)
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.phase, 'normal');
+  assert.strictEqual(estado.players.B.sets, 0);
 });
 
 // ═════════════════════════════════════════════════════════════════

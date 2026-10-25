@@ -118,6 +118,17 @@ function formatPoints(points, phase) {
   return String(points); // El motor ya almacena 0/15/30/40/'AD'
 }
 
+/**
+ * Texto de un set terminado para el historial:
+ *   set normal → "6-3" | con tiebreak → "7-6 (8-6)" | Super TB decisivo → "STB 10-8"
+ */
+function formatSetScore(set) {
+  if (set.superTiebreak) return 'STB ' + set.tiebreak.A + '-' + set.tiebreak.B;
+  var text = set.A + '-' + set.B;
+  if (set.tiebreak) text += ' (' + set.tiebreak.A + '-' + set.tiebreak.B + ')';
+  return text;
+}
+
 /** Renderiza el estado completo del partido en la pantalla de control */
 function renderMatch() {
   if (!matchState) return;
@@ -167,7 +178,9 @@ function renderMatch() {
   var badge     = document.getElementById('phase-badge');
   var setLabel  = document.getElementById('match-status-label');
 
-  setLabel.textContent = 'SET ' + matchState.currentSet + ' · EN CURSO';
+  setLabel.textContent = phase === 'superTiebreak' && p.A.games === 0 && p.B.games === 0
+    ? 'SUPER TIE BREAK DECISIVO'
+    : 'SET ' + matchState.currentSet + ' · EN CURSO';
 
   if (phase === 'tiebreak') {
     badge.textContent = 'TIE BREAK';
@@ -183,7 +196,7 @@ function renderMatch() {
   var historyEl = document.getElementById('set-history');
   if (matchState.setScores.length > 0) {
     historyEl.textContent = matchState.setScores
-      .map(function (s) { return s.A + '-' + s.B; })
+      .map(formatSetScore)
       .join('  ·  ');
   } else {
     historyEl.textContent = '';
@@ -201,7 +214,7 @@ function renderFinished() {
 
   // Construir resultado de sets
   var setsStr = matchState.setScores
-    .map(function (s) { return s.A + '-' + s.B; })
+    .map(formatSetScore)
     .join(' · ');
   document.getElementById('final-sets').textContent = setsStr;
 }

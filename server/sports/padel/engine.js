@@ -341,6 +341,8 @@ function processSetWon(state, scorer, tiebreakScore) {
     B: s.players.B.games,
   };
   if (tiebreakScore) resultadoSet.tiebreak = tiebreakScore;
+  // Si el "set" fue un Super Tie Break decisivo, se marca para mostrarlo como 10-8
+  if (isDecidingSuperTiebreak(s)) resultadoSet.superTiebreak = true;
   s.setScores.push(resultadoSet);
 
   // ── Sumar set al ganador ───────────────────────────────────────
@@ -359,6 +361,14 @@ function processSetWon(state, scorer, tiebreakScore) {
   if (s.players[scorer].sets >= s.config.setsToWin) {
     s.status = 'finished';
     s.winner = scorer;
+    return s;
+  }
+
+  // ── Reglamento FIP: el Super Tie Break SUSTITUYE al set decisivo ──
+  // Con sets empatados (ej. 1-1 en best-of-3) no se juega un set completo:
+  // se pasa directamente a un Super Tie Break a 10 puntos.
+  if (isDecidingSuperTiebreak(s)) {
+    s.phase = 'superTiebreak';
   }
 
   return s;
@@ -372,7 +382,9 @@ function enterTiebreak(state) {
   const s       = deepCopy(state);
   const esUltimo = isLastSet(s);
 
-  // Último set con Super Tie Break configurado → Super Tie Break
+  // Super Tie Break a 6-6 solo ocurre en partidos de UN set (no hay set
+  // decisivo que sustituir). Con más sets, el Super Tie Break ya empezó
+  // directamente al empatar en sets (ver processSetWon).
   if (esUltimo && s.config.tiebreakType === 'superTiebreak') {
     s.phase = 'superTiebreak';
   } else {
@@ -422,6 +434,18 @@ function isLastSet(state) {
     state.players.A.sets === needed - 1 &&
     state.players.B.sets === needed - 1
   );
+}
+
+/**
+ * true si el set actual se juega como Super Tie Break decisivo (reglamento FIP):
+ *   - el desempate configurado es 'superTiebreak'
+ *   - es el último set posible (sets empatados)
+ *   - hace falta ganar más de un set (en partidos a 1 set no hay set que sustituir)
+ */
+function isDecidingSuperTiebreak(state) {
+  return state.config.tiebreakType === 'superTiebreak' &&
+         state.config.setsToWin > 1 &&
+         isLastSet(state);
 }
 
 /**
