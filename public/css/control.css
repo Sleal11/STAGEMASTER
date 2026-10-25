@@ -28,6 +28,7 @@
 
 .logo {
   display: inline-block;
+  --logo-height: 72px;     /* Logo de dos líneas en el encabezado del iPhone */
 }
 
 .logo-text {

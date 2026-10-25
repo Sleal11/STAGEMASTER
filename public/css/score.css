@@ -92,6 +92,11 @@ html,
   color: var(--accent-bright);
 }
 
+/* Logo en imagen (dos líneas): más alto que el texto de respaldo */
+.sb-logo {
+  --logo-height: calc(var(--u) * 6.5);
+}
+
 .sb-badge {
   font-family: var(--font-score);
   font-weight: 700;

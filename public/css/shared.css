@@ -180,16 +180,16 @@ input {
 
 /* ─────────────────────────────────────────────────────────────────
    LOGO (brand.js)
-   La imagen ocupa la altura de la letra del contenedor, así cada
-   interfaz controla su tamaño con font-size.
+   img/logo-stagemaster.png es la versión para FONDO OSCURO generada a
+   partir del logo original (img/logo-stagemaster-original.jpg):
+   fondo transparente, letras en blanco y franjas en celeste de marca.
 
-   --logo-filter convierte el logo a BLANCO para el fondo oscuro.
-   IMPORTANTE: requiere un PNG con FONDO TRANSPARENTE; con fondo blanco
-   opaco se vería un rectángulo blanco. Para usar los colores originales
-   del logo, cambiar el valor a "none".
+   Cada interfaz fija el tamaño con --logo-height.
+   --logo-filter permite ajustar el color sin editar la imagen
+   (ej. "brightness(0) invert(1)" para un logo totalmente blanco).
    ───────────────────────────────────────────────────────────────── */
 :root {
-  --logo-filter: brightness(0) invert(1);
+  --logo-filter: none;
 }
 
 .has-logo-image {
@@ -199,7 +199,7 @@ input {
 }
 
 .brand-logo-img {
-  height: 1.4em;
+  height: var(--logo-height, 1.4em);
   width: auto;
   max-width: 100%;
   filter: var(--logo-filter);

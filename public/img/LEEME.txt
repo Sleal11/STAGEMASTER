@@ -12,8 +12,10 @@ Requisitos:
 Se muestra automáticamente en el panel del iPhone y en la pantalla LED
 (js/brand.js). Si el archivo no existe, se muestra el texto "STAGEMASTER".
 
-Por defecto el logo se convierte a BLANCO para verse sobre el fondo azul
-oscuro. Para usar sus colores originales, en css/shared.css cambia:
-    --logo-filter: brightness(0) invert(1);
-por:
+El archivo actual se generó a partir de logo-stagemaster-original.jpg
+(fondo transparente, letras en blanco y franjas en celeste de marca).
+Si se reemplaza por otro logo con letras oscuras, en css/shared.css se
+puede forzar a blanco cambiando:
     --logo-filter: none;
+por:
+    --logo-filter: brightness(0) invert(1);

@@ -12,10 +12,20 @@
  *   - Estado público sin historial, con version y canUndo
  *   - Rechazo de acciones con versión desactualizada (doble toque / 2 dispositivos)
  *   - Protección contra reemplazar un partido en curso
+ *   - Persistencia: recuperar el partido tras reiniciar el servidor
  * ─────────────────────────────────────────────────────────────────
  */
 
 const assert = require('assert');
+const fs     = require('fs');
+const os     = require('os');
+const path   = require('path');
+
+// Las pruebas guardan en una carpeta TEMPORAL, nunca en data/match.json real.
+// Debe definirse ANTES de cargar storage.js.
+const TEST_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'stagemaster-test-'));
+process.env.STAGEMASTER_DATA_DIR = TEST_DATA_DIR;
+const TEST_DATA_FILE = path.join(TEST_DATA_DIR, 'match.json');
 
 // ─────────────────────────────────────────────────────────────────
 // MINI FRAMEWORK DE PRUEBAS (mismo formato que engine.test.js)
@@ -49,14 +59,24 @@ function resumen() {
 // ─────────────────────────────────────────────────────────────────
 
 /**
- * Devuelve un matchManager NUEVO (sin partido) en cada llamada.
- * matchManager guarda el estado en una variable del módulo, así que
- * borramos la caché de require para empezar cada prueba desde cero.
+ * Carga matchManager como si el servidor arrancara de nuevo.
+ * matchManager guarda el estado en variables del módulo, así que
+ * borramos la caché de require para volver a ejecutarlo.
  */
-function freshManager() {
+function loadManager() {
   delete require.cache[require.resolve('./matchManager')];
-  return require('./matchManager');
+  delete require.cache[require.resolve('./storage')];
+  return quiet(() => require('./matchManager'));
 }
+
+/** matchManager NUEVO y SIN partido guardado (cada prueba empieza de cero) */
+function freshManager() {
+  fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+  return loadManager();
+}
+
+/** Simula reiniciar el servidor CONSERVANDO el archivo guardado */
+const restartManager = loadManager;
 
 function validConfig(overrides = {}) {
   return {
@@ -76,11 +96,13 @@ function assertCode(fn, code) {
   assert.throws(fn, (err) => err.code === code, `Debía lanzar ${code}`);
 }
 
-// Silenciar los console.log del gestor para que la salida sea legible
-const originalLog = console.log;
+// Silenciar los mensajes del gestor para que la salida sea legible
+const originalLog  = console.log;
+const originalWarn = console.warn;
 function quiet(fn) {
   console.log = () => {};
-  try { return fn(); } finally { console.log = originalLog; }
+  console.warn = () => {};
+  try { return fn(); } finally { console.log = originalLog; console.warn = originalWarn; }
 }
 
 console.log('\n🖥   STAGEMASTER — GESTOR DE PARTIDO — PRUEBAS\n');
@@ -223,4 +245,45 @@ test('Reset conserva nombres y configuración y vuelve a 0', () => {
   assert.strictEqual(state.canUndo, false);
 });
 
+// ═════════════════════════════════════════════════════════════════
+console.log('\nPERSISTENCIA: REINICIO DEL SERVIDOR');
+// ═════════════════════════════════════════════════════════════════
+
+test('Tras reiniciar el servidor se recupera el partido, la versión y el historial', () => {
+  const mm = freshManager();
+  quiet(() => mm.setup(validConfig()));
+  mm.action('pointA', 1);
+  mm.action('pointA', 2);
+
+  const reiniciado = restartManager();
+  const state      = reiniciado.getState();
+  assert.strictEqual(state.players.A.points, 30);
+  assert.strictEqual(state.version, 3, 'La versión continúa: el iPhone puede seguir sin recargar');
+  assert.strictEqual(state.canUndo, true, 'Se puede deshacer incluso tras el reinicio');
+  assert.strictEqual(reiniciado.action('undo', 3).players.A.points, 15);
+});
+
+test('Sin archivo guardado → arranca sin partido', () => {
+  assert.strictEqual(freshManager().getState(), null);
+});
+
+test('Archivo dañado → arranca sin partido y lo aparta como .corrupt', () => {
+  freshManager();
+  fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
+  fs.writeFileSync(TEST_DATA_FILE, '{ esto no es JSON');
+  const mm = restartManager();
+  assert.strictEqual(mm.getState(), null);
+  assert.ok(fs.readdirSync(TEST_DATA_DIR).some((f) => f.includes('.corrupt-')), 'Debe conservarse una copia para revisarla');
+});
+
+test('El archivo guardado es JSON válido y se actualiza en cada cambio', () => {
+  const mm = freshManager();
+  quiet(() => mm.setup(validConfig()));
+  mm.action('pointB', 1);
+  const saved = JSON.parse(fs.readFileSync(TEST_DATA_FILE, 'utf8'));
+  assert.strictEqual(saved.version, 2);
+  assert.strictEqual(saved.state.players.B.points, 15);
+});
+
+fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
 resumen();

@@ -48,6 +48,24 @@ const io     = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
+// 0.0.0.0 = escuchar en TODAS las redes del PC (Wi-Fi, Ethernet...),
+// no solo en localhost. Imprescindible para que el iPhone pueda entrar.
+const HOST = process.env.HOST || '0.0.0.0';
+
+// ─────────────────────────────────────────────────────────────────
+// REGISTRO DE VISITAS
+// Muestra en consola cada página que se abre. Sirve para diagnosticar:
+// si abres la URL en el iPhone y aquí NO aparece nada, la petición
+// nunca llegó a este servidor (red, firewall u otro programa).
+// ─────────────────────────────────────────────────────────────────
+
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path.endsWith('.html') || req.path === '/health') {
+    console.log(`[HTTP] ${req.method} ${req.path} ← ${req.ip}`);
+  }
+  next();
+});
+
 // ─────────────────────────────────────────────────────────────────
 // ARCHIVOS ESTÁTICOS
 // Express sirve todos los archivos de la carpeta public/
@@ -55,6 +73,18 @@ const PORT = process.env.PORT || 3000;
 // ─────────────────────────────────────────────────────────────────
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Diagnóstico: comprobar desde cualquier dispositivo que llega al servidor
+// Ej. http://192.168.0.121:3000/health → {"ok":true,...}
+app.get('/health', (req, res) => {
+  res.json({
+    ok:       true,
+    app:      'StageMaster',
+    hasMatch: matchManager.getState() !== null,
+    clients:  io.engine.clientsCount,
+    yourIp:   req.ip,
+  });
+});
 
 // Ruta raíz → redirige al panel de control
 app.get('/', (req, res) => {
@@ -196,7 +226,24 @@ function getLocalAddresses() {
   return addresses;
 }
 
-server.listen(PORT, () => {
+// Errores al arrancar (ej. puerto ocupado): mensaje claro en lugar de un
+// error técnico. Si otro programa ya usa el puerto, el navegador hablaría
+// con ESE programa y mostraría errores como ERR_EMPTY_RESPONSE.
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n  ❌ El puerto ${PORT} ya está en uso por otro programa.`);
+    console.error('     - ¿Hay otra ventana con el servidor de StageMaster abierta? Ciérrala.');
+    console.error(`     - Para ver qué programa lo usa (Windows): netstat -ano | findstr :${PORT}`);
+    console.error('     - O arranca en otro puerto (PowerShell): $env:PORT=3001; node server/index.js\n');
+  } else if (err.code === 'EACCES') {
+    console.error(`\n  ❌ Sin permiso para usar el puerto ${PORT}. Prueba con otro, ej. 3001.\n`);
+  } else {
+    console.error('\n  ❌ No se pudo arrancar el servidor:', err.message, '\n');
+  }
+  process.exit(1);
+});
+
+server.listen(PORT, HOST, () => {
   const addresses = getLocalAddresses();
 
   console.log('\n');
@@ -221,5 +268,7 @@ server.listen(PORT, () => {
     console.log('    al mismo router que el iPhone (normalmente empieza por 192.168.).');
   }
 
+  console.log('\n  🩺 Diagnóstico: abre /health (ej. http://IP:' + PORT + '/health) desde el iPhone.');
+  console.log('     Cada página abierta aparece aquí como [HTTP]. Si no aparece, la petición no llegó.');
   console.log('\n  Esperando conexiones...\n');
 });

@@ -9,11 +9,10 @@
  *   - Proteger el partido de peticiones inválidas o desactualizadas
  *   - Exponer una API simple: setup / action / reset / getState
  *
- * ¿Por qué en memoria y no en base de datos?
- *   Para un evento deportivo en vivo, la velocidad es prioritaria.
- *   El estado se perdería si el servidor se reinicia, pero el operador
- *   puede simplemente reiniciar el partido desde el panel.
- *   En versiones futuras se puede agregar persistencia fácilmente.
+ * Memoria + disco:
+ *   El estado vive en memoria (rápido) y además se guarda en disco tras
+ *   cada cambio (storage.js). Al arrancar, el servidor recupera el
+ *   partido guardado: un reinicio en pleno evento no pierde el marcador.
  *
  * VERSIÓN DEL ESTADO (control de concurrencia):
  *   Cada cambio del partido incrementa `version`. El panel envía la versión
@@ -31,17 +30,28 @@
  *   ← index.js llama a matchManager cuando llega un evento de socket
  *   → sports/padel/config.js valida la configuración
  *   → sports/padel/engine.js aplica la lógica de pádel
+ *   → storage.js guarda/recupera el partido en disco
  *   → El resultado se devuelve a index.js para emitir a todos los clientes
  */
 
 const { createMatch, applyAction } = require('./sports/padel/engine');
 const { validateConfig }           = require('./sports/padel/config');
+const storage                      = require('./storage');
 
 // Estado completo del partido actual (con historial). null = no hay partido.
 let currentState = null;
 
 // Se incrementa con cada cambio del partido
 let version = 0;
+
+// ── Recuperar el partido guardado (si el servidor se reinició) ──
+const saved = storage.load();
+if (saved) {
+  currentState = saved.state;
+  version      = saved.version;
+  console.log(`[MatchManager] Partido recuperado del disco: ` +
+    `${currentState.players.A.name} vs ${currentState.players.B.name} (v${version})`);
+}
 
 /**
  * Crea un nuevo partido con la configuración recibida del operador.
@@ -59,8 +69,7 @@ function setup(rawConfig, options = {}) {
   }
 
   const config = validateConfig(rawConfig);
-  currentState = createMatch(config);
-  version += 1;
+  commit(createMatch(config));
 
   console.log(`[MatchManager] Partido creado: ${config.nameA} vs ${config.nameB} (v${version})`);
   return getState();
@@ -81,10 +90,7 @@ function action(actionName, expectedVersion) {
 
   // El motor devuelve el MISMO objeto si la acción no cambió nada
   // (ej. undo sin historial): en ese caso la versión no avanza
-  if (nextState !== currentState) {
-    currentState = nextState;
-    version += 1;
-  }
+  if (nextState !== currentState) commit(nextState);
   return getState();
 }
 
@@ -99,12 +105,11 @@ function reset(expectedVersion) {
   requireVersion(expectedVersion);
 
   const config = currentState.config;
-  currentState = createMatch({
+  commit(createMatch({
     ...config,
     nameA: currentState.players.A.name,
     nameB: currentState.players.B.name,
-  });
-  version += 1;
+  }));
 
   console.log(`[MatchManager] Partido reiniciado (v${version})`);
   return getState();
@@ -123,6 +128,16 @@ function getState() {
     version,
     canUndo: history.length > 0,
   };
+}
+
+/**
+ * ÚNICO punto donde cambia el partido: actualiza el estado, avanza la
+ * versión y lo guarda en disco.
+ */
+function commit(newState) {
+  currentState = newState;
+  version += 1;
+  storage.save(currentState, version);
 }
 
 // ─────────────────────────────────────────────────────────────────
