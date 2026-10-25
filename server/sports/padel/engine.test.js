@@ -426,6 +426,29 @@ test('changeServer: el servidor cambia de A a B correctamente', () => {
   assert.strictEqual(cambiado.server, 'B', 'Servidor debe haber cambiado a B');
 });
 
+test('Undo después de changeServer: restaura el servidor sin tocar los puntos', () => {
+  let estado = applyMany(createMatch(config({ initialServer: 'A' })), ['pointA', 'changeServer']);
+  assert.strictEqual(estado.server, 'B');
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.server, 'A', 'El undo revierte la corrección de saque');
+  assert.strictEqual(estado.players.A.points, 15, 'El punto anterior se conserva');
+});
+
+test('Undo después de finishMatch: el partido vuelve a jugarse con los puntos intactos', () => {
+  let estado = applyMany(createMatch(config()), ['pointA', 'pointA', 'finishMatch']);
+  assert.strictEqual(estado.status, 'finished');
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.status, 'playing', 'El final se deshace');
+  assert.strictEqual(estado.winner, null);
+  assert.strictEqual(estado.players.A.points, 30, 'Los puntos válidos NO se pierden');
+});
+
+test('finishMatch sin puntos previos también se puede deshacer', () => {
+  let estado = applyAction(createMatch(config()), 'finishMatch');
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.status, 'playing');
+});
+
 test('changeServer doble: regresa al servidor original', () => {
   const estado  = createMatch(config({ initialServer: 'A' }));
   const paso1   = applyAction(estado, 'changeServer'); // A → B

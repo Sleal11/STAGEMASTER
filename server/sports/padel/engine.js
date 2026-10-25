@@ -121,15 +121,8 @@ function applyPoint(state, scorer) {
   // Seguridad: no procesar puntos si el partido ya terminó
   if (state.status !== 'playing') return state;
 
-  // ── 1. Guardar estado en historial (para permitir undo) ────────
-  // Hacemos una copia del estado actual SIN su historial.
-  // Esto mantiene el historial PLANO (sin anidamiento infinito).
-  const snapshot = deepCopy(state);
-  snapshot.history = []; // Limpiamos el historial del snapshot
-
-  // ── 2. Crear estado de trabajo con historial actualizado ───────
-  let s = deepCopy(state);
-  s.history = [snapshot, ...state.history].slice(0, MAX_HISTORIAL);
+  // ── 1 y 2. Copia de trabajo con el estado actual guardado en el historial
+  let s = withHistory(state);
 
   // ── 3. Aplicar lógica según la fase actual ─────────────────────
   if (s.phase === 'normal') {
@@ -167,10 +160,11 @@ function applyUndo(state) {
 
 /**
  * Cambia manualmente el servidor (corrección del operador).
+ * Se guarda en el historial: "Deshacer" revierte la última ACCIÓN.
  */
 function applyChangeServer(state) {
   if (state.status !== 'playing') return state;
-  const s = deepCopy(state);
+  const s = withHistory(state);
   s.server = toggleServer(s.server);
   return s;
 }
@@ -181,7 +175,8 @@ function applyChangeServer(state) {
  */
 function applyFinishMatch(state) {
   if (state.status === 'finished') return state;
-  const s = deepCopy(state);
+  // Se guarda en el historial: si el operador finalizó por error, puede deshacerlo
+  const s = withHistory(state);
   s.status        = 'finished';
   s.decisivePoint = false;
 
@@ -190,6 +185,22 @@ function applyFinishMatch(state) {
   else if (s.players.B.sets > s.players.A.sets) s.winner = 'B';
   // Si están igualados en sets: winner queda null (empate forzado)
 
+  return s;
+}
+
+/**
+ * Devuelve una copia del estado con el estado actual añadido al
+ * historial (para que "Deshacer" pueda volver a él).
+ *
+ * El snapshot se guarda SIN su propio historial: así el historial es
+ * PLANO (sin anidamiento infinito) y se limita a MAX_HISTORIAL entradas.
+ */
+function withHistory(state) {
+  const snapshot = deepCopy(state);
+  snapshot.history = [];
+
+  const s = deepCopy(state);
+  s.history = [snapshot, ...state.history].slice(0, MAX_HISTORIAL);
   return s;
 }
 

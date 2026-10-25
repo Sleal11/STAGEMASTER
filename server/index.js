@@ -13,13 +13,14 @@
  * Flujo de una acción:
  *
  *   iPhone (control.html)
- *     → socket.emit('pointA')
+ *     → socket.emit('pointA', { version }, ack)
  *       → index.js recibe el evento
- *         → matchManager.action('pointA')
+ *         → matchManager.action('pointA', version)
  *           → engine.js calcula el nuevo estado
  *         → io.emit('matchUpdate', nuevoEstado)
  *           → iPhone actualiza su UI
  *           → Pantalla LED actualiza el marcador
+ *         → ack({ ok: true })  ← el iPhone desbloquea sus botones
  *
  * Relación con otros archivos:
  *   ← matchManager.js gestiona el estado del partido
@@ -64,12 +65,14 @@ app.get('/', (req, res) => {
 // SOCKET.IO — COMUNICACIÓN EN TIEMPO REAL
 // ─────────────────────────────────────────────────────────────────
 
+/** Acciones de partido que el panel puede enviar (lista blanca) */
+const MATCH_ACTIONS = ['pointA', 'pointB', 'undo', 'changeServer', 'finishMatch'];
+
 /**
- * Emite el estado actual a todos los clientes conectados.
- * Se llama después de cada acción que cambia el estado.
+ * Emite el estado actual a TODOS los clientes conectados
+ * (panel de control + pantalla LED).
  */
 function broadcastState(state) {
-  if (!state) return;
   io.emit('matchUpdate', state);
 }
 
@@ -80,17 +83,52 @@ function getClientsCount() {
   return io.engine.clientsCount;
 }
 
+/**
+ * Ejecuta una petición del panel y responde con un acuse de recibo (ack).
+ *
+ *   ✓ Éxito: emite el nuevo estado a todos y responde { ok: true }
+ *   ✗ Error: responde { ok: false, code, message, state } solo a quien la envió
+ *            (state = estado actual, para que el panel se resincronice)
+ *
+ * @param {Socket}   socket    - Cliente que envió la petición
+ * @param {string}   eventName - Nombre del evento (para los logs)
+ * @param {Function} operation - Llama a matchManager y devuelve el nuevo estado
+ * @param {Function} [ack]     - Callback de Socket.IO para responder al cliente
+ */
+function handleRequest(socket, eventName, operation, ack) {
+  // El cliente puede no enviar callback (ej. herramientas de prueba)
+  const reply = typeof ack === 'function' ? ack : () => {};
+
+  try {
+    const newState = operation();
+    broadcastState(newState);
+    reply({ ok: true });
+  } catch (err) {
+    console.warn(`[Event] ${eventName} rechazado (${socket.id}): ${err.message}`);
+    reply({
+      ok:      false,
+      code:    err.code || 'SERVER_ERROR',
+      message: err.code ? err.message : 'Error interno del servidor',
+      state:   matchManager.getState(),
+    });
+  }
+}
+
+/** Lee la versión enviada por el panel: socket.emit('pointA', { version: 12 }, ack) */
+function versionOf(payload) {
+  return payload && typeof payload === 'object' ? payload.version : undefined;
+}
+
 // ── Gestión de conexiones ─────────────────────────────────────────
 
 io.on('connection', (socket) => {
   const clientIp = socket.handshake.address;
   console.log(`[+] Conectado: ${socket.id} desde ${clientIp} | Total: ${getClientsCount()}`);
 
-  // Al conectarse, enviar el estado actual (para reconexiones o llegada tardía)
-  const state = matchManager.getState();
-  if (state) {
-    socket.emit('matchUpdate', state);
-  }
+  // Al conectarse (o reconectarse), enviar SIEMPRE el estado actual.
+  // null significa "no hay partido": la LED muestra la espera y el panel
+  // vuelve al setup (ej. si el servidor se reinició).
+  socket.emit('matchUpdate', matchManager.getState());
 
   // Notificar al cliente que está conectado y cuántos hay
   socket.emit('serverConnected', {
@@ -102,50 +140,26 @@ io.on('connection', (socket) => {
   io.emit('clientsCount', getClientsCount());
 
   // ── Evento: Configurar e iniciar partido ───────────────────────
-  // Recibe la configuración del formulario y crea el partido
-  socket.on('setupMatch', (config) => {
+  // payload: { config: {...}, force: boolean }
+  //   force = true → el operador confirmó reemplazar un partido en curso
+  socket.on('setupMatch', (payload, ack) => {
     console.log(`[Event] setupMatch recibido de ${socket.id}`);
-    try {
-      const newState = matchManager.setup(config);
-      broadcastState(newState);
-    } catch (err) {
-      console.error('[Error] setupMatch:', err.message);
-      socket.emit('matchError', { message: err.message });
-    }
+    const { config, force } = payload && typeof payload === 'object' ? payload : {};
+    handleRequest(socket, 'setupMatch', () => matchManager.setup(config, { force: force === true }), ack);
   });
 
-  // ── Eventos de puntuación ──────────────────────────────────────
-
-  socket.on('pointA', () => {
-    const newState = matchManager.action('pointA');
-    broadcastState(newState);
-  });
-
-  socket.on('pointB', () => {
-    const newState = matchManager.action('pointB');
-    broadcastState(newState);
-  });
-
-  socket.on('undo', () => {
-    const newState = matchManager.action('undo');
-    broadcastState(newState);
-  });
-
-  socket.on('changeServer', () => {
-    const newState = matchManager.action('changeServer');
-    broadcastState(newState);
-  });
-
-  socket.on('finishMatch', () => {
-    const newState = matchManager.action('finishMatch');
-    broadcastState(newState);
+  // ── Eventos del partido (puntos, undo, saque, finalizar) ───────
+  // payload: { version: number }
+  MATCH_ACTIONS.forEach((actionName) => {
+    socket.on(actionName, (payload, ack) => {
+      handleRequest(socket, actionName, () => matchManager.action(actionName, versionOf(payload)), ack);
+    });
   });
 
   // ── Evento: Reiniciar partido ──────────────────────────────────
-  socket.on('resetMatch', () => {
+  socket.on('resetMatch', (payload, ack) => {
     console.log(`[Event] resetMatch recibido de ${socket.id}`);
-    const newState = matchManager.reset();
-    broadcastState(newState);
+    handleRequest(socket, 'resetMatch', () => matchManager.reset(versionOf(payload)), ack);
   });
 
   // ── Desconexión ───────────────────────────────────────────────

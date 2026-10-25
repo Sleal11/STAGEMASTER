@@ -5,7 +5,9 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "test:engine": "node server/sports/padel/engine.test.js"
+    "test": "node server/sports/padel/engine.test.js && node server/matchManager.test.js",
+    "test:engine": "node server/sports/padel/engine.test.js",
+    "test:server": "node server/matchManager.test.js"
   },
   "author": "StageMaster",
   "license": "ISC",

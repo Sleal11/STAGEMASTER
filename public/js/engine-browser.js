@@ -66,11 +66,7 @@
   function applyPoint(state, scorer) {
     if (state.status !== 'playing') return state;
 
-    var snapshot    = deepCopy(state);
-    snapshot.history = [];
-
-    var s    = deepCopy(state);
-    s.history = [snapshot].concat(state.history).slice(0, MAX_HIST);
+    var s = withHistory(state);
 
     if (s.phase === 'normal') {
       s = processNormalPoint(s, scorer);
@@ -96,14 +92,14 @@
 
   function applyChangeServer(state) {
     if (state.status !== 'playing') return state;
-    var s    = deepCopy(state);
+    var s    = withHistory(state);   // se puede deshacer
     s.server = toggleServer(s.server);
     return s;
   }
 
   function applyFinishMatch(state) {
     if (state.status === 'finished') return state;
-    var s    = deepCopy(state);
+    var s    = withHistory(state);   // se puede deshacer
     s.status        = 'finished';
     s.decisivePoint = false;
     if      (s.players.A.sets > s.players.B.sets) s.winner = 'A';
@@ -261,6 +257,15 @@
   function tiebreakFirstServer(currentServer, totalPoints) {
     var cambios = Math.ceil(totalPoints / 2);
     return cambios % 2 === 1 ? toggleServer(currentServer) : currentServer;
+  }
+
+  // Copia del estado con el actual guardado en el historial (ver engine.js)
+  function withHistory(state) {
+    var snapshot = deepCopy(state);
+    snapshot.history = [];
+    var s = deepCopy(state);
+    s.history = [snapshot].concat(state.history).slice(0, MAX_HIST);
+    return s;
   }
 
   function opponent(p)      { return p === 'A' ? 'B' : 'A'; }

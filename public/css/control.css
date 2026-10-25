@@ -524,6 +524,63 @@
   background: var(--warning);
 }
 
+.status-dot.offline {
+  background: var(--danger);
+  animation: pulse 1s ease infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ESTADOS DE CONEXIÓN DEL PANEL (Fase 7)
+   ───────────────────────────────────────────────────────────────── */
+
+/* Esperando respuesta del servidor (solo visible si tarda > 250 ms) */
+body.is-pending .btn-point,
+body.is-pending .btn-undo,
+body.is-pending .btn-server {
+  opacity: 0.6;
+}
+
+/* Sin conexión: los botones de acción se ven deshabilitados */
+body.is-offline .btn-point,
+body.is-offline .btn-undo,
+body.is-offline .btn-server,
+body.is-offline .btn-secondary {
+  opacity: 0.35;
+}
+
+/* Deshacer sin historial disponible */
+.btn-undo:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   AVISO FLOTANTE (toast)
+   ───────────────────────────────────────────────────────────────── */
+
+.toast {
+  position: fixed;
+  left: var(--space-md);
+  right: var(--space-md);
+  top: calc(env(safe-area-inset-top, 0px) + var(--space-md));
+  z-index: 200;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  animation: slideDown var(--transition-normal);
+}
+
+.toast.is-error {
+  background: #3A1214;
+  border-color: var(--danger);
+}
+
 /* ─────────────────────────────────────────────────────────────────
    PANTALLA FINALIZADO
    ───────────────────────────────────────────────────────────────── */
