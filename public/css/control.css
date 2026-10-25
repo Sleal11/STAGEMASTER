@@ -1,0 +1,681 @@
+/*
+ * control.css — Estilos del Panel de Control (iPhone)
+ * Diseñado para uso táctil: botones grandes, lectura rápida.
+ */
+
+/* ─────────────────────────────────────────────────────────────────
+   LAYOUT BASE — Una sola columna, scroll vertical
+   ───────────────────────────────────────────────────────────────── */
+
+.screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
+  animation: fadeIn 250ms ease;
+  max-width: 480px;   /* Centra en tablets, ideal en iPhone */
+  margin: 0 auto;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   LOGO / HEADER
+   ───────────────────────────────────────────────────────────────── */
+
+.header {
+  text-align: center;
+  padding: var(--space-lg) 0 var(--space-md);
+}
+
+.logo {
+  display: inline-block;
+}
+
+.logo-text {
+  font-family: var(--font-score);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.logo-text span {
+  color: var(--accent-bright);
+}
+
+.logo-subtitle {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 3px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   TARJETAS / CARDS
+   ───────────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+  box-shadow: var(--shadow-card);
+}
+
+.card-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   INPUTS DE TEXTO
+   ───────────────────────────────────────────────────────────────── */
+
+.input-text {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 14px var(--space-md);
+  font-size: 1rem;
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast);
+}
+
+.input-text::placeholder {
+  color: var(--text-muted);
+}
+
+.input-text:focus {
+  border-color: var(--accent-bright);
+  background: rgba(30, 144, 255, 0.08);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   PILL BUTTONS (selección de opciones: 1, 2, 3, 4, 5, 6)
+   ───────────────────────────────────────────────────────────────── */
+
+.pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.pill-btn {
+  flex: 1;
+  min-width: 44px;
+  height: 44px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pill-btn:active {
+  transform: scale(0.93);
+}
+
+.pill-btn.selected {
+  background: var(--accent-bright);
+  border-color: var(--accent-bright);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-btn);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   TOGGLE BUTTONS (2 o 3 opciones exclusivas)
+   ───────────────────────────────────────────────────────────────── */
+
+.toggle-group {
+  display: flex;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  gap: 4px;
+}
+
+.toggle-btn {
+  flex: 1;
+  height: 42px;
+  background: transparent;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all var(--transition-fast);
+}
+
+.toggle-btn:active {
+  transform: scale(0.96);
+}
+
+.toggle-btn.selected {
+  background: var(--accent-bright);
+  color: var(--text-primary);
+  box-shadow: 0 2px 10px rgba(30, 144, 255, 0.4);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BOTÓN PRIMARIO (CTA principal — "INICIAR PARTIDO")
+   ───────────────────────────────────────────────────────────────── */
+
+.btn-primary {
+  width: 100%;
+  height: 60px;
+  background: var(--accent-bright);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  box-shadow: var(--shadow-btn);
+  transition: all var(--transition-fast);
+  margin-top: var(--space-md);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+  box-shadow: none;
+  background: var(--accent-primary);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   PANTALLA DE PARTIDO — Score mini (en el operador)
+   ───────────────────────────────────────────────────────────────── */
+
+.live-score-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  box-shadow: var(--shadow-card);
+}
+
+.live-score-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+
+.live-score-status {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-bright);
+}
+
+.phase-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  background: var(--accent-bright);
+  color: white;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  animation: glow 2s ease infinite;
+}
+
+/* Fila de cada equipo en el mini score */
+.score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.score-row:last-of-type {
+  border-bottom: none;
+}
+
+.score-team-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 55%;
+}
+
+.server-icon {
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.server-icon.visible {
+  opacity: 1;
+  animation: pulse 1.8s ease infinite;
+}
+
+/* Columnas PTS | GAMES | SETS */
+.score-values {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.score-col {
+  width: 44px;
+  text-align: center;
+}
+
+.score-col .score-num {
+  font-family: var(--font-score);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  display: block;
+}
+
+.score-col .score-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: block;
+}
+
+.score-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border-color);
+  margin: 0 4px;
+}
+
+/* Historial de sets */
+.set-history {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  margin-top: var(--space-sm);
+  min-height: 16px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BOTONES GRANDES DE PUNTO (las 2 acciones más frecuentes)
+   ───────────────────────────────────────────────────────────────── */
+
+.point-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.btn-point {
+  height: clamp(120px, 28vw, 160px);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Efecto de brillo al fondo */
+.btn-point::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.btn-point-a {
+  background: linear-gradient(145deg, var(--accent-bright), var(--accent-primary));
+  box-shadow: var(--shadow-btn);
+}
+
+.btn-point-b {
+  background: linear-gradient(145deg, #1A4A8A, #0D2347);
+  border: 1px solid var(--border-bright);
+  box-shadow: var(--shadow-card);
+}
+
+.btn-point:active {
+  transform: scale(0.94);
+  box-shadow: none;
+}
+
+.btn-point-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+}
+
+.btn-point-action {
+  font-family: var(--font-score);
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.btn-point-name {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.6);
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 var(--space-sm);
+  text-align: center;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BOTONES SECUNDARIOS (Deshacer, Reiniciar, Finalizar, Saque)
+   ───────────────────────────────────────────────────────────────── */
+
+.secondary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-xl);
+}
+
+/* DESHACER — rojo, full width */
+.btn-undo {
+  width: 100%;
+  height: 56px;
+  background: var(--danger-bg);
+  border: 1.5px solid rgba(229, 57, 53, 0.40);
+  border-radius: var(--radius-lg);
+  color: var(--danger);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+.btn-undo:active {
+  transform: scale(0.97);
+  background: rgba(229, 57, 53, 0.25);
+}
+
+/* Estado de confirmación pendiente */
+.btn-undo.confirming {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+  animation: pulse 0.8s ease infinite;
+}
+
+/* Fila de 2 botones */
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.btn-secondary {
+  height: 52px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-secondary:active {
+  transform: scale(0.96);
+  background: rgba(255,255,255,0.10);
+  color: var(--text-primary);
+}
+
+/* CAMBIAR SAQUE — outlined, full width */
+.btn-server {
+  width: 100%;
+  height: 52px;
+  background: transparent;
+  border: 1.5px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  color: var(--accent-bright);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+.btn-server:active {
+  background: rgba(30, 144, 255, 0.12);
+  transform: scale(0.97);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BARRA DE ESTADO (conexión)
+   ───────────────────────────────────────────────────────────────── */
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.status-dot.connected {
+  background: var(--success);
+  animation: pulse 2s ease infinite;
+}
+
+.status-dot.local {
+  background: var(--warning);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   PANTALLA FINALIZADO
+   ───────────────────────────────────────────────────────────────── */
+
+.finished-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--space-lg);
+  animation: fadeIn 300ms ease;
+}
+
+.winner-star {
+  font-size: 3.5rem;
+  animation: starPulse 2s ease infinite;
+}
+
+.winner-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+}
+
+.winner-name {
+  font-family: var(--font-score);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--winner-gold);
+  text-shadow: var(--glow-gold);
+  margin: var(--space-xs) 0;
+}
+
+.final-sets {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  letter-spacing: 3px;
+}
+
+.finished-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 0 var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   MODAL DE CONFIRMACIÓN
+   ───────────────────────────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.70);
+  display: flex;
+  align-items: flex-end;   /* Sube desde abajo — natural en móvil */
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-md);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 150ms ease;
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl);
+  width: 100%;
+  max-width: 400px;
+  animation: slideUp 200ms ease;
+  box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.modal-message {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-lg);
+}
+
+.modal-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.modal-cancel {
+  height: 52px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.modal-cancel:active { transform: scale(0.96); }
+
+.modal-confirm {
+  height: 52px;
+  background: var(--danger);
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-danger);
+}
+
+.modal-confirm:active {
+  transform: scale(0.96);
+  background: var(--danger-hover);
+}
+
+/* Modal de confirmación positiva (para nuevo partido) */
+.modal-confirm.positive {
+  background: var(--accent-bright);
+  box-shadow: var(--shadow-btn);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   MENSAJE DE ERROR inline
+   ───────────────────────────────────────────────────────────────── */
+
+.error-msg {
+  font-size: 0.78rem;
+  color: var(--danger);
+  padding: var(--space-xs) var(--space-sm);
+  margin-top: 4px;
+  animation: slideDown 150ms ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SEPARADOR DE SECCIÓN
+   ───────────────────────────────────────────────────────────────── */
+
+.section-spacer {
+  height: var(--space-md);
+}

@@ -1,0 +1,16 @@
+{
+  "name": "stagemaster",
+  "version": "1.0.0",
+  "description": "Sistema de marcador profesional para eventos deportivos - StageMaster",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test:engine": "node server/sports/padel/engine.test.js"
+  },
+  "author": "StageMaster",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  }
+}

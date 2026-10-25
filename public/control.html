@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <!--
+    viewport: width=device-width → usa el ancho real del iPhone
+    initial-scale=1.0           → sin zoom inicial
+    user-scalable=no            → evita zoom accidental durante el partido
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0A1628" />
+  <meta name="description" content="StageMaster - Panel de control para marcador de pádel" />
+  <title>StageMaster · Control</title>
+  <link rel="stylesheet" href="css/shared.css" />
+  <link rel="stylesheet" href="css/control.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PANTALLA 1: CONFIGURACIÓN DEL PARTIDO
+     Visible al abrir la app por primera vez.
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="screen-setup" class="screen">
+
+  <!-- Logo -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-text">STAGE<span>MASTER</span></div>
+      <div class="logo-subtitle">Padel Score · Control</div>
+    </div>
+  </div>
+
+  <!-- Nombre Equipo A -->
+  <div class="card">
+    <div class="card-label">Nombre Equipo A</div>
+    <input
+      id="input-name-a"
+      class="input-text"
+      type="text"
+      placeholder="Ej: García / Martínez"
+      maxlength="30"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+    />
+    <div id="error-name-a" class="error-msg hidden">Introduce el nombre del Equipo A</div>
+  </div>
+
+  <!-- Nombre Equipo B -->
+  <div class="card">
+    <div class="card-label">Nombre Equipo B</div>
+    <input
+      id="input-name-b"
+      class="input-text"
+      type="text"
+      placeholder="Ej: López / Fernández"
+      maxlength="30"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+    />
+    <div id="error-name-b" class="error-msg hidden">Introduce el nombre del Equipo B</div>
+  </div>
+
+  <!-- Games por Set -->
+  <div class="card">
+    <div class="card-label">Games por Set</div>
+    <div class="pill-group" id="group-games-per-set">
+      <button class="pill-btn" data-value="1">1</button>
+      <button class="pill-btn" data-value="2">2</button>
+      <button class="pill-btn" data-value="3">3</button>
+      <button class="pill-btn" data-value="4">4</button>
+      <button class="pill-btn" data-value="5">5</button>
+      <button class="pill-btn selected" data-value="6">6</button>
+    </div>
+  </div>
+
+  <!-- Cantidad de Sets -->
+  <div class="card">
+    <div class="card-label">Cantidad de Sets</div>
+    <div class="pill-group" id="group-total-sets">
+      <button class="pill-btn" data-value="1">1</button>
+      <button class="pill-btn" data-value="2">2</button>
+      <button class="pill-btn selected" data-value="3">3</button>
+      <button class="pill-btn" data-value="5">5</button>
+    </div>
+  </div>
+
+  <!-- Sistema de Puntuación -->
+  <div class="card">
+    <div class="card-label">Sistema de Puntuación</div>
+    <div class="toggle-group" id="group-scoring">
+      <button class="toggle-btn selected" data-value="advantage">Ventaja</button>
+      <button class="toggle-btn" data-value="goldenPoint">Punto de Oro</button>
+    </div>
+  </div>
+
+  <!-- Desempate -->
+  <div class="card">
+    <div class="card-label">Desempate (Último Set)</div>
+    <div class="toggle-group" id="group-tiebreak">
+      <button class="toggle-btn selected" data-value="tiebreak">Tie Break</button>
+      <button class="toggle-btn" data-value="superTiebreak">Super TB</button>
+      <button class="toggle-btn" data-value="none">Ninguno</button>
+    </div>
+  </div>
+
+  <!-- Saque Inicial -->
+  <div class="card">
+    <div class="card-label">Saque Inicial</div>
+    <div class="toggle-group" id="group-server">
+      <button class="toggle-btn selected" data-value="A" id="server-btn-a">Equipo A</button>
+      <button class="toggle-btn" data-value="B" id="server-btn-b">Equipo B</button>
+    </div>
+  </div>
+
+  <!-- Botón Iniciar -->
+  <div class="section-spacer"></div>
+  <button id="btn-start-match" class="btn-primary">▶ INICIAR PARTIDO</button>
+  <div class="section-spacer"></div>
+
+</div><!-- /screen-setup -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PANTALLA 2: PARTIDO EN CURSO
+     Se muestra al iniciar el partido.
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="screen-match" class="screen hidden">
+
+  <!-- Mini marcador (siempre visible arriba) -->
+  <div class="live-score-card">
+    <div class="live-score-header">
+      <span class="live-score-status" id="match-status-label">SET 1 · EN CURSO</span>
+      <span class="phase-badge hidden" id="phase-badge">TIE BREAK</span>
+    </div>
+
+    <!-- Encabezados de columnas -->
+    <div style="display:flex; justify-content:flex-end; padding-right:2px; margin-bottom:4px;">
+      <div style="display:flex; gap:0;">
+        <div style="width:44px; text-align:center; font-size:0.55rem; letter-spacing:1px; color:var(--text-muted); text-transform:uppercase;">PTS</div>
+        <div style="width:5px;"></div>
+        <div style="width:44px; text-align:center; font-size:0.55rem; letter-spacing:1px; color:var(--text-muted); text-transform:uppercase;">GAMES</div>
+        <div style="width:5px;"></div>
+        <div style="width:44px; text-align:center; font-size:0.55rem; letter-spacing:1px; color:var(--text-muted); text-transform:uppercase;">SETS</div>
+      </div>
+    </div>
+
+    <!-- Fila Equipo A -->
+    <div class="score-row">
+      <div class="score-team-name">
+        <span class="server-icon" id="server-icon-a">🎾</span>
+        <span id="team-name-a-match">Equipo A</span>
+      </div>
+      <div class="score-values">
+        <div class="score-col">
+          <span class="score-num" id="pts-a">0</span>
+        </div>
+        <div class="score-divider"></div>
+        <div class="score-col">
+          <span class="score-num" id="games-a">0</span>
+        </div>
+        <div class="score-divider"></div>
+        <div class="score-col">
+          <span class="score-num" id="sets-a">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fila Equipo B -->
+    <div class="score-row">
+      <div class="score-team-name">
+        <span class="server-icon" id="server-icon-b">🎾</span>
+        <span id="team-name-b-match">Equipo B</span>
+      </div>
+      <div class="score-values">
+        <div class="score-col">
+          <span class="score-num" id="pts-b">0</span>
+        </div>
+        <div class="score-divider"></div>
+        <div class="score-col">
+          <span class="score-num" id="games-b">0</span>
+        </div>
+        <div class="score-divider"></div>
+        <div class="score-col">
+          <span class="score-num" id="sets-b">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historial de sets -->
+    <div class="set-history" id="set-history"></div>
+  </div>
+
+  <!-- ── BOTONES PRINCIPALES DE PUNTO ─────────────────────────── -->
+  <div class="point-buttons">
+    <!-- Punto Equipo A -->
+    <button class="btn-point btn-point-a" id="btn-point-a">
+      <span class="btn-point-label">PUNTO</span>
+      <span class="btn-point-action">A</span>
+      <span class="btn-point-name" id="btn-point-a-name">Equipo A</span>
+    </button>
+
+    <!-- Punto Equipo B -->
+    <button class="btn-point btn-point-b" id="btn-point-b">
+      <span class="btn-point-label">PUNTO</span>
+      <span class="btn-point-action">B</span>
+      <span class="btn-point-name" id="btn-point-b-name">Equipo B</span>
+    </button>
+  </div>
+
+  <!-- ── ACCIONES SECUNDARIAS ──────────────────────────────────── -->
+  <div class="secondary-actions">
+
+    <!-- Deshacer (con confirmación de doble toque) -->
+    <button class="btn-undo" id="btn-undo">
+      ↩ DESHACER ÚLTIMO PUNTO
+    </button>
+
+    <!-- Reiniciar y Finalizar -->
+    <div class="btn-row">
+      <button class="btn-secondary" id="btn-reset">
+        ⟳ Reiniciar
+      </button>
+      <button class="btn-secondary" id="btn-finish">
+        🏁 Finalizar
+      </button>
+    </div>
+
+    <!-- Cambiar Saque -->
+    <button class="btn-server" id="btn-change-server">
+      🎾 CAMBIAR SAQUE
+    </button>
+
+  </div>
+
+  <!-- Barra de estado de conexión -->
+  <div class="status-bar">
+    <div class="status-dot local" id="status-dot"></div>
+    <span id="status-text">Modo local · Sin servidor</span>
+  </div>
+
+</div><!-- /screen-match -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PANTALLA 3: PARTIDO FINALIZADO
+     Se muestra cuando hay un ganador.
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="screen-finished" class="screen hidden">
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-text">STAGE<span>MASTER</span></div>
+    </div>
+  </div>
+
+  <div class="finished-screen">
+    <div class="winner-star">⭐</div>
+    <div>
+      <div class="winner-label">Ganador del Partido</div>
+      <div class="winner-name" id="winner-name">Equipo A</div>
+    </div>
+    <div class="final-sets" id="final-sets">6-3 · 6-4</div>
+  </div>
+
+  <div class="finished-actions">
+    <button class="btn-primary" id="btn-new-match"
+      style="background: linear-gradient(135deg, var(--accent-bright), var(--accent-primary));">
+      + NUEVO PARTIDO
+    </button>
+    <button class="btn-secondary" id="btn-back-to-match"
+      style="width:100%; height:52px; font-size:0.85rem;">
+      ← Volver al Marcador
+    </button>
+  </div>
+
+</div><!-- /screen-finished -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MODAL DE CONFIRMACIÓN (global, sobre todas las pantallas)
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">¿Confirmar acción?</div>
+    <div class="modal-message" id="modal-message">Esta acción no se puede deshacer.</div>
+    <div class="modal-buttons">
+      <button class="modal-cancel" id="modal-cancel">Cancelar</button>
+      <button class="modal-confirm" id="modal-confirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SCRIPTS
+     engine-browser.js primero (define window.PadelEngine)
+     control.js después (usa PadelEngine)
+     ═══════════════════════════════════════════════════════════════ -->
+<script src="js/engine-browser.js"></script>
+<script src="js/control.js"></script>
+
+</body>
+</html>

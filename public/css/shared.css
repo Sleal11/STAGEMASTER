@@ -1,0 +1,175 @@
+/*
+ * shared.css — Sistema de diseño StageMaster
+ * Variables CSS, tipografía, reset y utilidades compartidas
+ * entre control.html y score.html
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
+
+/* ─────────────────────────────────────────────────────────────────
+   TOKENS DE DISEÑO (variables globales)
+   ───────────────────────────────────────────────────────────────── */
+:root {
+  /* Fondos */
+  --bg-primary:       #0A1628;   /* Azul muy oscuro — fondo principal */
+  --bg-secondary:     #0D2347;   /* Azul marino — fondo secundario    */
+  --bg-card:          #112D5E;   /* Azul medio — tarjetas y paneles   */
+  --bg-card-hover:    #1A3A6E;   /* Hover de tarjetas                 */
+  --bg-input:         #0D2040;   /* Fondo de inputs                   */
+
+  /* Colores de marca */
+  --accent-primary:   #1565C0;   /* Azul corporativo                  */
+  --accent-bright:    #1E90FF;   /* Azul eléctrico — botones activos  */
+  --accent-cyan:      #00D4FF;   /* Cian — detalles tecnológicos      */
+  --accent-dim:       #1A4A8A;   /* Azul apagado — botones inactivos  */
+
+  /* Texto */
+  --text-primary:     #FFFFFF;   /* Blanco puro                       */
+  --text-secondary:   #8AAED4;   /* Azul grisáceo                     */
+  --text-muted:       #4A6A8A;   /* Gris oscuro                       */
+
+  /* Estados */
+  --danger:           #E53935;   /* Rojo — acciones destructivas      */
+  --danger-hover:     #C62828;
+  --danger-bg:        rgba(229, 57, 53, 0.12);
+  --winner-gold:      #FFD700;   /* Dorado — estrella ganador         */
+  --success:          #00CC66;   /* Verde — confirmaciones            */
+  --warning:          #FF9800;   /* Naranja — advertencias            */
+
+  /* Bordes */
+  --border-color:     rgba(30, 144, 255, 0.20);
+  --border-bright:    rgba(30, 144, 255, 0.50);
+
+  /* Espaciado (sistema de 8px) */
+  --space-xs:   4px;
+  --space-sm:   8px;
+  --space-md:   16px;
+  --space-lg:   24px;
+  --space-xl:   32px;
+  --space-2xl:  48px;
+  --space-3xl:  64px;
+
+  /* Radios de borde */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-pill: 50px;
+
+  /* Tipografía */
+  --font-ui:     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-score:  'Oswald', sans-serif;
+
+  /* Sombras */
+  --shadow-card:   0 4px 24px rgba(0, 0, 0, 0.50);
+  --shadow-btn:    0 4px 20px rgba(30, 144, 255, 0.35);
+  --shadow-danger: 0 4px 20px rgba(229, 57, 53, 0.30);
+  --glow-accent:   0 0 24px rgba(30, 144, 255, 0.40);
+  --glow-gold:     0 0 24px rgba(255, 215, 0, 0.50);
+
+  /* Transiciones */
+  --transition-fast:   120ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow:   350ms ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   RESET GLOBAL
+   ───────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  /* Elimina el flash azul en dispositivos móviles al tocar */
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-size: 16px;
+  /* Previene que iOS agrande fuentes automáticamente */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* Scrolling suave en iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+button {
+  font-family: var(--font-ui);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  /* Asegura que botones no hereden estilos del navegador móvil */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input {
+  font-family: var(--font-ui);
+  outline: none;
+  border: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   UTILIDADES
+   ───────────────────────────────────────────────────────────────── */
+
+/* Ocultar elemento completamente */
+.hidden {
+  display: none !important;
+}
+
+/* Texto secundario */
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted);     }
+.text-danger    { color: var(--danger);          }
+.text-gold      { color: var(--winner-gold);     }
+.text-success   { color: var(--success);         }
+
+/* Alineación de texto */
+.text-center { text-align: center; }
+.text-left   { text-align: left;   }
+
+/* ─────────────────────────────────────────────────────────────────
+   ANIMACIONES GLOBALES
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1;    }
+  50%       { opacity: 0.6; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(30, 144, 255, 0.3); }
+  50%       { box-shadow: 0 0 25px rgba(30, 144, 255, 0.7); }
+}
+
+@keyframes starPulse {
+  0%, 100% { transform: scale(1);    filter: brightness(1);   }
+  50%       { transform: scale(1.15); filter: brightness(1.3); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
