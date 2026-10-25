@@ -1,0 +1,374 @@
+/*
+ * score.css — Estilos de la Pantalla LED (score.html)
+ *
+ * Objetivos:
+ *   - Ocupar el 100% de la pantalla sin scroll, cursor ni elementos del navegador
+ *   - Números grandes y alto contraste para lectura a distancia
+ *   - Adaptarse a cualquier resolución (Full HD, 4K, pantallas LED panorámicas)
+ *
+ * Unidad de escala --u:
+ *   Todos los tamaños se expresan como múltiplos de --u = min(1vw, 1.7778vh).
+ *   - En una pantalla 16:9, 1vw === 1.7778vh → la escala sigue al ancho.
+ *   - En una pantalla MÁS ANCHA que 16:9 (tira LED), manda la altura,
+ *     así el marcador nunca se sale por arriba/abajo.
+ *   - En una pantalla MÁS ALTA que 16:9, manda el ancho.
+ *   Resultado: el diseño mantiene sus proporciones en cualquier resolución.
+ *
+ * Depende de: shared.css (tokens de color y tipografía)
+ */
+
+/* ─────────────────────────────────────────────────────────────────
+   BASE: pantalla completa, sin scroll, sin cursor
+   ───────────────────────────────────────────────────────────────── */
+html,
+.score-body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.score-body {
+  min-height: 0;
+  cursor: none;            /* El cursor del ratón nunca aparece en la LED */
+  user-select: none;
+  -webkit-user-select: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(30, 144, 255, 0.18) 0%, transparent 70%),
+    linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 55%);
+}
+
+/* Ocultar cualquier scrollbar en Chrome/Edge */
+.score-body::-webkit-scrollbar { display: none; }
+
+/* Sprite de iconos: existe en el DOM pero no ocupa espacio */
+.sb-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   CONTENEDOR PRINCIPAL
+   ───────────────────────────────────────────────────────────────── */
+.scoreboard {
+  --u: min(1vw, 1.7778vh);
+
+  /* Anchos de columna: icono | nombre | puntos | games | sets */
+  --col-icon:  calc(var(--u) * 6);
+  --col-pts:   calc(var(--u) * 15);
+  --col-num:   calc(var(--u) * 12);
+
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 2.5);
+  padding: calc(var(--u) * 2.5) calc(var(--u) * 4);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   CABECERA: LOGO + BADGE DE FASE
+   ───────────────────────────────────────────────────────────────── */
+.sb-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 1.2);
+}
+
+.sb-logo {
+  font-family: var(--font-score);
+  font-weight: 600;
+  font-size: calc(var(--u) * 2.4);
+  letter-spacing: 0.35em;
+  padding-left: 0.35em;          /* compensa el letter-spacing para centrar */
+  color: var(--text-primary);
+}
+
+.sb-logo span {
+  color: var(--accent-bright);
+}
+
+.sb-badge {
+  font-family: var(--font-score);
+  font-weight: 700;
+  font-size: calc(var(--u) * 2.2);
+  letter-spacing: 0.2em;
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 2.2);
+  border-radius: var(--radius-pill);
+  color: var(--bg-primary);
+  background: var(--accent-cyan);
+  box-shadow: 0 0 calc(var(--u) * 2) rgba(0, 212, 255, 0.55);
+  animation: slideDown var(--transition-slow);
+}
+
+/* Punto de oro: badge dorado para diferenciarlo del Tie Break */
+.sb-badge.is-gold {
+  background: var(--winner-gold);
+  box-shadow: 0 0 calc(var(--u) * 2) rgba(255, 215, 0, 0.55);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ESTADO DE ESPERA
+   ───────────────────────────────────────────────────────────────── */
+.sb-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  animation: fadeIn var(--transition-slow);
+}
+
+.sb-waiting-title {
+  font-family: var(--font-score);
+  font-weight: 700;
+  font-size: calc(var(--u) * 9);
+  letter-spacing: 0.25em;
+  padding-left: 0.25em;
+  color: var(--text-primary);
+}
+
+.sb-waiting-text {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: calc(var(--u) * 2.4);
+  color: var(--text-secondary);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   MARCADOR
+   ───────────────────────────────────────────────────────────────── */
+.sb-board {
+  width: 100%;
+  max-width: calc(var(--u) * 92);
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn var(--transition-slow);
+}
+
+/* Cabecera y filas comparten la misma rejilla de columnas */
+.sb-head,
+.sb-row {
+  display: grid;
+  grid-template-columns: var(--col-icon) minmax(0, 1fr) var(--col-pts) var(--col-num) var(--col-num);
+  align-items: center;
+  column-gap: calc(var(--u) * 1.2);
+}
+
+.sb-head {
+  padding: 0 calc(var(--u) * 1.5) calc(var(--u) * 0.8);
+}
+
+.sb-head span {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: calc(var(--u) * 1.5);
+  letter-spacing: 0.25em;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* ── Fila de equipo ───────────────────────────────────────────── */
+.sb-row {
+  position: relative;
+  height: calc(var(--u) * 13);
+  padding: 0 calc(var(--u) * 1.5);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, rgba(17, 45, 94, 0.95) 0%, rgba(13, 35, 71, 0.85) 100%);
+  border: 1px solid var(--border-color);
+  transition: opacity var(--transition-slow), border-color var(--transition-slow);
+}
+
+/* Barra lateral de acento en el equipo que saca */
+.sb-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: calc(var(--u) * 0.45);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: transparent;
+  transition: background var(--transition-normal);
+}
+
+.sb-row.is-serving::before {
+  background: var(--accent-bright);
+  box-shadow: 0 0 calc(var(--u) * 1.2) var(--accent-bright);
+}
+
+/* Ganador: borde dorado; perdedor: atenuado */
+.sb-row.is-winner {
+  border-color: rgba(255, 215, 0, 0.7);
+  box-shadow: var(--glow-gold);
+}
+
+.sb-row.is-loser {
+  opacity: 0.55;
+}
+
+/* ── Icono (pelota / estrella) ───────────────────────────────── */
+.sb-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sb-icon svg {
+  display: none;
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 4);
+}
+
+.sb-row.is-serving .icon-ball {
+  display: block;
+  filter: drop-shadow(0 0 calc(var(--u) * 0.6) rgba(212, 242, 30, 0.6));
+  animation: fadeIn var(--transition-normal);
+}
+
+.sb-row.is-winner .icon-star {
+  display: block;
+  width: calc(var(--u) * 4.6);
+  height: calc(var(--u) * 4.6);
+  animation: starPulse 1.6s ease-in-out infinite;
+}
+
+/* ── Nombre del equipo ───────────────────────────────────────── */
+.sb-name {
+  font-family: var(--font-score);
+  font-weight: 600;
+  font-size: calc(var(--u) * 5);   /* score.js puede reducirlo si no cabe */
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+}
+
+.sb-row.is-winner .sb-name {
+  color: var(--winner-gold);
+}
+
+/* ── Celdas numéricas ────────────────────────────────────────── */
+.sb-cell {
+  font-family: var(--font-score);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;   /* todos los dígitos con el mismo ancho */
+}
+
+/* Puntos: el dato que más cambia → el más grande y en caja propia */
+.sb-pts {
+  font-size: calc(var(--u) * 9);
+  height: calc(var(--u) * 10.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-bright);
+  color: var(--text-primary);
+}
+
+/* Ventaja (AD): resaltado en cian */
+.sb-pts.is-advantage {
+  color: var(--accent-cyan);
+}
+
+.sb-games {
+  font-size: calc(var(--u) * 8);
+  color: var(--text-primary);
+}
+
+.sb-sets {
+  font-size: calc(var(--u) * 8);
+  color: var(--accent-bright);
+}
+
+/* ── Separador entre filas ───────────────────────────────────── */
+.sb-divider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--u) * 3.5);
+}
+
+.sb-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-bright), transparent);
+}
+
+.sb-divider-label {
+  position: relative;
+  font-family: var(--font-score);
+  font-weight: 600;
+  font-size: calc(var(--u) * 1.8);
+  letter-spacing: 0.3em;
+  padding: 0 calc(var(--u) * 2);
+  color: var(--winner-gold);
+  background: var(--bg-primary);
+}
+
+.sb-divider-label:empty {
+  display: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   HISTORIAL DE SETS
+   ───────────────────────────────────────────────────────────────── */
+.sb-history {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--u) * 1.2);
+  min-height: calc(var(--u) * 4);
+}
+
+.sb-set-chip {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 0.9);
+  padding: calc(var(--u) * 0.6) calc(var(--u) * 1.8);
+  border-radius: var(--radius-pill);
+  background: rgba(17, 45, 94, 0.7);
+  border: 1px solid var(--border-color);
+}
+
+.sb-set-chip-label {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: calc(var(--u) * 1.4);
+  letter-spacing: 0.15em;
+  color: var(--text-secondary);
+}
+
+.sb-set-chip-score {
+  font-family: var(--font-score);
+  font-weight: 600;
+  font-size: calc(var(--u) * 2.4);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Set en curso: borde de acento */
+.sb-set-chip.is-current {
+  border-color: var(--accent-bright);
+}
+
+.sb-set-chip.is-current .sb-set-chip-score {
+  font-size: calc(var(--u) * 1.6);
+  letter-spacing: 0.15em;
+  color: var(--accent-bright);
+}
