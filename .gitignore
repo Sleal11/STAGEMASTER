@@ -1,0 +1,10 @@
+# Dependencias: se instalan con "npm install" (versiones exactas en package-lock.json)
+node_modules/
+
+# Partido guardado por el servidor (data/match.json): es propio de cada PC
+data/
+
+# Archivos del sistema operativo y editores
+.DS_Store
+Thumbs.db
+*.log

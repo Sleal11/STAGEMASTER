@@ -1,0 +1,21 @@
+LOGO DE STAGEMASTER
+===================
+
+Copia aquí el logo oficial con este nombre exacto:
+
+    logo-stagemaster.png
+
+Requisitos:
+  - Fondo TRANSPARENTE (PNG con canal alfa).
+  - Recomendado: al menos 800 px de ancho para que se vea nítido en 4K.
+
+Se muestra automáticamente en el panel del iPhone y en la pantalla LED
+(js/brand.js). Si el archivo no existe, se muestra el texto "STAGEMASTER".
+
+El archivo actual se generó a partir de logo-stagemaster-original.jpg
+(fondo transparente, letras en blanco y franjas en celeste de marca).
+Si se reemplaza por otro logo con letras oscuras, en css/shared.css se
+puede forzar a blanco cambiando:
+    --logo-filter: none;
+por:
+    --logo-filter: brightness(0) invert(1);

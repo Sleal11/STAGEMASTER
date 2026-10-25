@@ -29,6 +29,12 @@ const PUNTOS = [0, 15, 30, 40];
 /** Marcador especial para indicar que un jugador tiene ventaja */
 const VENTAJA = 'AD';
 
+/**
+ * Punto Estrella (reglamento FIP 2026): en el TERCER 40-40 de un game
+ * ya no se juega ventaja, sino un único punto decisivo.
+ */
+const IGUALES_PUNTO_ESTRELLA = 3;
+
 /** Máximo de estados guardados en el historial (para undo) */
 const MAX_HISTORIAL = 50;
 
@@ -42,7 +48,7 @@ const MAX_HISTORIAL = 50;
  * @param {Object} config
  * @param {number} config.gamesPerSet    - Games para ganar un set (1–6)
  * @param {number} config.totalSets      - Total de sets del partido
- * @param {string} config.scoringSystem  - 'advantage' | 'goldenPoint'
+ * @param {string} config.scoringSystem  - 'advantage' | 'goldenPoint' | 'starPoint'
  * @param {string} config.tiebreakType   - 'tiebreak' | 'superTiebreak' | 'none'
  * @param {string} config.initialServer  - 'A' | 'B'
  * @param {string} config.nameA          - Nombre del equipo A
@@ -60,7 +66,7 @@ function createMatch(config) {
       gamesPerSet:   config.gamesPerSet,
       totalSets:     config.totalSets,
       setsToWin,                           // Calculado automáticamente
-      scoringSystem: config.scoringSystem, // 'advantage' | 'goldenPoint'
+      scoringSystem: config.scoringSystem, // 'advantage' | 'goldenPoint' | 'starPoint'
       tiebreakType:  config.tiebreakType,  // 'tiebreak' | 'superTiebreak' | 'none'
       initialServer: config.initialServer, // 'A' | 'B'
     },
@@ -73,6 +79,8 @@ function createMatch(config) {
     status:     'playing',   // 'playing' | 'finished'
     phase:      'normal',    // 'normal' | 'tiebreak' | 'superTiebreak'
     winner:     null,        // null | 'A' | 'B'
+    deuceCount: 0,           // Veces que se llegó a 40-40 en el game actual (Punto Estrella)
+    decisivePoint: false,    // true si el próximo punto decide el game (oro/estrella). Solo informativo para la UI
     setScores:  [],          // Historial: [{A: 6, B: 3}, {A: 4, B: 6}, ...]
     history:    [],          // Stack de estados anteriores (para undo)
   };
@@ -113,15 +121,8 @@ function applyPoint(state, scorer) {
   // Seguridad: no procesar puntos si el partido ya terminó
   if (state.status !== 'playing') return state;
 
-  // ── 1. Guardar estado en historial (para permitir undo) ────────
-  // Hacemos una copia del estado actual SIN su historial.
-  // Esto mantiene el historial PLANO (sin anidamiento infinito).
-  const snapshot = deepCopy(state);
-  snapshot.history = []; // Limpiamos el historial del snapshot
-
-  // ── 2. Crear estado de trabajo con historial actualizado ───────
-  let s = deepCopy(state);
-  s.history = [snapshot, ...state.history].slice(0, MAX_HISTORIAL);
+  // ── 1 y 2. Copia de trabajo con el estado actual guardado en el historial
+  let s = withHistory(state);
 
   // ── 3. Aplicar lógica según la fase actual ─────────────────────
   if (s.phase === 'normal') {
@@ -130,6 +131,14 @@ function applyPoint(state, scorer) {
     // phase === 'tiebreak' o 'superTiebreak'
     s = processTiebreakPoint(s, scorer);
   }
+
+  // ── 4. Dato derivado para las interfaces ───────────────────────
+  // Así la presentación no necesita conocer las reglas del punto decisivo
+  s.decisivePoint = s.status === 'playing' &&
+                    s.phase === 'normal' &&
+                    s.players.A.points === 40 &&
+                    s.players.B.points === 40 &&
+                    isDecisivePoint(s);
 
   return s;
 }
@@ -151,10 +160,11 @@ function applyUndo(state) {
 
 /**
  * Cambia manualmente el servidor (corrección del operador).
+ * Se guarda en el historial: "Deshacer" revierte la última ACCIÓN.
  */
 function applyChangeServer(state) {
   if (state.status !== 'playing') return state;
-  const s = deepCopy(state);
+  const s = withHistory(state);
   s.server = toggleServer(s.server);
   return s;
 }
@@ -165,8 +175,10 @@ function applyChangeServer(state) {
  */
 function applyFinishMatch(state) {
   if (state.status === 'finished') return state;
-  const s = deepCopy(state);
-  s.status = 'finished';
+  // Se guarda en el historial: si el operador finalizó por error, puede deshacerlo
+  const s = withHistory(state);
+  s.status        = 'finished';
+  s.decisivePoint = false;
 
   // Ganador: quien tenga más sets
   if (s.players.A.sets > s.players.B.sets)      s.winner = 'A';
@@ -176,13 +188,29 @@ function applyFinishMatch(state) {
   return s;
 }
 
+/**
+ * Devuelve una copia del estado con el estado actual añadido al
+ * historial (para que "Deshacer" pueda volver a él).
+ *
+ * El snapshot se guarda SIN su propio historial: así el historial es
+ * PLANO (sin anidamiento infinito) y se limita a MAX_HISTORIAL entradas.
+ */
+function withHistory(state) {
+  const snapshot = deepCopy(state);
+  snapshot.history = [];
+
+  const s = deepCopy(state);
+  s.history = [snapshot, ...state.history].slice(0, MAX_HISTORIAL);
+  return s;
+}
+
 // ─────────────────────────────────────────────────────────────────
 // LÓGICA DE PUNTUACIÓN (funciones internas)
 // ─────────────────────────────────────────────────────────────────
 
 /**
  * Procesa un punto durante un game normal (fase 'normal').
- * Aplica la secuencia 0→15→30→40 y maneja deuce/ventaja/punto de oro.
+ * Aplica la secuencia 0→15→30→40 y maneja deuce/ventaja/punto de oro/punto estrella.
  */
 function processNormalPoint(state, scorer) {
   const opp = opponent(scorer);      // El otro jugador
@@ -199,13 +227,15 @@ function processNormalPoint(state, scorer) {
     const s = deepCopy(state);
     s.players[scorer].points = 40;
     s.players[opp].points    = 40;
+    s.deuceCount += 1;       // Nuevo 40-40 (cuenta para el Punto Estrella)
     return s;
   }
 
   // ── Caso 3: Ambos en 40 → situación de DEUCE ──────────────────
   if (sp === 40 && op === 40) {
-    if (state.config.scoringSystem === 'goldenPoint') {
-      // Punto de oro: el anotador gana el game directamente
+    if (isDecisivePoint(state)) {
+      // Punto de oro, o Punto Estrella en el tercer 40-40:
+      // el anotador gana el game directamente
       return processGameWon(state, scorer);
     }
     // Ventaja: el anotador obtiene ventaja
@@ -225,7 +255,22 @@ function processNormalPoint(state, scorer) {
   const s = deepCopy(state);
   const indice = PUNTOS.indexOf(sp);
   s.players[scorer].points = PUNTOS[indice + 1];
+  // Si con este punto ambos quedan en 40 → primer 40-40 del game
+  if (s.players[scorer].points === 40 && op === 40) s.deuceCount += 1;
   return s;
+}
+
+/**
+ * true si, estando 40-40, el siguiente punto decide el game sin ventaja:
+ *   - Punto de oro: siempre
+ *   - Punto Estrella: a partir del tercer 40-40 del game
+ *   - Ventaja: nunca
+ */
+function isDecisivePoint(state) {
+  const sistema = state.config.scoringSystem;
+  if (sistema === 'goldenPoint') return true;
+  if (sistema === 'starPoint')   return state.deuceCount >= IGUALES_PUNTO_ESTRELLA;
+  return false;
 }
 
 /**
@@ -257,7 +302,15 @@ function processTiebreakPoint(state, scorer) {
 
   if (isTiebreakWon(pA, pB, objetivo)) {
     const ganadorTB = pA > pB ? 'A' : 'B';
-    return processSetWon(s, ganadorTB);
+
+    // El tiebreak cuenta como un game más para el ganador del set: 6-6 → 7-6
+    s.players[ganadorTB].games += 1;
+
+    // Regla oficial: el primer game del siguiente set lo saca quien
+    // RECIBIÓ el primer punto del tiebreak
+    s.server = opponent(tiebreakFirstServer(s.server, total));
+
+    return processSetWon(s, ganadorTB, { A: pA, B: pB });
   }
 
   return s;
@@ -275,6 +328,7 @@ function processGameWon(state, scorer) {
   // ── Resetear puntos para el próximo game ──────────────────────
   s.players.A.points = 0;
   s.players.B.points = 0;
+  s.deuceCount       = 0;
 
   // ── Sumar game al ganador ─────────────────────────────────────
   s.players[scorer].games += 1;
@@ -318,15 +372,24 @@ function processGameWon(state, scorer) {
 /**
  * Registra la victoria de un set, prepara el partido para el siguiente,
  * y verifica si el ganador del set también ganó el partido.
+ *
+ * @param {Object} state
+ * @param {string} scorer         - Ganador del set: 'A' | 'B'
+ * @param {Object} [tiebreakScore] - Puntos del tiebreak {A, B}, si el set se decidió así
  */
-function processSetWon(state, scorer) {
+function processSetWon(state, scorer, tiebreakScore) {
   const s = deepCopy(state);
 
   // ── Registrar el resultado del set terminado ───────────────────
-  s.setScores.push({
+  // Ej. set normal: {A: 6, B: 3}  |  set con tiebreak: {A: 7, B: 6, tiebreak: {A: 8, B: 6}}
+  const resultadoSet = {
     A: s.players.A.games,
     B: s.players.B.games,
-  });
+  };
+  if (tiebreakScore) resultadoSet.tiebreak = tiebreakScore;
+  // Si el "set" fue un Super Tie Break decisivo, se marca para mostrarlo como 10-8
+  if (isDecidingSuperTiebreak(s)) resultadoSet.superTiebreak = true;
+  s.setScores.push(resultadoSet);
 
   // ── Sumar set al ganador ───────────────────────────────────────
   s.players[scorer].sets += 1;
@@ -344,6 +407,14 @@ function processSetWon(state, scorer) {
   if (s.players[scorer].sets >= s.config.setsToWin) {
     s.status = 'finished';
     s.winner = scorer;
+    return s;
+  }
+
+  // ── Reglamento FIP: el Super Tie Break SUSTITUYE al set decisivo ──
+  // Con sets empatados (ej. 1-1 en best-of-3) no se juega un set completo:
+  // se pasa directamente a un Super Tie Break a 10 puntos.
+  if (isDecidingSuperTiebreak(s)) {
+    s.phase = 'superTiebreak';
   }
 
   return s;
@@ -357,7 +428,9 @@ function enterTiebreak(state) {
   const s       = deepCopy(state);
   const esUltimo = isLastSet(s);
 
-  // Último set con Super Tie Break configurado → Super Tie Break
+  // Super Tie Break a 6-6 solo ocurre en partidos de UN set (no hay set
+  // decisivo que sustituir). Con más sets, el Super Tie Break ya empezó
+  // directamente al empatar en sets (ver processSetWon).
   if (esUltimo && s.config.tiebreakType === 'superTiebreak') {
     s.phase = 'superTiebreak';
   } else {
@@ -407,6 +480,33 @@ function isLastSet(state) {
     state.players.A.sets === needed - 1 &&
     state.players.B.sets === needed - 1
   );
+}
+
+/**
+ * true si el set actual se juega como Super Tie Break decisivo (reglamento FIP):
+ *   - el desempate configurado es 'superTiebreak'
+ *   - es el último set posible (sets empatados)
+ *   - hace falta ganar más de un set (en partidos a 1 set no hay set que sustituir)
+ */
+function isDecidingSuperTiebreak(state) {
+  return state.config.tiebreakType === 'superTiebreak' &&
+         state.config.setsToWin > 1 &&
+         isLastSet(state);
+}
+
+/**
+ * Calcula quién sacó el PRIMER punto del tiebreak, a partir del servidor
+ * actual y del total de puntos jugados (sin guardar un campo extra en el estado).
+ *
+ * En el tiebreak el servidor cambia tras cada punto impar (1, 3, 5...),
+ * es decir, ha cambiado Math.ceil(total / 2) veces. Si ese número es impar,
+ * el primer servidor es el contrario del actual; si es par, el mismo.
+ *
+ * Ejemplo: primer servidor A, total=1 → 1 cambio → actual B → primero = A ✓
+ */
+function tiebreakFirstServer(currentServer, totalPoints) {
+  const cambios = Math.ceil(totalPoints / 2);
+  return cambios % 2 === 1 ? toggleServer(currentServer) : currentServer;
 }
 
 /** Devuelve el jugador contrario */

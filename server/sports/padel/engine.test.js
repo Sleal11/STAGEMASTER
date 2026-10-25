@@ -264,7 +264,7 @@ test('En Tie Break: marcador 7-6 → A vuelve a anotar → 8-6 → Tie Break ter
 // ═════════════════════════════════════════════════════════════════
 console.log('\nCASO 8: Super Tie Break 10-9 NO termina');
 
-test('Super Tie Break en último set: 10-9 → partido NO debe terminar', () => {
+test('Super Tie Break decisivo (1-1 en sets): 10-9 → partido NO debe terminar', () => {
   let estado = createMatch(config({
     scoringSystem: 'goldenPoint',
     totalSets:     3,
@@ -279,12 +279,9 @@ test('Super Tie Break en último set: 10-9 → partido NO debe terminar', () => 
   assert.strictEqual(estado.players.A.sets, 1, 'A debe tener 1 set');
   assert.strictEqual(estado.players.B.sets, 1, 'B debe tener 1 set');
 
-  // En el último set: llevar a 6-6 → debe entrar en Super Tie Break
-  for (let i = 0; i < 6; i++) {
-    estado = ganarGame(estado, 'A');
-    estado = ganarGame(estado, 'B');
-  }
+  // Reglamento FIP: con 1-1 en sets el Super Tie Break SUSTITUYE al tercer set
   assert.strictEqual(estado.phase, 'superTiebreak', 'Debe estar en superTiebreak');
+  assert.strictEqual(estado.players.A.games, 0, 'No se juegan games en el set decisivo');
 
   // Llevar Super TB a 9-9
   for (let i = 0; i < 9; i++) {
@@ -315,13 +312,9 @@ test('Super Tie Break: 10-9 → A vuelve a anotar → 11-9 → partido SÍ termi
     tiebreakType:  'superTiebreak',
   }));
 
-  // Preparar mismo escenario del caso 8
+  // Preparar mismo escenario del caso 8 (1-1 en sets → Super Tie Break)
   for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
   for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
-  for (let i = 0; i < 6; i++) {
-    estado = ganarGame(estado, 'A');
-    estado = ganarGame(estado, 'B');
-  }
 
   // Llevar Super TB a 9-9
   for (let i = 0; i < 9; i++) {
@@ -431,6 +424,29 @@ test('changeServer: el servidor cambia de A a B correctamente', () => {
 
   assert.strictEqual(estado.server,   'A', 'Servidor original debe ser A');
   assert.strictEqual(cambiado.server, 'B', 'Servidor debe haber cambiado a B');
+});
+
+test('Undo después de changeServer: restaura el servidor sin tocar los puntos', () => {
+  let estado = applyMany(createMatch(config({ initialServer: 'A' })), ['pointA', 'changeServer']);
+  assert.strictEqual(estado.server, 'B');
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.server, 'A', 'El undo revierte la corrección de saque');
+  assert.strictEqual(estado.players.A.points, 15, 'El punto anterior se conserva');
+});
+
+test('Undo después de finishMatch: el partido vuelve a jugarse con los puntos intactos', () => {
+  let estado = applyMany(createMatch(config()), ['pointA', 'pointA', 'finishMatch']);
+  assert.strictEqual(estado.status, 'finished');
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.status, 'playing', 'El final se deshace');
+  assert.strictEqual(estado.winner, null);
+  assert.strictEqual(estado.players.A.points, 30, 'Los puntos válidos NO se pierden');
+});
+
+test('finishMatch sin puntos previos también se puede deshacer', () => {
+  let estado = applyAction(createMatch(config()), 'finishMatch');
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.status, 'playing');
 });
 
 test('changeServer doble: regresa al servidor original', () => {
@@ -573,6 +589,294 @@ test('No se pueden registrar puntos en un partido finalizado', () => {
   const mismo = applyAction(estado, 'pointA');
   assert.strictEqual(mismo.players.A.points, 0, 'No se deben registrar puntos en partido terminado');
   assert.strictEqual(mismo.status, 'finished',    'Status debe seguir siendo "finished"');
+});
+
+// ═════════════════════════════════════════════════════════════════
+// CORRECCIÓN 1: Un set ganado en tiebreak se registra como 7-6
+// ═════════════════════════════════════════════════════════════════
+console.log('\nCORRECCIÓN 1: Resultado del set decidido en tiebreak');
+
+/** Lleva un partido nuevo hasta 6-6 en games (inicio del tiebreak del set 1) */
+function llegarATiebreak(overrides = {}) {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', ...overrides }));
+  for (let i = 0; i < 6; i++) {
+    estado = ganarGame(estado, 'A');
+    estado = ganarGame(estado, 'B');
+  }
+  return estado;
+}
+
+test('Tie Break 8-6 → el set se registra como 7-6 con el detalle del tiebreak', () => {
+  let estado = llegarATiebreak();
+  for (let i = 0; i < 6; i++) estado = applyMany(estado, ['pointA', 'pointB']); // 6-6
+  estado = applyMany(estado, ['pointA', 'pointA']);                              // 8-6
+
+  assert.deepStrictEqual(estado.setScores[0], { A: 7, B: 6, tiebreak: { A: 8, B: 6 } });
+  assert.strictEqual(estado.players.A.sets, 1, 'A debe sumar el set');
+  assert.strictEqual(estado.phase, 'normal',   'El set siguiente empieza en fase normal');
+});
+
+test('Tie Break ganado por B (5-7) → el set se registra como 6-7', () => {
+  let estado = llegarATiebreak();
+  for (let i = 0; i < 5; i++) estado = applyMany(estado, ['pointA', 'pointB']); // 5-5
+  estado = applyMany(estado, ['pointB', 'pointB']);                              // 5-7
+
+  assert.deepStrictEqual(estado.setScores[0], { A: 6, B: 7, tiebreak: { A: 5, B: 7 } });
+  assert.strictEqual(estado.players.B.sets, 1);
+});
+
+test('Partido a 1 set con Super TB: a 6-6 se juega Super Tie Break y se registra 7-6 (11-9)', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak', totalSets: 1 }));
+  for (let i = 0; i < 6; i++) {
+    estado = ganarGame(estado, 'A');
+    estado = ganarGame(estado, 'B');
+  }
+  assert.strictEqual(estado.phase, 'superTiebreak');
+  for (let i = 0; i < 9; i++) estado = applyMany(estado, ['pointA', 'pointB']); // 9-9
+  estado = applyMany(estado, ['pointA', 'pointA']);                              // 11-9
+
+  assert.deepStrictEqual(estado.setScores[0], { A: 7, B: 6, tiebreak: { A: 11, B: 9 } });
+  assert.strictEqual(estado.winner, 'A');
+});
+
+test('Un set normal (6-3) NO incluye el campo tiebreak', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint' }));
+  for (let i = 0; i < 3; i++) estado = ganarGame(estado, 'B');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  assert.deepStrictEqual(estado.setScores[0], { A: 6, B: 3 });
+});
+
+// ═════════════════════════════════════════════════════════════════
+// CORRECCIÓN 2: Saque del set siguiente a un tiebreak
+// Regla: saca primero quien RECIBIÓ el primer punto del tiebreak
+// ═════════════════════════════════════════════════════════════════
+console.log('\nCORRECCIÓN 2: Saque después de un tiebreak');
+
+test('A saca el primer punto del Tie Break → B saca el primer game del set siguiente', () => {
+  let estado = llegarATiebreak({ initialServer: 'A' });
+  // 12 games jugados → el servidor rotó 12 veces → vuelve a A
+  assert.strictEqual(estado.server, 'A', 'A debe sacar el primer punto del tiebreak');
+  estado = applyMany(estado, Array(7).fill('pointA')); // 7-0 (total impar)
+  assert.strictEqual(estado.server, 'B', 'B debe sacar el set 2');
+});
+
+test('El saque posterior no depende del total de puntos del tiebreak (8-6, total par)', () => {
+  let estado = llegarATiebreak({ initialServer: 'A' });
+  for (let i = 0; i < 6; i++) estado = applyMany(estado, ['pointA', 'pointB']);
+  estado = applyMany(estado, ['pointA', 'pointA']); // 8-6
+  assert.strictEqual(estado.server, 'B', 'B debe sacar el set 2');
+});
+
+test('B saca el primer punto del Tie Break → A saca el set siguiente', () => {
+  let estado = llegarATiebreak({ initialServer: 'B' });
+  assert.strictEqual(estado.server, 'B', 'B debe sacar el primer punto del tiebreak');
+  for (let i = 0; i < 5; i++) estado = applyMany(estado, ['pointA', 'pointB']);
+  estado = applyMany(estado, ['pointB', 'pointB']); // 5-7
+  assert.strictEqual(estado.server, 'A', 'A debe sacar el set 2');
+});
+
+test('Corrección manual de saque durante el Tie Break también se respeta al terminar', () => {
+  let estado = llegarATiebreak({ initialServer: 'A' });
+  // El operador corrige: en realidad el tiebreak lo empezó sacando B
+  estado = applyAction(estado, 'changeServer');
+  estado = applyMany(estado, Array(7).fill('pointA'));
+  assert.strictEqual(estado.server, 'A', 'Recibió primero A → A saca el set 2');
+});
+
+test('Undo del punto que cierra el Tie Break → vuelve exactamente a 6-6 en tiebreak', () => {
+  let estado = llegarATiebreak();
+  for (let i = 0; i < 6; i++) estado = applyMany(estado, ['pointA', 'pointB']);
+  estado = applyAction(estado, 'pointA');      // 7-6
+  const antes = estado;
+  estado = applyAction(estado, 'pointA');      // 8-6 → set
+  estado = applyAction(estado, 'undo');
+
+  assert.strictEqual(estado.phase, 'tiebreak');
+  assert.strictEqual(estado.players.A.games, 6);
+  assert.strictEqual(estado.players.A.points, 7);
+  assert.strictEqual(estado.server, antes.server);
+  assert.strictEqual(estado.setScores.length, 0);
+});
+
+// ═════════════════════════════════════════════════════════════════
+// REGLAMENTO FIP: el Super Tie Break sustituye al set decisivo
+// ═════════════════════════════════════════════════════════════════
+console.log('\nREGLAMENTO FIP: Super Tie Break en lugar del set decisivo');
+
+test('Best-of-3: con 1-0 en sets NO hay Super Tie Break (el set 2 es normal)', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  assert.strictEqual(estado.phase, 'normal', 'El set 2 debe jugarse con games normales');
+});
+
+test('Best-of-3: 6-6 en el set 2 → Tie Break normal (a 7), no súper', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) {
+    estado = ganarGame(estado, 'A');
+    estado = ganarGame(estado, 'B');
+  }
+  assert.strictEqual(estado.phase, 'tiebreak');
+});
+
+test('Super Tie Break decisivo 10-8 → se registra como {1-0, tiebreak 10-8, superTiebreak}', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
+  for (let i = 0; i < 8; i++) estado = applyMany(estado, ['pointA', 'pointB']); // 8-8
+  estado = applyMany(estado, ['pointB', 'pointB']);                              // 8-10
+
+  assert.deepStrictEqual(estado.setScores[2], { A: 0, B: 1, tiebreak: { A: 8, B: 10 }, superTiebreak: true });
+  assert.strictEqual(estado.winner, 'B');
+  assert.strictEqual(estado.players.B.sets, 2);
+});
+
+test('Best-of-5: el Super Tie Break solo llega con 2-2 en sets', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak', totalSets: 5 }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
+  assert.strictEqual(estado.phase, 'normal', 'Con 1-1 en best-of-5 sigue un set normal');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
+  assert.strictEqual(estado.phase, 'superTiebreak', 'Con 2-2 empieza el Super Tie Break');
+});
+
+test('Undo del primer punto del Super Tie Break no rompe la fase', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }));
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'B');
+  estado = applyMany(estado, ['pointA', 'undo']);
+  assert.strictEqual(estado.phase, 'superTiebreak');
+  assert.strictEqual(estado.players.A.points, 0);
+  // Un undo más vuelve al último punto del set 2 (fase normal, B a 40)
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.phase, 'normal');
+  assert.strictEqual(estado.players.B.sets, 0);
+});
+
+// ═════════════════════════════════════════════════════════════════
+// REGLAMENTO FIP 2026: PUNTO ESTRELLA
+// 1er y 2º 40-40 → se juega ventaja | 3er 40-40 → punto decisivo
+// ═════════════════════════════════════════════════════════════════
+console.log('\nREGLAMENTO FIP 2026: Punto Estrella');
+
+/** Partido con Punto Estrella en el primer 40-40 del primer game */
+function primerIguales() {
+  const estado = createMatch(config({ scoringSystem: 'starPoint' }));
+  return applyMany(estado, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB']);
+}
+
+test('Primer 40-40 → deuceCount = 1 y A gana punto → Ventaja A (no decisivo)', () => {
+  let estado = primerIguales();
+  assert.strictEqual(estado.deuceCount, 1);
+  estado = applyAction(estado, 'pointA');
+  assert.strictEqual(estado.players.A.points, 'AD');
+  assert.strictEqual(estado.players.A.games, 0);
+});
+
+test('Segundo 40-40 → todavía se juega ventaja', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB']); // AD A → 2º 40-40
+  assert.strictEqual(estado.deuceCount, 2);
+  estado = applyAction(estado, 'pointB');
+  assert.strictEqual(estado.players.B.points, 'AD', 'En el 2º iguales sigue habiendo ventaja');
+});
+
+test('Tercer 40-40 → el siguiente punto (Punto Estrella) gana el game', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointB', 'pointA']); // 3er 40-40
+  assert.strictEqual(estado.deuceCount, 3);
+  assert.strictEqual(estado.players.A.points, 40);
+  assert.strictEqual(estado.players.B.points, 40);
+  estado = applyAction(estado, 'pointB');
+  assert.strictEqual(estado.players.B.games, 1, 'B gana el game con el Punto Estrella');
+  assert.strictEqual(estado.players.B.points, 0);
+});
+
+test('El game más largo posible con Punto Estrella dura 11 puntos', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointA', 'pointB']); // 10 puntos
+  assert.strictEqual(estado.players.A.games + estado.players.B.games, 0, '10 puntos: aún sin game');
+  estado = applyAction(estado, 'pointA'); // punto 11
+  assert.strictEqual(estado.players.A.games, 1);
+});
+
+test('Ganar con ventaja antes del 3er iguales funciona normal', () => {
+  const estado = applyMany(primerIguales(), ['pointA', 'pointA']); // AD A → game A
+  assert.strictEqual(estado.players.A.games, 1);
+});
+
+test('El contador de iguales se reinicia en cada game nuevo', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointB', 'pointA', 'pointB']); // game B
+  assert.strictEqual(estado.deuceCount, 0, 'Tras el game el contador vuelve a 0');
+  estado = applyMany(estado, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB', 'pointA']);
+  assert.strictEqual(estado.players.A.points, 'AD', 'En el nuevo game el 1er iguales vuelve a tener ventaja');
+});
+
+test('Undo desde el 3er 40-40 restaura el contador de iguales', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointB', 'pointA']); // 3er iguales
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.deuceCount, 2);
+  assert.strictEqual(estado.players.B.points, 'AD');
+});
+
+test('decisivePoint: solo es true en el 3er 40-40 (estrella) o en cualquier 40-40 (oro)', () => {
+  let estrella = primerIguales();
+  assert.strictEqual(estrella.decisivePoint, false, '1er iguales con estrella: no decisivo');
+  estrella = applyMany(estrella, ['pointA', 'pointB', 'pointB', 'pointA']);
+  assert.strictEqual(estrella.decisivePoint, true, '3er iguales con estrella: decisivo');
+  estrella = applyAction(estrella, 'pointA');
+  assert.strictEqual(estrella.decisivePoint, false, 'Game nuevo: ya no es decisivo');
+
+  const oro = applyMany(createMatch(config({ scoringSystem: 'goldenPoint' })),
+    ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB']);
+  assert.strictEqual(oro.decisivePoint, true, '40-40 con punto de oro: decisivo');
+});
+
+test('Con sistema Ventaja el 3er 40-40 NO es decisivo', () => {
+  let estado = createMatch(config({ scoringSystem: 'advantage' }));
+  estado = applyMany(estado, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB',
+                              'pointA', 'pointB', 'pointB', 'pointA', 'pointB']);
+  assert.strictEqual(estado.players.B.points, 'AD');
+});
+
+// ═════════════════════════════════════════════════════════════════
+// SINCRONÍA: engine.js y engine-browser.js deben comportarse igual
+// ═════════════════════════════════════════════════════════════════
+console.log('\nSINCRONÍA: motor del servidor vs motor del navegador');
+
+test('Ambos motores producen el mismo estado en 4000 acciones aleatorias', () => {
+  const fs   = require('fs');
+  const path = require('path');
+  const vm   = require('vm');
+
+  // Cargamos engine-browser.js en un "navegador" falso que solo tiene window
+  const codigo  = fs.readFileSync(path.join(__dirname, '../../../public/js/engine-browser.js'), 'utf8');
+  const sandbox = { window: {} };
+  vm.runInNewContext(codigo, sandbox);
+  const browser = sandbox.window.PadelEngine;
+
+  // Generador pseudoaleatorio con semilla fija → la prueba es reproducible
+  let semilla = 12345;
+  const aleatorio = () => (semilla = (semilla * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const acciones  = ['pointA', 'pointA', 'pointB', 'pointB', 'undo', 'changeServer'];
+
+  const configs = [
+    config(),
+    config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }),
+    config({ gamesPerSet: 2, totalSets: 5, tiebreakType: 'none' }),
+    config({ scoringSystem: 'starPoint', tiebreakType: 'superTiebreak', totalSets: 5 }),
+  ];
+
+  configs.forEach((cfg) => {
+    let sNode    = createMatch(cfg);
+    let sBrowser = browser.createMatch(cfg);
+    for (let i = 0; i < 1000; i++) {
+      const accion = acciones[Math.floor(aleatorio() * acciones.length)];
+      sNode    = applyAction(sNode, accion);
+      sBrowser = browser.applyAction(sBrowser, accion);
+      // JSON para comparar ignorando el "mundo" (vm) en el que se creó cada objeto
+      assert.strictEqual(JSON.stringify(sBrowser), JSON.stringify(sNode),
+        `Divergencia en la acción #${i} (${accion})`);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────

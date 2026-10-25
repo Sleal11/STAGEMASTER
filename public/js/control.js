@@ -3,21 +3,23 @@
  *
  * Responsabilidad:
  *   1. Leer la configuración del formulario de setup
- *   2. Enviar acciones al motor de pádel (PadelEngine)
- *   3. Renderizar el estado actual en el DOM
+ *   2. Enviar las acciones del operador al servidor (Socket.IO)
+ *   3. Renderizar el estado que devuelve el servidor
  *   4. Gestionar confirmaciones para acciones peligrosas
+ *   5. Mostrar el estado de la conexión y avisos de error
  *
- * En la Fase 7 se añadirá aquí la comunicación con Socket.IO
- * para sincronizar con la pantalla LED en tiempo real.
+ * El panel NO calcula el marcador: el único que lo hace es el servidor
+ * (server/sports/padel/engine.js). Así el iPhone y la pantalla LED
+ * siempre muestran exactamente el mismo estado.
  *
  * FLUJO DE UNA ACCIÓN (ej: "Punto A"):
  *   Botón "PUNTO A"
- *     → handlePoint('A')
- *       → PadelEngine.applyAction(matchState, 'pointA')
- *         → Nuevo estado calculado por el motor
- *       → matchState = nuevoEstado
- *       → renderMatch()  ← actualiza el DOM
- *       → [Fase 7] socket.emit('pointA')  ← notificará a la pantalla LED
+ *     → handlePointA() → dispatch('pointA')
+ *       → sendRequest('pointA', { version })   ← bloquea nuevos toques
+ *         → servidor: matchManager → engine.js → nuevo estado
+ *         → io.emit('matchUpdate', estado)     ← a TODOS (iPhone + LED)
+ *       → socket.on('matchUpdate') → applyServerState() → renderMatch()
+ *       → ack { ok: true }                     ← desbloquea los botones
  */
 
 'use strict';
@@ -26,8 +28,38 @@
 // ESTADO GLOBAL DEL PANEL
 // ─────────────────────────────────────────────────────────────────
 
-/** Estado actual del partido. null = no hay partido iniciado. */
+/** Texto del badge cuando el siguiente punto decide el game */
+var DECISIVE_POINT_LABELS = {
+  goldenPoint: 'PUNTO DE ORO',
+  starPoint:   'PUNTO ESTRELLA',
+};
+
+/** Estado actual del partido (recibido del servidor). null = no hay partido. */
 var matchState = null;
+
+/** Conexión Socket.IO con el servidor (null si no se pudo cargar) */
+var socket = null;
+
+/** Tiempo máximo de espera de la respuesta del servidor */
+var REQUEST_TIMEOUT_MS = 4000;
+
+/** Retardo antes de atenuar los botones mientras se espera respuesta */
+var PENDING_FEEDBACK_DELAY_MS = 250;
+
+/** true mientras una petición espera respuesta (evita doble pulsación) */
+var requestPending = false;
+
+/** Timer del aviso visual de "esperando respuesta" */
+var pendingFeedbackTimer = null;
+
+/** Timer para ocultar el aviso flotante */
+var toastTimer = null;
+
+/** true si el operador pulsó "Nuevo partido": se queda en el setup aunque lleguen actualizaciones */
+var editingNewMatch = false;
+
+/** true si el operador volvió al marcador de un partido ya finalizado (para poder deshacer) */
+var reviewingFinished = false;
 
 /** Callback pendiente en el modal de confirmación */
 var modalCallback = null;
@@ -118,6 +150,17 @@ function formatPoints(points, phase) {
   return String(points); // El motor ya almacena 0/15/30/40/'AD'
 }
 
+/**
+ * Texto de un set terminado para el historial:
+ *   set normal → "6-3" | con tiebreak → "7-6 (8-6)" | Super TB decisivo → "STB 10-8"
+ */
+function formatSetScore(set) {
+  if (set.superTiebreak) return 'STB ' + set.tiebreak.A + '-' + set.tiebreak.B;
+  var text = set.A + '-' + set.B;
+  if (set.tiebreak) text += ' (' + set.tiebreak.A + '-' + set.tiebreak.B + ')';
+  return text;
+}
+
 /** Renderiza el estado completo del partido en la pantalla de control */
 function renderMatch() {
   if (!matchState) return;
@@ -125,14 +168,6 @@ function renderMatch() {
   var p      = matchState.players;
   var server = matchState.server;
   var phase  = matchState.phase;
-  var status = matchState.status;
-
-  // Si el partido terminó, ir a pantalla de ganador
-  if (status === 'finished') {
-    renderFinished();
-    showScreen('finished');
-    return;
-  }
 
   // ── Nombres ──────────────────────────────────────────────────
   document.getElementById('team-name-a-match').textContent = p.A.name;
@@ -152,6 +187,9 @@ function renderMatch() {
   document.getElementById('sets-a').textContent = p.A.sets;
   document.getElementById('sets-b').textContent = p.B.sets;
 
+  // ── Deshacer: solo si el servidor tiene historial ─────────────
+  document.getElementById('btn-undo').disabled = !matchState.canUndo;
+
   // ── Indicador de saque ───────────────────────────────────────
   var iconA = document.getElementById('server-icon-a');
   var iconB = document.getElementById('server-icon-b');
@@ -167,13 +205,19 @@ function renderMatch() {
   var badge     = document.getElementById('phase-badge');
   var setLabel  = document.getElementById('match-status-label');
 
-  setLabel.textContent = 'SET ' + matchState.currentSet + ' · EN CURSO';
+  setLabel.textContent = phase === 'superTiebreak' && p.A.games === 0 && p.B.games === 0
+    ? 'SUPER TIE BREAK DECISIVO'
+    : 'SET ' + matchState.currentSet + ' · EN CURSO';
 
   if (phase === 'tiebreak') {
     badge.textContent = 'TIE BREAK';
     badge.classList.remove('hidden');
   } else if (phase === 'superTiebreak') {
     badge.textContent = 'SUPER TB';
+    badge.classList.remove('hidden');
+  } else if (matchState.decisivePoint) {
+    // 40-40 decisivo: el siguiente punto gana el game
+    badge.textContent = DECISIVE_POINT_LABELS[matchState.config.scoringSystem] || 'PUNTO DECISIVO';
     badge.classList.remove('hidden');
   } else {
     badge.classList.add('hidden');
@@ -183,7 +227,7 @@ function renderMatch() {
   var historyEl = document.getElementById('set-history');
   if (matchState.setScores.length > 0) {
     historyEl.textContent = matchState.setScores
-      .map(function (s) { return s.A + '-' + s.B; })
+      .map(formatSetScore)
       .join('  ·  ');
   } else {
     historyEl.textContent = '';
@@ -192,16 +236,17 @@ function renderMatch() {
 
 /** Renderiza la pantalla de partido finalizado */
 function renderFinished() {
-  if (!matchState || !matchState.winner) return;
+  if (!matchState) return;
 
+  // Si se finalizó manualmente con empate en sets no hay ganador
   var winner     = matchState.winner;
-  var winnerName = matchState.players[winner].name;
+  var winnerName = winner ? matchState.players[winner].name : 'Sin ganador (empate en sets)';
 
   document.getElementById('winner-name').textContent = winnerName;
 
   // Construir resultado de sets
   var setsStr = matchState.setScores
-    .map(function (s) { return s.A + '-' + s.B; })
+    .map(formatSetScore)
     .join(' · ');
   document.getElementById('final-sets').textContent = setsStr;
 }
@@ -210,12 +255,15 @@ function renderFinished() {
 // MANEJADORES DE ACCIONES DEL PARTIDO
 // ─────────────────────────────────────────────────────────────────
 
-/** Aplica una acción al motor y actualiza la UI */
+/**
+ * Envía una acción del partido al servidor.
+ * Incluye la versión del marcador que ve el operador: si otro toque u
+ * otro dispositivo ya lo cambió, el servidor la rechaza.
+ * La UI se actualiza cuando llega 'matchUpdate'.
+ */
 function dispatch(action) {
   if (!matchState) return;
-  matchState = PadelEngine.applyAction(matchState, action);
-  renderMatch();
-  // [Fase 7] Aquí se añadirá: socket.emit('action', action);
+  sendRequest(action, { version: matchState.version });
 }
 
 /** Manejador del botón "Punto A" */
@@ -261,7 +309,7 @@ function resetUndoConfirm() {
   clearTimeout(undoConfirmTimer);
   var btn = document.getElementById('btn-undo');
   if (btn) {
-    btn.textContent = '↩ DESHACER ÚLTIMO PUNTO';
+    btn.textContent = '↩ DESHACER ÚLTIMA ACCIÓN';
     btn.classList.remove('confirming');
   }
 }
@@ -281,16 +329,33 @@ function handleStartMatch() {
 
   if (!validateConfig(cfg)) return;
 
-  // Crear el partido con el motor de pádel
-  matchState = PadelEngine.createMatch(cfg);
+  requestStartMatch(cfg, false);
+}
 
-  // Actualizar los labels del saque en el formulario de setup
-  // con los nombres reales (para la próxima vez)
-  document.getElementById('server-btn-a').textContent = cfg.nameA.split('/')[0].trim() || 'Equipo A';
-  document.getElementById('server-btn-b').textContent = cfg.nameB.split('/')[0].trim() || 'Equipo B';
-
-  showScreen('match');
-  renderMatch();
+/**
+ * Pide al servidor que cree el partido.
+ * @param {Object}  cfg   - Configuración del formulario
+ * @param {boolean} force - true si el operador confirmó reemplazar un partido en curso
+ */
+function requestStartMatch(cfg, force) {
+  sendRequest('setupMatch', { config: cfg, force: force }, {
+    onSuccess: function () {
+      editingNewMatch = false;
+      routeToScreen();
+    },
+    onError: function (response) {
+      // Ya hay un partido jugándose: pedir confirmación antes de pisarlo
+      if (response.code === 'MATCH_IN_PROGRESS') {
+        showModal(
+          'Partido en curso',
+          response.message + '. ¿Quieres reemplazarlo por el nuevo? El marcador actual se perderá.',
+          function () { requestStartMatch(cfg, true); }
+        );
+        return true;   // error gestionado aquí
+      }
+      return false;
+    },
+  });
 }
 
 /** Muestra el modal de confirmación para Reiniciar */
@@ -299,10 +364,9 @@ function handleResetConfirm() {
     'Reiniciar Partido',
     'El marcador volverá a 0. Se perderá el progreso actual.',
     function () {
-      // Reiniciar con la misma configuración
-      matchState = PadelEngine.createMatch(matchState.config);
-      showScreen('match');
-      renderMatch();
+      // El servidor reinicia con la misma configuración y nombres
+      if (!matchState) return;
+      sendRequest('resetMatch', { version: matchState.version });
     }
   );
 }
@@ -320,16 +384,182 @@ function handleFinishConfirm() {
 
 /** Manejador del botón "Nuevo Partido" (desde pantalla de finalizado) */
 function handleNewMatch() {
-  matchState = null;
+  // El partido finalizado sigue en el servidor (y en la LED) hasta
+  // que el operador inicie el siguiente
+  editingNewMatch   = true;
+  reviewingFinished = false;
   showScreen('setup');
 }
 
 /** Manejador del botón "Volver al Marcador" (desde pantalla de finalizado) */
 function handleBackToMatch() {
-  if (matchState) {
-    showScreen('match');
-    renderMatch();
+  // Permite ver el marcador final y, si hubo un error, DESHACER el último punto
+  reviewingFinished = true;
+  routeToScreen();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// COMUNICACIÓN CON EL SERVIDOR (Socket.IO)
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Abre la conexión y registra los eventos del servidor.
+ * Socket.IO reconecta solo; al reconectar, el servidor reenvía
+ * 'matchUpdate' con el estado actual, así el panel se resincroniza.
+ */
+function connectToServer() {
+  // /socket.io/socket.io.js no cargó → el servidor no estaba disponible
+  if (typeof io !== 'function') {
+    setConnectionStatus('offline', 'Servidor no disponible · Reintentando…');
+    setTimeout(function () { window.location.reload(); }, 3000);
+    return;
   }
+
+  socket = io();
+
+  socket.on('connect', function () {
+    setConnectionStatus('connected', 'Conectado');
+  });
+
+  socket.on('disconnect', function () {
+    setConnectionStatus('offline', 'Desconectado · Reconectando…');
+    showToast('Conexión perdida. Reconectando…', true);
+  });
+
+  socket.on('serverConnected', function (data) {
+    setConnectionStatus('connected', 'Conectado · ' + data.clientsCount + ' dispositivo(s)');
+  });
+
+  socket.on('clientsCount', function (count) {
+    if (socket.connected) {
+      setConnectionStatus('connected', 'Conectado · ' + count + ' dispositivo(s)');
+    }
+  });
+
+  socket.on('matchUpdate', applyServerState);
+}
+
+/**
+ * Envía una petición al servidor y espera su acuse de recibo (ack).
+ *
+ * Protecciones:
+ *   - Sin conexión → no se envía (Socket.IO la guardaría y la enviaría
+ *     tarde, al reconectar, cuando el marcador ya podría ser otro).
+ *   - Petición en curso → se ignoran nuevos toques (doble pulsación).
+ *   - Sin respuesta en REQUEST_TIMEOUT_MS → aviso al operador.
+ *
+ * @param {string} eventName - Evento de Socket.IO ('pointA', 'setupMatch'...)
+ * @param {Object} payload   - Datos a enviar
+ * @param {Object} [handlers]
+ * @param {Function} [handlers.onSuccess] - Si el servidor respondió ok
+ * @param {Function} [handlers.onError]   - Recibe la respuesta de error;
+ *                                          devuelve true si la gestionó
+ */
+function sendRequest(eventName, payload, handlers) {
+  handlers = handlers || {};
+
+  if (!socket || !socket.connected) {
+    showToast('Sin conexión con el servidor. Espera a que se reconecte.', true);
+    return;
+  }
+  if (requestPending) return;
+
+  setRequestPending(true);
+
+  socket.timeout(REQUEST_TIMEOUT_MS).emit(eventName, payload, function (err, response) {
+    setRequestPending(false);
+
+    if (err) {
+      // La acción pudo aplicarse o no: el siguiente 'matchUpdate' lo aclarará
+      showToast('El servidor no respondió. Revisa el marcador antes de seguir.', true);
+      return;
+    }
+    if (response.ok) {
+      if (handlers.onSuccess) handlers.onSuccess();
+      return;
+    }
+    if (handlers.onError && handlers.onError(response)) return;
+    handleRequestError(response);
+  });
+}
+
+/** Gestión por defecto de una respuesta de error del servidor */
+function handleRequestError(response) {
+  showToast(response.message || 'No se pudo completar la acción', true);
+
+  // El servidor envía su estado actual para que el panel se resincronice
+  if (response.state !== undefined) applyServerState(response.state);
+}
+
+/** Bloquea/desbloquea nuevas peticiones y muestra feedback si tarda */
+function setRequestPending(isPending) {
+  requestPending = isPending;
+  clearTimeout(pendingFeedbackTimer);
+
+  if (isPending) {
+    pendingFeedbackTimer = setTimeout(function () {
+      document.body.classList.add('is-pending');
+    }, PENDING_FEEDBACK_DELAY_MS);
+  } else {
+    document.body.classList.remove('is-pending');
+  }
+}
+
+/**
+ * Punto de entrada de TODO estado que llega del servidor.
+ * @param {Object|null} state - null si el servidor no tiene partido
+ */
+function applyServerState(state) {
+  // El servidor ya no tiene partido (ej. se reinició) pero el panel mostraba uno
+  if (!state && matchState) {
+    showToast('No hay ningún partido activo en el servidor', true);
+  }
+
+  matchState = state || null;
+  routeToScreen();
+}
+
+/** Decide qué pantalla mostrar según el estado del partido */
+function routeToScreen() {
+  // El operador está preparando un partido nuevo: no interrumpirle
+  if (editingNewMatch || !matchState) {
+    showScreen('setup');
+    return;
+  }
+
+  if (matchState.status === 'finished' && !reviewingFinished) {
+    renderFinished();
+    showScreen('finished');
+    return;
+  }
+
+  // Si se deshizo el final del partido, ya no estamos "revisando"
+  if (matchState.status !== 'finished') reviewingFinished = false;
+
+  renderMatch();
+  showScreen('match');
+}
+
+/** Actualiza el punto y el texto de la barra de estado */
+function setConnectionStatus(kind, text) {
+  var dot = document.getElementById('status-dot');
+  dot.classList.toggle('connected', kind === 'connected');
+  dot.classList.toggle('offline',   kind === 'offline');
+  document.getElementById('status-text').textContent = text;
+  document.body.classList.toggle('is-offline', kind === 'offline');
+}
+
+/** Muestra un aviso flotante durante unos segundos */
+function showToast(message, isError) {
+  var toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.toggle('is-error', !!isError);
+  toast.classList.remove('hidden');
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () {
+    toast.classList.add('hidden');
+  }, 3500);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -352,11 +582,12 @@ function closeModal() {
 
 /** Cierra el modal y ejecuta el callback */
 function confirmModal() {
+  // Guardamos el callback ANTES de cerrar: closeModal() lo pone a null
+  var callback = modalCallback;
   closeModal();
-  if (typeof modalCallback === 'function') {
-    modalCallback();
+  if (typeof callback === 'function') {
+    callback();
   }
-  modalCallback = null;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -438,10 +669,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e.target === this) closeModal();
   });
 
-  // ── Pantalla inicial ──────────────────────────────────────────
+  // ── Pantalla inicial y conexión ──────────────────────────────
+  // Si hay un partido en el servidor, 'matchUpdate' llevará al marcador
   showScreen('setup');
-
-  // Indicar en la barra de estado que estamos en modo local
-  document.getElementById('status-text').textContent = 'Modo local · Sin servidor (Fase 4)';
+  connectToServer();
 
 });

@@ -27,7 +27,7 @@
   <!-- Logo -->
   <div class="header">
     <div class="logo">
-      <div class="logo-text">STAGE<span>MASTER</span></div>
+      <div class="logo-text" data-brand-logo>STAGE<span>MASTER</span></div>
       <div class="logo-subtitle">Padel Score · Control</div>
     </div>
   </div>
@@ -82,7 +82,6 @@
     <div class="card-label">Cantidad de Sets</div>
     <div class="pill-group" id="group-total-sets">
       <button class="pill-btn" data-value="1">1</button>
-      <button class="pill-btn" data-value="2">2</button>
       <button class="pill-btn selected" data-value="3">3</button>
       <button class="pill-btn" data-value="5">5</button>
     </div>
@@ -94,6 +93,7 @@
     <div class="toggle-group" id="group-scoring">
       <button class="toggle-btn selected" data-value="advantage">Ventaja</button>
       <button class="toggle-btn" data-value="goldenPoint">Punto de Oro</button>
+      <button class="toggle-btn" data-value="starPoint">Punto Estrella</button>
     </div>
   </div>
 
@@ -216,7 +216,7 @@
 
     <!-- Deshacer (con confirmación de doble toque) -->
     <button class="btn-undo" id="btn-undo">
-      ↩ DESHACER ÚLTIMO PUNTO
+      ↩ DESHACER ÚLTIMA ACCIÓN
     </button>
 
     <!-- Reiniciar y Finalizar -->
@@ -238,8 +238,8 @@
 
   <!-- Barra de estado de conexión -->
   <div class="status-bar">
-    <div class="status-dot local" id="status-dot"></div>
-    <span id="status-text">Modo local · Sin servidor</span>
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Conectando con el servidor…</span>
   </div>
 
 </div><!-- /screen-match -->
@@ -253,7 +253,7 @@
 
   <div class="header">
     <div class="logo">
-      <div class="logo-text">STAGE<span>MASTER</span></div>
+      <div class="logo-text" data-brand-logo>STAGE<span>MASTER</span></div>
     </div>
   </div>
 
@@ -296,11 +296,23 @@
 
 
 <!-- ═══════════════════════════════════════════════════════════════
-     SCRIPTS
-     engine-browser.js primero (define window.PadelEngine)
-     control.js después (usa PadelEngine)
+     AVISO FLOTANTE (toast)
+     Mensajes breves para el operador: errores, sin conexión, etc.
      ═══════════════════════════════════════════════════════════════ -->
-<script src="js/engine-browser.js"></script>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SCRIPTS
+     /socket.io/socket.io.js lo sirve automáticamente el servidor
+     (define io()). control.js lo usa para comunicarse en tiempo real.
+
+     Desde la Fase 7 el panel ya NO usa engine-browser.js: el único
+     motor que decide el marcador es el del servidor. El archivo se
+     conserva para pruebas (engine.test.js lo compara con engine.js).
+     ═══════════════════════════════════════════════════════════════ -->
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/brand.js"></script>
 <script src="js/control.js"></script>
 
 </body>

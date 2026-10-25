@@ -28,6 +28,7 @@
 
 .logo {
   display: inline-block;
+  --logo-height: 72px;     /* Logo de dos líneas en el encabezado del iPhone */
 }
 
 .logo-text {
@@ -111,7 +112,7 @@
 .pill-btn {
   flex: 1;
   min-width: 44px;
-  height: 44px;
+  height: var(--touch-option);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-pill);
@@ -149,7 +150,7 @@
 
 .toggle-btn {
   flex: 1;
-  height: 42px;
+  height: var(--touch-option);
   background: transparent;
   border-radius: calc(var(--radius-sm) - 2px);
   color: var(--text-secondary);
@@ -412,7 +413,7 @@
 /* DESHACER — rojo, full width */
 .btn-undo {
   width: 100%;
-  height: 56px;
+  height: var(--touch-action);
   background: var(--danger-bg);
   border: 1.5px solid rgba(229, 57, 53, 0.40);
   border-radius: var(--radius-lg);
@@ -448,7 +449,7 @@
 }
 
 .btn-secondary {
-  height: 52px;
+  height: var(--touch-action);
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -472,7 +473,7 @@
 /* CAMBIAR SAQUE — outlined, full width */
 .btn-server {
   width: 100%;
-  height: 52px;
+  height: var(--touch-action);
   background: transparent;
   border: 1.5px solid var(--border-bright);
   border-radius: var(--radius-lg);
@@ -522,6 +523,63 @@
 
 .status-dot.local {
   background: var(--warning);
+}
+
+.status-dot.offline {
+  background: var(--danger);
+  animation: pulse 1s ease infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ESTADOS DE CONEXIÓN DEL PANEL (Fase 7)
+   ───────────────────────────────────────────────────────────────── */
+
+/* Esperando respuesta del servidor (solo visible si tarda > 250 ms) */
+body.is-pending .btn-point,
+body.is-pending .btn-undo,
+body.is-pending .btn-server {
+  opacity: 0.6;
+}
+
+/* Sin conexión: los botones de acción se ven deshabilitados */
+body.is-offline .btn-point,
+body.is-offline .btn-undo,
+body.is-offline .btn-server,
+body.is-offline .btn-secondary {
+  opacity: 0.35;
+}
+
+/* Deshacer sin historial disponible */
+.btn-undo:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   AVISO FLOTANTE (toast)
+   ───────────────────────────────────────────────────────────────── */
+
+.toast {
+  position: fixed;
+  left: var(--space-md);
+  right: var(--space-md);
+  top: calc(env(safe-area-inset-top, 0px) + var(--space-md));
+  z-index: 200;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  animation: slideDown var(--transition-normal);
+}
+
+.toast.is-error {
+  background: #3A1214;
+  border-color: var(--danger);
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -625,7 +683,7 @@
 }
 
 .modal-cancel {
-  height: 52px;
+  height: var(--touch-action);
   background: rgba(255,255,255,0.07);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -638,7 +696,7 @@
 .modal-cancel:active { transform: scale(0.96); }
 
 .modal-confirm {
-  height: 52px;
+  height: var(--touch-action);
   background: var(--danger);
   border-radius: var(--radius-md);
   color: white;
