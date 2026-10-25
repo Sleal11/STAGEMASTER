@@ -174,32 +174,52 @@ io.on('connection', (socket) => {
 // ARRANQUE DEL SERVIDOR
 // ─────────────────────────────────────────────────────────────────
 
-server.listen(PORT, () => {
-  // Obtener la IP local para mostrarla en consola
+/**
+ * Devuelve todas las IPv4 de la red local de este PC, con el nombre del
+ * adaptador. Un PC con Windows suele tener varias (Wi-Fi, Ethernet y
+ * adaptadores virtuales de Hyper-V, WSL, VirtualBox o VPN): hay que usar
+ * la del adaptador conectado a la misma red que el iPhone.
+ */
+function getLocalAddresses() {
   const { networkInterfaces } = require('os');
-  const nets = networkInterfaces();
-  let localIp = 'localhost';
+  const nets      = networkInterfaces();
+  const addresses = [];
 
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
-      // Buscar la IP IPv4 que no sea loopback
+      // IPv4 que no sea loopback (127.0.0.1)
       if (net.family === 'IPv4' && !net.internal) {
-        localIp = net.address;
-        break;
+        addresses.push({ name, address: net.address });
       }
     }
-    if (localIp !== 'localhost') break;
   }
+  return addresses;
+}
+
+server.listen(PORT, () => {
+  const addresses = getLocalAddresses();
 
   console.log('\n');
   console.log('  ╔═══════════════════════════════════════════╗');
   console.log('  ║         STAGEMASTER SERVER                ║');
-  console.log('  ╠═══════════════════════════════════════════╣');
-  console.log(`  ║  Puerto:     ${PORT}                          ║`);
-  console.log(`  ║  Red local:  http://${localIp}:${PORT}      ║`);
-  console.log('  ╠═══════════════════════════════════════════╣');
-  console.log(`  ║  📱 iPhone:  http://${localIp}:${PORT}/control.html`);
-  console.log(`  ║  🖥  LED:    http://${localIp}:${PORT}/score.html  `);
   console.log('  ╚═══════════════════════════════════════════╝');
+  console.log(`\n  Puerto: ${PORT}`);
+
+  if (addresses.length === 0) {
+    console.log('\n  ⚠ No se detectó ninguna red. Conecta el PC al Wi-Fi o al router.');
+    console.log(`  Solo en este PC: http://localhost:${PORT}/score.html`);
+  }
+
+  addresses.forEach(({ name, address }) => {
+    console.log(`\n  Red "${name}":`);
+    console.log(`    📱 iPhone:  http://${address}:${PORT}/control.html`);
+    console.log(`    🖥  LED:     http://${address}:${PORT}/score.html`);
+  });
+
+  if (addresses.length > 1) {
+    console.log('\n  ℹ Hay varias redes: usa la del adaptador Wi-Fi/Ethernet conectado');
+    console.log('    al mismo router que el iPhone (normalmente empieza por 192.168.).');
+  }
+
   console.log('\n  Esperando conexiones...\n');
 });

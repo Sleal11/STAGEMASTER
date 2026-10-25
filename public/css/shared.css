@@ -4,7 +4,61 @@
  * entre control.html y score.html
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
+/* ─────────────────────────────────────────────────────────────────
+   TIPOGRAFÍAS LOCALES (sin Internet)
+   Los archivos están en public/fonts/ (licencia SIL OFL, ver LICENSE-*.txt).
+   Antes se cargaban desde Google Fonts, lo que fallaba en un evento sin
+   Internet. font-display: block evita que se vea un instante otra fuente.
+   ───────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Inter';
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+  src: url('../fonts/inter-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+  src: url('../fonts/inter-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+  src: url('../fonts/inter-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+  src: url('../fonts/inter-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+  src: url('../fonts/oswald-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+  src: url('../fonts/oswald-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+  src: url('../fonts/oswald-latin-700-normal.woff2') format('woff2');
+}
 
 /* ─────────────────────────────────────────────────────────────────
    TOKENS DE DISEÑO (variables globales)
@@ -48,6 +102,10 @@
   --space-xl:   32px;
   --space-2xl:  48px;
   --space-3xl:  64px;
+
+  /* Tamaños táctiles (iPhone) */
+  --touch-action: 60px;   /* Botones de acción durante el partido y modales */
+  --touch-option: 52px;   /* Selectores del formulario de configuración   */
 
   /* Radios de borde */
   --radius-sm:   8px;
@@ -118,6 +176,33 @@ input {
   border: none;
   -webkit-appearance: none;
   appearance: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   LOGO (brand.js)
+   La imagen ocupa la altura de la letra del contenedor, así cada
+   interfaz controla su tamaño con font-size.
+
+   --logo-filter convierte el logo a BLANCO para el fondo oscuro.
+   IMPORTANTE: requiere un PNG con FONDO TRANSPARENTE; con fondo blanco
+   opaco se vería un rectángulo blanco. Para usar los colores originales
+   del logo, cambiar el valor a "none".
+   ───────────────────────────────────────────────────────────────── */
+:root {
+  --logo-filter: brightness(0) invert(1);
+}
+
+.has-logo-image {
+  line-height: 0;
+  letter-spacing: 0;
+  padding-left: 0;
+}
+
+.brand-logo-img {
+  height: 1.4em;
+  width: auto;
+  max-width: 100%;
+  filter: var(--logo-filter);
 }
 
 /* ─────────────────────────────────────────────────────────────────

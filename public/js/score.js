@@ -119,6 +119,7 @@ function renderScore(state) {
     return;
   }
 
+  var previous = lastState;
   lastState = state;
   dom.waiting.classList.add('hidden');
   dom.board.classList.remove('hidden');
@@ -130,6 +131,7 @@ function renderScore(state) {
   renderBadge(state, finished);
   renderDivider(state, finished);
   renderHistory(state, finished);
+  animateChanges(previous, state);
 }
 
 /** Muestra la pantalla de espera (no hay partido activo) */
@@ -252,6 +254,80 @@ function buildSetChip(label, score, isCurrent, detail) {
     chip.appendChild(detailEl);
   }
   return chip;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ANIMACIONES
+// Se comparan el estado anterior y el nuevo, y solo se anima lo que
+// cambió. Así, re-dibujar el mismo estado (ej. al cambiar el tamaño de
+// la ventana) o un "Deshacer" no disparan celebraciones falsas.
+// ─────────────────────────────────────────────────────────────────
+
+/** Clases de animación definidas en score.css */
+var ANIM = {
+  point:  'anim-point',    // los puntos cambian (giro tipo marcador)
+  game:   'anim-game',     // un equipo gana un game (destello)
+  set:    'anim-set',      // un equipo gana un set (pulso grande)
+  row:    'anim-row',      // destello de la fila del equipo que anota game/set
+  chip:   'anim-chip',     // aparece un set nuevo en el historial
+  winner: 'anim-winner',   // final del partido
+};
+
+function animateChanges(previous, state) {
+  // Primera vez, o es otro partido (nuevo o reiniciado): no animar
+  if (!previous || state.version <= previous.version || !isSameMatch(previous, state)) return;
+
+  ['A', 'B'].forEach(function (side) {
+    var before = previous.players[side];
+    var now    = state.players[side];
+    var el     = dom[side];
+
+    if (now.points !== before.points) playAnimation(el.pts, ANIM.point);
+
+    // Solo se celebra cuando el marcador SUBE (un undo baja y no se celebra)
+    if (now.sets > before.sets) {
+      playAnimation(el.sets, ANIM.set);
+      playAnimation(el.row, ANIM.row);
+    } else if (now.games > before.games) {
+      playAnimation(el.games, ANIM.game);
+      playAnimation(el.row, ANIM.row);
+    }
+  });
+
+  // Set nuevo en el historial → la última chip completada aparece animada
+  if (state.setScores.length > previous.setScores.length) {
+    var chip = dom.history.children[state.setScores.length - 1];
+    if (chip) playAnimation(chip, ANIM.chip);
+  }
+
+  // Fin del partido → la fila ganadora hace un barrido de luz
+  if (state.status === 'finished' && previous.status !== 'finished' && state.winner) {
+    playAnimation(dom[state.winner].row, ANIM.winner);
+  }
+}
+
+/** true si ambos estados son del mismo partido (mismos equipos y reglas) */
+function isSameMatch(a, b) {
+  return a.players.A.name === b.players.A.name &&
+         a.players.B.name === b.players.B.name &&
+         JSON.stringify(a.config) === JSON.stringify(b.config);
+}
+
+/**
+ * Reproduce una animación CSS desde el principio, aunque ya se
+ * estuviera reproduciendo (ej. dos puntos seguidos muy rápidos).
+ */
+function playAnimation(el, className) {
+  el.classList.remove(className);
+  void el.offsetWidth;            // fuerza al navegador a "olvidar" la animación anterior
+  el.classList.add(className);
+  el.addEventListener('animationend', function onEnd(event) {
+    // 'animationend' sube desde los hijos (ej. el giro de los puntos dentro
+    // de la fila) y desde ::after: solo cuenta la animación del propio elemento
+    if (event.target !== el || event.pseudoElement) return;
+    el.classList.remove(className);
+    el.removeEventListener('animationend', onEnd);
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────
