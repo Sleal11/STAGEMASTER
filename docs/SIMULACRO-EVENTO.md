@@ -61,9 +61,10 @@ Anota el resultado de cada prueba en la tabla del final.
 
 ### S1 · Montaje en frío (objetivo: < 5 min)
 1. Con todo apagado, pon en marcha un cronómetro.
-2. Enciende router y PC, conecta la LED, arranca el servidor (`npm start`).
-3. Abre la LED: `chrome --kiosk http://localhost:3000/score.html`
-   (o abre la URL y pulsa **F11**).
+2. Enciende router y PC, conecta la LED.
+3. Doble clic en **`INICIAR-STAGEMASTER.bat`** (arranca el servidor y abre la LED
+   en modo kiosco). Alternativa manual: `npm start` y abrir
+   `http://localhost:3000/score.html` con **F11**.
 4. Abre el panel en el iPhone y crea un partido.
 
 **Aprobado:** marcador en la LED en menos de 5 min y la barra del iPhone en verde
