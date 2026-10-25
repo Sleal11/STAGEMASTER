@@ -26,6 +26,12 @@
 // ESTADO GLOBAL DEL PANEL
 // ─────────────────────────────────────────────────────────────────
 
+/** Texto del badge cuando el siguiente punto decide el game */
+var DECISIVE_POINT_LABELS = {
+  goldenPoint: 'PUNTO DE ORO',
+  starPoint:   'PUNTO ESTRELLA',
+};
+
 /** Estado actual del partido. null = no hay partido iniciado. */
 var matchState = null;
 
@@ -187,6 +193,10 @@ function renderMatch() {
     badge.classList.remove('hidden');
   } else if (phase === 'superTiebreak') {
     badge.textContent = 'SUPER TB';
+    badge.classList.remove('hidden');
+  } else if (matchState.decisivePoint) {
+    // 40-40 decisivo: el siguiente punto gana el game
+    badge.textContent = DECISIVE_POINT_LABELS[matchState.config.scoringSystem] || 'PUNTO DECISIVO';
     badge.classList.remove('hidden');
   } else {
     badge.classList.add('hidden');

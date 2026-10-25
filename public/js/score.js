@@ -34,6 +34,12 @@ var PHASE_LABELS = {
   superTiebreak: 'SUPER TIE BREAK',
 };
 
+/** Texto del badge cuando el siguiente punto decide el game (40-40 decisivo) */
+var DECISIVE_POINT_LABELS = {
+  goldenPoint: 'PUNTO DE ORO',
+  starPoint:   'PUNTO ESTRELLA',
+};
+
 /** Tamaño mínimo del nombre (en % del tamaño CSS) al ajustarlo para que quepa */
 var MIN_NAME_SCALE = 0.55;
 
@@ -159,7 +165,8 @@ function renderTeam(state, side, finished) {
 /**
  * Badge superior:
  *   - TIE BREAK / SUPER TIE BREAK durante el desempate
- *   - PUNTO DE ORO cuando hay 40-40 con sistema de punto de oro
+ *   - PUNTO DE ORO / PUNTO ESTRELLA cuando el siguiente punto decide el game
+ *     (el motor lo indica en state.decisivePoint)
  */
 function renderBadge(state, finished) {
   var label  = null;
@@ -168,8 +175,8 @@ function renderBadge(state, finished) {
   if (!finished) {
     if (PHASE_LABELS[state.phase]) {
       label = PHASE_LABELS[state.phase];
-    } else if (isGoldenPoint(state)) {
-      label  = 'PUNTO DE ORO';
+    } else if (state.decisivePoint) {
+      label  = DECISIVE_POINT_LABELS[state.config.scoringSystem] || 'PUNTO DECISIVO';
       isGold = true;
     }
   }
@@ -271,14 +278,6 @@ function isDecidingSuperTiebreak(state) {
   return state.phase === 'superTiebreak' &&
          state.players.A.games === 0 &&
          state.players.B.games === 0;
-}
-
-/** true si el próximo punto decide el game por punto de oro */
-function isGoldenPoint(state) {
-  return state.phase === 'normal' &&
-         state.config && state.config.scoringSystem === 'goldenPoint' &&
-         state.players.A.points === 40 &&
-         state.players.B.points === 40;
 }
 
 /**

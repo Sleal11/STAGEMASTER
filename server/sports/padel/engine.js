@@ -29,6 +29,12 @@ const PUNTOS = [0, 15, 30, 40];
 /** Marcador especial para indicar que un jugador tiene ventaja */
 const VENTAJA = 'AD';
 
+/**
+ * Punto Estrella (reglamento FIP 2026): en el TERCER 40-40 de un game
+ * ya no se juega ventaja, sino un único punto decisivo.
+ */
+const IGUALES_PUNTO_ESTRELLA = 3;
+
 /** Máximo de estados guardados en el historial (para undo) */
 const MAX_HISTORIAL = 50;
 
@@ -42,7 +48,7 @@ const MAX_HISTORIAL = 50;
  * @param {Object} config
  * @param {number} config.gamesPerSet    - Games para ganar un set (1–6)
  * @param {number} config.totalSets      - Total de sets del partido
- * @param {string} config.scoringSystem  - 'advantage' | 'goldenPoint'
+ * @param {string} config.scoringSystem  - 'advantage' | 'goldenPoint' | 'starPoint'
  * @param {string} config.tiebreakType   - 'tiebreak' | 'superTiebreak' | 'none'
  * @param {string} config.initialServer  - 'A' | 'B'
  * @param {string} config.nameA          - Nombre del equipo A
@@ -60,7 +66,7 @@ function createMatch(config) {
       gamesPerSet:   config.gamesPerSet,
       totalSets:     config.totalSets,
       setsToWin,                           // Calculado automáticamente
-      scoringSystem: config.scoringSystem, // 'advantage' | 'goldenPoint'
+      scoringSystem: config.scoringSystem, // 'advantage' | 'goldenPoint' | 'starPoint'
       tiebreakType:  config.tiebreakType,  // 'tiebreak' | 'superTiebreak' | 'none'
       initialServer: config.initialServer, // 'A' | 'B'
     },
@@ -73,6 +79,8 @@ function createMatch(config) {
     status:     'playing',   // 'playing' | 'finished'
     phase:      'normal',    // 'normal' | 'tiebreak' | 'superTiebreak'
     winner:     null,        // null | 'A' | 'B'
+    deuceCount: 0,           // Veces que se llegó a 40-40 en el game actual (Punto Estrella)
+    decisivePoint: false,    // true si el próximo punto decide el game (oro/estrella). Solo informativo para la UI
     setScores:  [],          // Historial: [{A: 6, B: 3}, {A: 4, B: 6}, ...]
     history:    [],          // Stack de estados anteriores (para undo)
   };
@@ -131,6 +139,14 @@ function applyPoint(state, scorer) {
     s = processTiebreakPoint(s, scorer);
   }
 
+  // ── 4. Dato derivado para las interfaces ───────────────────────
+  // Así la presentación no necesita conocer las reglas del punto decisivo
+  s.decisivePoint = s.status === 'playing' &&
+                    s.phase === 'normal' &&
+                    s.players.A.points === 40 &&
+                    s.players.B.points === 40 &&
+                    isDecisivePoint(s);
+
   return s;
 }
 
@@ -166,7 +182,8 @@ function applyChangeServer(state) {
 function applyFinishMatch(state) {
   if (state.status === 'finished') return state;
   const s = deepCopy(state);
-  s.status = 'finished';
+  s.status        = 'finished';
+  s.decisivePoint = false;
 
   // Ganador: quien tenga más sets
   if (s.players.A.sets > s.players.B.sets)      s.winner = 'A';
@@ -182,7 +199,7 @@ function applyFinishMatch(state) {
 
 /**
  * Procesa un punto durante un game normal (fase 'normal').
- * Aplica la secuencia 0→15→30→40 y maneja deuce/ventaja/punto de oro.
+ * Aplica la secuencia 0→15→30→40 y maneja deuce/ventaja/punto de oro/punto estrella.
  */
 function processNormalPoint(state, scorer) {
   const opp = opponent(scorer);      // El otro jugador
@@ -199,13 +216,15 @@ function processNormalPoint(state, scorer) {
     const s = deepCopy(state);
     s.players[scorer].points = 40;
     s.players[opp].points    = 40;
+    s.deuceCount += 1;       // Nuevo 40-40 (cuenta para el Punto Estrella)
     return s;
   }
 
   // ── Caso 3: Ambos en 40 → situación de DEUCE ──────────────────
   if (sp === 40 && op === 40) {
-    if (state.config.scoringSystem === 'goldenPoint') {
-      // Punto de oro: el anotador gana el game directamente
+    if (isDecisivePoint(state)) {
+      // Punto de oro, o Punto Estrella en el tercer 40-40:
+      // el anotador gana el game directamente
       return processGameWon(state, scorer);
     }
     // Ventaja: el anotador obtiene ventaja
@@ -225,7 +244,22 @@ function processNormalPoint(state, scorer) {
   const s = deepCopy(state);
   const indice = PUNTOS.indexOf(sp);
   s.players[scorer].points = PUNTOS[indice + 1];
+  // Si con este punto ambos quedan en 40 → primer 40-40 del game
+  if (s.players[scorer].points === 40 && op === 40) s.deuceCount += 1;
   return s;
+}
+
+/**
+ * true si, estando 40-40, el siguiente punto decide el game sin ventaja:
+ *   - Punto de oro: siempre
+ *   - Punto Estrella: a partir del tercer 40-40 del game
+ *   - Ventaja: nunca
+ */
+function isDecisivePoint(state) {
+  const sistema = state.config.scoringSystem;
+  if (sistema === 'goldenPoint') return true;
+  if (sistema === 'starPoint')   return state.deuceCount >= IGUALES_PUNTO_ESTRELLA;
+  return false;
 }
 
 /**
@@ -283,6 +317,7 @@ function processGameWon(state, scorer) {
   // ── Resetear puntos para el próximo game ──────────────────────
   s.players.A.points = 0;
   s.players.B.points = 0;
+  s.deuceCount       = 0;
 
   // ── Sumar game al ganador ─────────────────────────────────────
   s.players[scorer].games += 1;

@@ -17,6 +17,7 @@
   var PUNTOS   = [0, 15, 30, 40];
   var VENTAJA  = 'AD';
   var MAX_HIST = 50;
+  var IGUALES_PUNTO_ESTRELLA = 3;   // Punto Estrella: decisivo en el 3er 40-40
 
   // ── API Pública ────────────────────────────────────────────────
 
@@ -41,6 +42,8 @@
       status:     'playing',
       phase:      'normal',
       winner:     null,
+      deuceCount: 0,
+      decisivePoint: false,
       setScores:  [],
       history:    [],
     };
@@ -74,6 +77,13 @@
     } else {
       s = processTiebreakPoint(s, scorer);
     }
+
+    // Dato derivado para las interfaces (ver engine.js)
+    s.decisivePoint = s.status === 'playing' &&
+                      s.phase === 'normal' &&
+                      s.players.A.points === 40 &&
+                      s.players.B.points === 40 &&
+                      isDecisivePoint(s);
     return s;
   }
 
@@ -94,7 +104,8 @@
   function applyFinishMatch(state) {
     if (state.status === 'finished') return state;
     var s    = deepCopy(state);
-    s.status = 'finished';
+    s.status        = 'finished';
+    s.decisivePoint = false;
     if      (s.players.A.sets > s.players.B.sets) s.winner = 'A';
     else if (s.players.B.sets > s.players.A.sets) s.winner = 'B';
     return s;
@@ -113,13 +124,12 @@
       var s = deepCopy(state);
       s.players[scorer].points = 40;
       s.players[opp].points    = 40;
+      s.deuceCount += 1;
       return s;
     }
 
     if (sp === 40 && op === 40) {
-      if (state.config.scoringSystem === 'goldenPoint') {
-        return processGameWon(state, scorer);
-      }
+      if (isDecisivePoint(state)) return processGameWon(state, scorer);
       var s2 = deepCopy(state);
       s2.players[scorer].points = VENTAJA;
       return s2;
@@ -130,7 +140,16 @@
     var s3  = deepCopy(state);
     var idx = PUNTOS.indexOf(sp);
     s3.players[scorer].points = PUNTOS[idx + 1];
+    if (s3.players[scorer].points === 40 && op === 40) s3.deuceCount += 1;
     return s3;
+  }
+
+  // Punto de oro siempre; Punto Estrella desde el 3er 40-40 (ver engine.js)
+  function isDecisivePoint(state) {
+    var sistema = state.config.scoringSystem;
+    if (sistema === 'goldenPoint') return true;
+    if (sistema === 'starPoint')   return state.deuceCount >= IGUALES_PUNTO_ESTRELLA;
+    return false;
   }
 
   function processTiebreakPoint(state, scorer) {
@@ -158,6 +177,7 @@
     var s    = deepCopy(state);
     s.players.A.points = 0;
     s.players.B.points = 0;
+    s.deuceCount       = 0;
     s.players[scorer].games += 1;
     s.server = toggleServer(s.server);
 

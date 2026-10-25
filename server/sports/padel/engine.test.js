@@ -732,11 +732,94 @@ test('Undo del primer punto del Super Tie Break no rompe la fase', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════
+// REGLAMENTO FIP 2026: PUNTO ESTRELLA
+// 1er y 2º 40-40 → se juega ventaja | 3er 40-40 → punto decisivo
+// ═════════════════════════════════════════════════════════════════
+console.log('\nREGLAMENTO FIP 2026: Punto Estrella');
+
+/** Partido con Punto Estrella en el primer 40-40 del primer game */
+function primerIguales() {
+  const estado = createMatch(config({ scoringSystem: 'starPoint' }));
+  return applyMany(estado, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB']);
+}
+
+test('Primer 40-40 → deuceCount = 1 y A gana punto → Ventaja A (no decisivo)', () => {
+  let estado = primerIguales();
+  assert.strictEqual(estado.deuceCount, 1);
+  estado = applyAction(estado, 'pointA');
+  assert.strictEqual(estado.players.A.points, 'AD');
+  assert.strictEqual(estado.players.A.games, 0);
+});
+
+test('Segundo 40-40 → todavía se juega ventaja', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB']); // AD A → 2º 40-40
+  assert.strictEqual(estado.deuceCount, 2);
+  estado = applyAction(estado, 'pointB');
+  assert.strictEqual(estado.players.B.points, 'AD', 'En el 2º iguales sigue habiendo ventaja');
+});
+
+test('Tercer 40-40 → el siguiente punto (Punto Estrella) gana el game', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointB', 'pointA']); // 3er 40-40
+  assert.strictEqual(estado.deuceCount, 3);
+  assert.strictEqual(estado.players.A.points, 40);
+  assert.strictEqual(estado.players.B.points, 40);
+  estado = applyAction(estado, 'pointB');
+  assert.strictEqual(estado.players.B.games, 1, 'B gana el game con el Punto Estrella');
+  assert.strictEqual(estado.players.B.points, 0);
+});
+
+test('El game más largo posible con Punto Estrella dura 11 puntos', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointA', 'pointB']); // 10 puntos
+  assert.strictEqual(estado.players.A.games + estado.players.B.games, 0, '10 puntos: aún sin game');
+  estado = applyAction(estado, 'pointA'); // punto 11
+  assert.strictEqual(estado.players.A.games, 1);
+});
+
+test('Ganar con ventaja antes del 3er iguales funciona normal', () => {
+  const estado = applyMany(primerIguales(), ['pointA', 'pointA']); // AD A → game A
+  assert.strictEqual(estado.players.A.games, 1);
+});
+
+test('El contador de iguales se reinicia en cada game nuevo', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointB', 'pointA', 'pointB']); // game B
+  assert.strictEqual(estado.deuceCount, 0, 'Tras el game el contador vuelve a 0');
+  estado = applyMany(estado, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB', 'pointA']);
+  assert.strictEqual(estado.players.A.points, 'AD', 'En el nuevo game el 1er iguales vuelve a tener ventaja');
+});
+
+test('Undo desde el 3er 40-40 restaura el contador de iguales', () => {
+  let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointB', 'pointA']); // 3er iguales
+  estado = applyAction(estado, 'undo');
+  assert.strictEqual(estado.deuceCount, 2);
+  assert.strictEqual(estado.players.B.points, 'AD');
+});
+
+test('decisivePoint: solo es true en el 3er 40-40 (estrella) o en cualquier 40-40 (oro)', () => {
+  let estrella = primerIguales();
+  assert.strictEqual(estrella.decisivePoint, false, '1er iguales con estrella: no decisivo');
+  estrella = applyMany(estrella, ['pointA', 'pointB', 'pointB', 'pointA']);
+  assert.strictEqual(estrella.decisivePoint, true, '3er iguales con estrella: decisivo');
+  estrella = applyAction(estrella, 'pointA');
+  assert.strictEqual(estrella.decisivePoint, false, 'Game nuevo: ya no es decisivo');
+
+  const oro = applyMany(createMatch(config({ scoringSystem: 'goldenPoint' })),
+    ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB']);
+  assert.strictEqual(oro.decisivePoint, true, '40-40 con punto de oro: decisivo');
+});
+
+test('Con sistema Ventaja el 3er 40-40 NO es decisivo', () => {
+  let estado = createMatch(config({ scoringSystem: 'advantage' }));
+  estado = applyMany(estado, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB',
+                              'pointA', 'pointB', 'pointB', 'pointA', 'pointB']);
+  assert.strictEqual(estado.players.B.points, 'AD');
+});
+
+// ═════════════════════════════════════════════════════════════════
 // SINCRONÍA: engine.js y engine-browser.js deben comportarse igual
 // ═════════════════════════════════════════════════════════════════
 console.log('\nSINCRONÍA: motor del servidor vs motor del navegador');
 
-test('Ambos motores producen el mismo estado en 3000 acciones aleatorias', () => {
+test('Ambos motores producen el mismo estado en 4000 acciones aleatorias', () => {
   const fs   = require('fs');
   const path = require('path');
   const vm   = require('vm');
@@ -756,6 +839,7 @@ test('Ambos motores producen el mismo estado en 3000 acciones aleatorias', () =>
     config(),
     config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }),
     config({ gamesPerSet: 2, totalSets: 5, tiebreakType: 'none' }),
+    config({ scoringSystem: 'starPoint', tiebreakType: 'superTiebreak', totalSets: 5 }),
   ];
 
   configs.forEach((cfg) => {
