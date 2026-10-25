@@ -146,7 +146,10 @@
     var objetivo = s.phase === 'superTiebreak' ? 10 : 7;
 
     if (isTiebreakWon(pA, pB, objetivo)) {
-      return processSetWon(s, pA > pB ? 'A' : 'B');
+      var ganadorTB = pA > pB ? 'A' : 'B';
+      s.players[ganadorTB].games += 1;                          // 6-6 → 7-6
+      s.server = opponent(tiebreakFirstServer(s.server, total)); // saca quien recibió primero
+      return processSetWon(s, ganadorTB, { A: pA, B: pB });
     }
     return s;
   }
@@ -173,9 +176,11 @@
     return s;
   }
 
-  function processSetWon(state, scorer) {
+  function processSetWon(state, scorer, tiebreakScore) {
     var s    = deepCopy(state);
-    s.setScores.push({ A: s.players.A.games, B: s.players.B.games });
+    var resultadoSet = { A: s.players.A.games, B: s.players.B.games };
+    if (tiebreakScore) resultadoSet.tiebreak = tiebreakScore;
+    s.setScores.push(resultadoSet);
     s.players[scorer].sets += 1;
     s.players.A.games  = 0;
     s.players.B.games  = 0;
@@ -218,6 +223,12 @@
       state.players.A.sets === needed - 1 &&
       state.players.B.sets === needed - 1
     );
+  }
+
+  // Primer servidor del tiebreak (ver explicación en engine.js)
+  function tiebreakFirstServer(currentServer, totalPoints) {
+    var cambios = Math.ceil(totalPoints / 2);
+    return cambios % 2 === 1 ? toggleServer(currentServer) : currentServer;
   }
 
   function opponent(p)      { return p === 'A' ? 'B' : 'A'; }

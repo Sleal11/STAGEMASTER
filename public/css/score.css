@@ -362,6 +362,15 @@ html,
   font-variant-numeric: tabular-nums;
 }
 
+/* Detalle del tiebreak, ej. "(8-6)" */
+.sb-set-chip-detail {
+  font-family: var(--font-score);
+  font-weight: 500;
+  font-size: calc(var(--u) * 1.6);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Set en curso: borde de acento */
 .sb-set-chip.is-current {
   border-color: var(--accent-bright);

@@ -257,7 +257,15 @@ function processTiebreakPoint(state, scorer) {
 
   if (isTiebreakWon(pA, pB, objetivo)) {
     const ganadorTB = pA > pB ? 'A' : 'B';
-    return processSetWon(s, ganadorTB);
+
+    // El tiebreak cuenta como un game más para el ganador del set: 6-6 → 7-6
+    s.players[ganadorTB].games += 1;
+
+    // Regla oficial: el primer game del siguiente set lo saca quien
+    // RECIBIÓ el primer punto del tiebreak
+    s.server = opponent(tiebreakFirstServer(s.server, total));
+
+    return processSetWon(s, ganadorTB, { A: pA, B: pB });
   }
 
   return s;
@@ -318,15 +326,22 @@ function processGameWon(state, scorer) {
 /**
  * Registra la victoria de un set, prepara el partido para el siguiente,
  * y verifica si el ganador del set también ganó el partido.
+ *
+ * @param {Object} state
+ * @param {string} scorer         - Ganador del set: 'A' | 'B'
+ * @param {Object} [tiebreakScore] - Puntos del tiebreak {A, B}, si el set se decidió así
  */
-function processSetWon(state, scorer) {
+function processSetWon(state, scorer, tiebreakScore) {
   const s = deepCopy(state);
 
   // ── Registrar el resultado del set terminado ───────────────────
-  s.setScores.push({
+  // Ej. set normal: {A: 6, B: 3}  |  set con tiebreak: {A: 7, B: 6, tiebreak: {A: 8, B: 6}}
+  const resultadoSet = {
     A: s.players.A.games,
     B: s.players.B.games,
-  });
+  };
+  if (tiebreakScore) resultadoSet.tiebreak = tiebreakScore;
+  s.setScores.push(resultadoSet);
 
   // ── Sumar set al ganador ───────────────────────────────────────
   s.players[scorer].sets += 1;
@@ -407,6 +422,21 @@ function isLastSet(state) {
     state.players.A.sets === needed - 1 &&
     state.players.B.sets === needed - 1
   );
+}
+
+/**
+ * Calcula quién sacó el PRIMER punto del tiebreak, a partir del servidor
+ * actual y del total de puntos jugados (sin guardar un campo extra en el estado).
+ *
+ * En el tiebreak el servidor cambia tras cada punto impar (1, 3, 5...),
+ * es decir, ha cambiado Math.ceil(total / 2) veces. Si ese número es impar,
+ * el primer servidor es el contrario del actual; si es par, el mismo.
+ *
+ * Ejemplo: primer servidor A, total=1 → 1 cambio → actual B → primero = A ✓
+ */
+function tiebreakFirstServer(currentServer, totalPoints) {
+  const cambios = Math.ceil(totalPoints / 2);
+  return cambios % 2 === 1 ? toggleServer(currentServer) : currentServer;
 }
 
 /** Devuelve el jugador contrario */

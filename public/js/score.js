@@ -191,11 +191,13 @@ function renderDivider(state, finished) {
 /**
  * Historial de sets en la parte inferior.
  * Ej. en juego:     [SET 1 6-3] [SET 2 4-6] [SET 3 · EN CURSO]
- * Ej. finalizado:   [SET 1 6-3] [SET 2 4-6] [SET 3 7-5]
+ * Ej. finalizado:   [SET 1 6-3] [SET 2 4-6] [SET 3 7-6 (8-6)]
  */
 function renderHistory(state, finished) {
   var chips = state.setScores.map(function (set, index) {
-    return buildSetChip('SET ' + (index + 1), set.A + '-' + set.B, false);
+    // Si el set se decidió en tiebreak, se añade el detalle: 7-6 (8-6)
+    var detail = set.tiebreak ? '(' + set.tiebreak.A + '-' + set.tiebreak.B + ')' : null;
+    return buildSetChip('SET ' + (index + 1), set.A + '-' + set.B, false, detail);
   });
 
   var current = state.players;
@@ -212,8 +214,11 @@ function renderHistory(state, finished) {
   chips.forEach(function (chip) { dom.history.appendChild(chip); });
 }
 
-/** Crea el elemento DOM de una "chip" del historial de sets */
-function buildSetChip(label, score, isCurrent) {
+/**
+ * Crea el elemento DOM de una "chip" del historial de sets.
+ * @param {string} [detail] - Texto secundario opcional, ej. "(8-6)" del tiebreak
+ */
+function buildSetChip(label, score, isCurrent, detail) {
   var chip = document.createElement('div');
   chip.className = 'sb-set-chip' + (isCurrent ? ' is-current' : '');
 
@@ -227,6 +232,13 @@ function buildSetChip(label, score, isCurrent) {
 
   chip.appendChild(labelEl);
   chip.appendChild(scoreEl);
+
+  if (detail) {
+    var detailEl = document.createElement('span');
+    detailEl.className   = 'sb-set-chip-detail';
+    detailEl.textContent = detail;
+    chip.appendChild(detailEl);
+  }
   return chip;
 }
 

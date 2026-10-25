@@ -575,6 +575,154 @@ test('No se pueden registrar puntos en un partido finalizado', () => {
   assert.strictEqual(mismo.status, 'finished',    'Status debe seguir siendo "finished"');
 });
 
+// ═════════════════════════════════════════════════════════════════
+// CORRECCIÓN 1: Un set ganado en tiebreak se registra como 7-6
+// ═════════════════════════════════════════════════════════════════
+console.log('\nCORRECCIÓN 1: Resultado del set decidido en tiebreak');
+
+/** Lleva un partido nuevo hasta 6-6 en games (inicio del tiebreak del set 1) */
+function llegarATiebreak(overrides = {}) {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', ...overrides }));
+  for (let i = 0; i < 6; i++) {
+    estado = ganarGame(estado, 'A');
+    estado = ganarGame(estado, 'B');
+  }
+  return estado;
+}
+
+test('Tie Break 8-6 → el set se registra como 7-6 con el detalle del tiebreak', () => {
+  let estado = llegarATiebreak();
+  for (let i = 0; i < 6; i++) estado = applyMany(estado, ['pointA', 'pointB']); // 6-6
+  estado = applyMany(estado, ['pointA', 'pointA']);                              // 8-6
+
+  assert.deepStrictEqual(estado.setScores[0], { A: 7, B: 6, tiebreak: { A: 8, B: 6 } });
+  assert.strictEqual(estado.players.A.sets, 1, 'A debe sumar el set');
+  assert.strictEqual(estado.phase, 'normal',   'El set siguiente empieza en fase normal');
+});
+
+test('Tie Break ganado por B (5-7) → el set se registra como 6-7', () => {
+  let estado = llegarATiebreak();
+  for (let i = 0; i < 5; i++) estado = applyMany(estado, ['pointA', 'pointB']); // 5-5
+  estado = applyMany(estado, ['pointB', 'pointB']);                              // 5-7
+
+  assert.deepStrictEqual(estado.setScores[0], { A: 6, B: 7, tiebreak: { A: 5, B: 7 } });
+  assert.strictEqual(estado.players.B.sets, 1);
+});
+
+test('Super Tie Break 11-9 → el set se registra como 7-6 con detalle 11-9', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak', totalSets: 1 }));
+  for (let i = 0; i < 6; i++) {
+    estado = ganarGame(estado, 'A');
+    estado = ganarGame(estado, 'B');
+  }
+  assert.strictEqual(estado.phase, 'superTiebreak');
+  for (let i = 0; i < 9; i++) estado = applyMany(estado, ['pointA', 'pointB']); // 9-9
+  estado = applyMany(estado, ['pointA', 'pointA']);                              // 11-9
+
+  assert.deepStrictEqual(estado.setScores[0], { A: 7, B: 6, tiebreak: { A: 11, B: 9 } });
+  assert.strictEqual(estado.winner, 'A');
+});
+
+test('Un set normal (6-3) NO incluye el campo tiebreak', () => {
+  let estado = createMatch(config({ scoringSystem: 'goldenPoint' }));
+  for (let i = 0; i < 3; i++) estado = ganarGame(estado, 'B');
+  for (let i = 0; i < 6; i++) estado = ganarGame(estado, 'A');
+  assert.deepStrictEqual(estado.setScores[0], { A: 6, B: 3 });
+});
+
+// ═════════════════════════════════════════════════════════════════
+// CORRECCIÓN 2: Saque del set siguiente a un tiebreak
+// Regla: saca primero quien RECIBIÓ el primer punto del tiebreak
+// ═════════════════════════════════════════════════════════════════
+console.log('\nCORRECCIÓN 2: Saque después de un tiebreak');
+
+test('A saca el primer punto del Tie Break → B saca el primer game del set siguiente', () => {
+  let estado = llegarATiebreak({ initialServer: 'A' });
+  // 12 games jugados → el servidor rotó 12 veces → vuelve a A
+  assert.strictEqual(estado.server, 'A', 'A debe sacar el primer punto del tiebreak');
+  estado = applyMany(estado, Array(7).fill('pointA')); // 7-0 (total impar)
+  assert.strictEqual(estado.server, 'B', 'B debe sacar el set 2');
+});
+
+test('El saque posterior no depende del total de puntos del tiebreak (8-6, total par)', () => {
+  let estado = llegarATiebreak({ initialServer: 'A' });
+  for (let i = 0; i < 6; i++) estado = applyMany(estado, ['pointA', 'pointB']);
+  estado = applyMany(estado, ['pointA', 'pointA']); // 8-6
+  assert.strictEqual(estado.server, 'B', 'B debe sacar el set 2');
+});
+
+test('B saca el primer punto del Tie Break → A saca el set siguiente', () => {
+  let estado = llegarATiebreak({ initialServer: 'B' });
+  assert.strictEqual(estado.server, 'B', 'B debe sacar el primer punto del tiebreak');
+  for (let i = 0; i < 5; i++) estado = applyMany(estado, ['pointA', 'pointB']);
+  estado = applyMany(estado, ['pointB', 'pointB']); // 5-7
+  assert.strictEqual(estado.server, 'A', 'A debe sacar el set 2');
+});
+
+test('Corrección manual de saque durante el Tie Break también se respeta al terminar', () => {
+  let estado = llegarATiebreak({ initialServer: 'A' });
+  // El operador corrige: en realidad el tiebreak lo empezó sacando B
+  estado = applyAction(estado, 'changeServer');
+  estado = applyMany(estado, Array(7).fill('pointA'));
+  assert.strictEqual(estado.server, 'A', 'Recibió primero A → A saca el set 2');
+});
+
+test('Undo del punto que cierra el Tie Break → vuelve exactamente a 6-6 en tiebreak', () => {
+  let estado = llegarATiebreak();
+  for (let i = 0; i < 6; i++) estado = applyMany(estado, ['pointA', 'pointB']);
+  estado = applyAction(estado, 'pointA');      // 7-6
+  const antes = estado;
+  estado = applyAction(estado, 'pointA');      // 8-6 → set
+  estado = applyAction(estado, 'undo');
+
+  assert.strictEqual(estado.phase, 'tiebreak');
+  assert.strictEqual(estado.players.A.games, 6);
+  assert.strictEqual(estado.players.A.points, 7);
+  assert.strictEqual(estado.server, antes.server);
+  assert.strictEqual(estado.setScores.length, 0);
+});
+
+// ═════════════════════════════════════════════════════════════════
+// SINCRONÍA: engine.js y engine-browser.js deben comportarse igual
+// ═════════════════════════════════════════════════════════════════
+console.log('\nSINCRONÍA: motor del servidor vs motor del navegador');
+
+test('Ambos motores producen el mismo estado en 3000 acciones aleatorias', () => {
+  const fs   = require('fs');
+  const path = require('path');
+  const vm   = require('vm');
+
+  // Cargamos engine-browser.js en un "navegador" falso que solo tiene window
+  const codigo  = fs.readFileSync(path.join(__dirname, '../../../public/js/engine-browser.js'), 'utf8');
+  const sandbox = { window: {} };
+  vm.runInNewContext(codigo, sandbox);
+  const browser = sandbox.window.PadelEngine;
+
+  // Generador pseudoaleatorio con semilla fija → la prueba es reproducible
+  let semilla = 12345;
+  const aleatorio = () => (semilla = (semilla * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const acciones  = ['pointA', 'pointA', 'pointB', 'pointB', 'undo', 'changeServer'];
+
+  const configs = [
+    config(),
+    config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }),
+    config({ gamesPerSet: 2, totalSets: 5, tiebreakType: 'none' }),
+  ];
+
+  configs.forEach((cfg) => {
+    let sNode    = createMatch(cfg);
+    let sBrowser = browser.createMatch(cfg);
+    for (let i = 0; i < 1000; i++) {
+      const accion = acciones[Math.floor(aleatorio() * acciones.length)];
+      sNode    = applyAction(sNode, accion);
+      sBrowser = browser.applyAction(sBrowser, accion);
+      // JSON para comparar ignorando el "mundo" (vm) en el que se creó cada objeto
+      assert.strictEqual(JSON.stringify(sBrowser), JSON.stringify(sNode),
+        `Divergencia en la acción #${i} (${accion})`);
+    }
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────
 // RESUMEN FINAL
 // ─────────────────────────────────────────────────────────────────
