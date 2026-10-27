@@ -412,7 +412,8 @@ function prepareAds() {
   fs.mkdirSync(path.join(TEST_ADS_DIR, 'pantalla-completa'), { recursive: true });
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'b-marca.png'), 'x');
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'notas.txt'), 'x');      // no es publicidad
-  fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'video promo.mp4'), 'x');
+  fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'promo grande.png'), 'x');
+  fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'video.mp4'), 'x');   // vídeo: no se usa
 }
 
 function freshScreens() {
@@ -442,13 +443,13 @@ test('Validación de pantalla: partido, modo e intervalo inválidos se rechazan'
   assertCode(() => screens.get('pantalla-7'), 'UNKNOWN_SCREEN');
 });
 
-test('Biblioteca de publicidad: lista imágenes y vídeos, ignora otros archivos', () => {
+test('Biblioteca de publicidad: solo imágenes (PNG); ignora vídeos y otros archivos', () => {
   prepareAds();
   const { ads } = loadModules();
   const library = ads.listAds();
   assert.deepStrictEqual(library.banner.map((a) => a.name), ['b-marca.png']);
-  assert.strictEqual(library.fullscreen[0].kind, 'video');
-  assert.strictEqual(library.fullscreen[0].url, '/publicidad/pantalla-completa/video%20promo.mp4');
+  assert.deepStrictEqual(library.fullscreen.map((a) => a.name), ['promo grande.png']);
+  assert.strictEqual(library.fullscreen[0].url, '/publicidad/pantalla-completa/promo%20grande.png');
 });
 
 test('Solo se puede asignar publicidad que existe en la carpeta', () => {

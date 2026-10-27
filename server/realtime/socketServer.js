@@ -32,6 +32,9 @@
  *   station:updateScreen { screenId, changes }      estación
  *   station:identify { screenId }                   estación
  *   station:refreshAds                              estación
+ *   station:setMonitor { screenId, monitor }        estación (solo aplicación de escritorio)
+ *   station:openScreen { screenId }                 estación (solo aplicación de escritorio)
+ *   station:openAdsFolder                           estación (solo aplicación de escritorio)
  *   display:report { viewport, renderedMatchId, renderedVersion, adErrors }   pantalla
  *
  * EVENTOS servidor → cliente:
@@ -47,6 +50,7 @@ const { appError }      = require('../core/errors');
 const { MATCH_ACTIONS } = require('../core/Match');
 const auth              = require('../core/auth');
 const ads               = require('../core/ads');
+const { getQrSvg }      = require('../core/network');
 
 /** Tiempo tras el que una pantalla que no ha dibujado la última versión se considera desincronizada */
 const SYNC_TOLERANCE_MS = 2000;
@@ -57,9 +61,14 @@ const SYNC_TOLERANCE_MS = 2000;
  * @param {Object} deps.registry  - core/matchRegistry.js
  * @param {Object} deps.screens   - core/screens.js
  * @param {Function} deps.getNetworkInfo - Direcciones del portátil (para la estación)
+ * @param {Object}  [deps.desktop] - Adaptador de la aplicación de escritorio (monitores y
+ *                                   carpetas). null cuando se arranca con `npm start`.
  */
-function attachSocketServer(io, { registry, screens, getNetworkInfo }) {
+function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = null }) {
   const pinGuard = auth.createPinGuard();
+
+  // La aplicación de escritorio avisa cuando cambian los monitores o las ventanas
+  if (desktop) desktop.onChange(() => scheduleStationState());
 
   // Teléfonos conectados por partido: matchId → { sockets: Set, lastSeen }
   const controllerPresence = new Map(registry.ids().map((id) => [id, { sockets: new Set(), lastSeen: null }]));
@@ -176,6 +185,28 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo }) {
       screens.list().forEach((screen) => pushScreenConfig(screen.id));
       scheduleStationState();
       return { ads: ads.listAds() };
+    });
+
+    // ── Aplicación de escritorio: monitores y carpeta de publicidad ──
+    handle(socket, 'station:setMonitor', ({ screenId, monitor } = {}) => {
+      requireStation(socket);
+      requireDesktop();
+      screens.get(screenId);   // UNKNOWN_SCREEN si no existe
+      desktop.setMonitor(screenId, monitor);
+      scheduleStationState();
+    });
+
+    handle(socket, 'station:openScreen', ({ screenId } = {}) => {
+      requireStation(socket);
+      requireDesktop();
+      screens.get(screenId);
+      desktop.openScreen(screenId);
+    });
+
+    handle(socket, 'station:openAdsFolder', () => {
+      requireStation(socket);
+      requireDesktop();
+      desktop.openAdsFolder();
     });
 
     // ── Pantalla: informe tras dibujar ───────────────────────────
@@ -330,6 +361,12 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo }) {
     return match;
   }
 
+  function requireDesktop() {
+    if (!desktop) {
+      throw appError('FORBIDDEN', 'Disponible solo en la aplicación de escritorio de StageMaster');
+    }
+  }
+
   function requireStation(socket) {
     if (socket.data.role !== 'station') {
       throw appError('FORBIDDEN', 'Acción reservada a la estación operadora');
@@ -387,15 +424,20 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo }) {
   }
 
   function buildStationState() {
-    const now = Date.now();
+    const now     = Date.now();
+    const network = getNetworkInfo();
     return {
       matches: registry.list().map((match) => {
         const presence = controllerPresence.get(match.id);
+        // QR para el teléfono del árbitro: abre directamente el PIN de esta pista
+        const qrUrl = network.primary ? `${network.primary.controlUrl}?pista=${match.id}` : null;
         return {
           id:     match.id,
           label:  match.label,
           color:  match.color,
           pin:    match.pin,
+          qrUrl,
+          qrSvg:  qrUrl ? getQrSvg(qrUrl, scheduleStationState) : null,
           state:  match.getPublicState(),
           controller: match.controller && {
             deviceName: match.controller.deviceName,
@@ -420,7 +462,8 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo }) {
         };
       }),
       ads:     ads.listAds(),
-      network: getNetworkInfo(),
+      network,
+      desktop: desktop ? desktop.getState() : null,
       serverTime: now,
     };
   }

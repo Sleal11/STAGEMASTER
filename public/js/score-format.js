@@ -21,10 +21,14 @@
     superTiebreak: 'SUPER TIE BREAK',
   };
 
-  /** Texto del badge cuando el siguiente punto decide el game (40-40 decisivo) */
+  /**
+   * Texto del badge cuando el siguiente punto decide el game (40-40 decisivo).
+   * Con Punto Estrella, el punto decisivo del 3.er iguales se anuncia también
+   * como PUNTO DE ORO: es el término que entiende el público.
+   */
   var DECISIVE_POINT_LABELS = {
     goldenPoint: 'PUNTO DE ORO',
-    starPoint:   'PUNTO ESTRELLA',
+    starPoint:   'PUNTO DE ORO',
   };
 
   /**

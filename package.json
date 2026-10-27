@@ -1,26 +1,64 @@
 {
   "name": "stagemaster",
-  "version": "1.0.0",
-  "description": "Sistema de marcador profesional para eventos deportivos - StageMaster",
-  "main": "server/index.js",
+  "version": "2.0.0",
+  "description": "Marcador profesional de pádel para eventos: 2 partidos, 2 pantallas y teléfonos de árbitro",
+  "main": "desktop/main.js",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node server/sports/padel/engine.test.js && node server/core/core.test.js && node server/integration.test.js",
+    "app": "electron .",
+    "test": "node server/sports/padel/engine.test.js && node server/core/core.test.js && node desktop/monitors.test.js && node server/integration.test.js",
     "test:engine": "node server/sports/padel/engine.test.js",
     "test:server": "node server/core/core.test.js",
+    "test:desktop": "node desktop/monitors.test.js",
     "test:integration": "node server/integration.test.js",
-    "simulate": "node tools/simulate-match.js"
+    "simulate": "node tools/simulate-match.js",
+    "dist:win": "electron-builder --win portable --x64 --publish never"
   },
   "author": "StageMaster",
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.2",
+    "qrcode": "^1.5.4",
     "socket.io": "^4.7.2"
   },
   "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
     "socket.io-client": "^4.8.1"
   },
   "engines": {
     "node": ">=18"
+  },
+  "productName": "StageMaster",
+  "build": {
+    "appId": "com.stagemaster.score",
+    "productName": "StageMaster",
+    "copyright": "StageMaster",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "package.json",
+      "desktop/**",
+      "server/**",
+      "public/**",
+      "publicidad/**",
+      "!**/*.test.js"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "StageMaster-${version}.exe"
+    }
   }
 }

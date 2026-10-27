@@ -47,6 +47,9 @@ var selectedCourt = null;
 /** Dígitos del PIN tecleados */
 var pinDigits = '';
 
+/** Pista indicada en la dirección (QR de la estación): control.html?pista=pista-1 */
+var courtFromUrl = new URLSearchParams(window.location.search).get('pista');
+
 /** Estado actual del partido (recibido del servidor). null = no hay partido. */
 var matchState = null;
 
@@ -631,6 +634,13 @@ function showPairing() {
   socket.timeout(REQUEST_TIMEOUT_MS).emit('listCourts', {}, function (err, response) {
     if (err || !response.ok) return;
     renderCourtList(response.courts);
+
+    // Si se llegó escaneando el QR de una pista, se salta la elección de pista
+    var fromQr = response.courts.filter(function (c) { return c.id === courtFromUrl; })[0];
+    if (fromQr) {
+      courtFromUrl = null;   // solo la primera vez
+      selectCourt(fromQr);
+    }
   });
 }
 

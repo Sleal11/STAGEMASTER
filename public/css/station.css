@@ -320,3 +320,33 @@ details.st-backup .st-row { margin-top: 8px; }
   accent-color: #8FD3FF;
   flex-shrink: 0;
 }
+
+/* ── Acciones de la barra superior ──────────────────────────────── */
+.st-top-actions { display: flex; gap: 8px; }
+
+/* ── Dirección principal para los teléfonos ─────────────────────── */
+.st-network-main strong { font-size: 1.05rem; }
+.st-network-alt { font-size: 0.8rem; color: var(--st-muted); }
+
+/* ── Acceso del árbitro: QR + PIN ───────────────────────────────── */
+.st-access {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #041024;
+}
+
+.st-qr {
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+  padding: 6px;
+  border-radius: 8px;
+  background: #fff;
+}
+.st-qr svg { width: 100%; height: 100%; display: block; }
+
+.st-access-text { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: #BEE6FF; }
+.st-access-text .st-row { gap: 8px; }

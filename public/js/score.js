@@ -34,9 +34,6 @@ var NAME_SCALE_MIN = 0.6;
 /** Duración del cartel de identificación */
 var IDENTIFY_MS = 6000;
 
-/** Duración máxima de un vídeo publicitario antes de pasar al siguiente */
-var VIDEO_MAX_MS = 120000;
-
 var ANIM = {
   point:  'anim-point',
   game:   'anim-game',
@@ -337,9 +334,8 @@ function shrinkUntilFits(el, base, minScale) {
 // ─────────────────────────────────────────────────────────────────
 
 /**
- * Rotador de anuncios dentro de un contenedor.
- *   - Imágenes: se muestran adInterval segundos.
- *   - Vídeos: sin sonido, hasta que terminan (máx. 2 min).
+ * Rotador de anuncios (imágenes PNG) dentro de un contenedor.
+ *   - Cada imagen se muestra adInterval segundos, con fundido.
  *   - Un anuncio que falla al cargar se salta y se informa a la estación.
  *   - Si todos fallan, el contenedor se oculta y el marcador ocupa su espacio.
  */
@@ -388,7 +384,7 @@ function createAdRotator(container) {
   }
 
   function show(item) {
-    var el = document.createElement(item.kind === 'video' ? 'video' : 'img');
+    var el = document.createElement('img');
     el.className   = 'ad-media';
     el.dataset.url = item.url;
 
@@ -407,18 +403,8 @@ function createAdRotator(container) {
       if (previous) setTimeout(function () { previous.remove(); }, 650);
     };
 
-    if (item.kind === 'video') {
-      el.muted = true;
-      el.playsInline = true;
-      el.autoplay = true;
-      el.loop = playable().length === 1;
-      el.onloadeddata = reveal;
-      el.onended = next;
-      timer = setTimeout(next, VIDEO_MAX_MS);
-    } else {
-      el.onload = reveal;
-      timer = setTimeout(next, intervalMs);
-    }
+    el.onload = reveal;
+    timer = setTimeout(next, intervalMs);
     el.src = item.url;
     container.appendChild(el);
   }

@@ -29,7 +29,7 @@ que puede quedar corriendo sola).
 ### Material
 | | Elemento | Comprobado |
 |---|---|---|
-| 1 | PC con el proyecto instalado (`npm install` hecho en casa) y cargador | ☐ |
+| 1 | Portátil con `StageMaster.exe` (abierto ya una vez) y cargador | ☐ |
 | 2 | Router propio + alimentación (+ cable de red) | ☐ |
 | 3 | 2 teléfonos de árbitro cargados (> 80 %) + cargadores | ☐ |
 | 4 | Tercer teléfono de respaldo (opcional) | ☐ |
@@ -50,12 +50,13 @@ que puede quedar corriendo sola).
 
 ---
 
-## 1. Pruebas automáticas (en el PC, 1 min)
+## 1. Pruebas automáticas (solo con el proyecto de desarrollo, 1 min)
 
 ```bash
 npm test
 ```
-**Aprobado:** tres resúmenes con `Fallidas: 0` (motor, gestor e integración).
+**Aprobado:** cuatro resúmenes con `Fallidas: 0` (motor, núcleo, monitores e integración).
+Con el `.exe` no hace falta: GitHub ejecuta estas pruebas en Windows antes de generarlo.
 
 ---
 
@@ -66,8 +67,8 @@ Anota el resultado de cada prueba en la tabla del final.
 ### S1 · Montaje en frío (objetivo: < 5 min)
 1. Con todo apagado, pon en marcha un cronómetro.
 2. Enciende router y portátil, conecta las dos pantallas (Windows + P → Extender).
-3. Doble clic en **`INICIAR-STAGEMASTER.bat`** (servidor + estación + pantallas
-   en modo kiosco). En la estación, **Identificar** cada pantalla.
+3. Abre **StageMaster** (estación + pantallas en sus monitores). En la estación,
+   **Identificar** cada pantalla; si alguna está mal, cámbiala en **Monitor**.
 4. Configura un partido en cada pista desde la estación.
 5. Vincula cada teléfono a su pista con el PIN.
 
@@ -117,12 +118,13 @@ Camina con el teléfono hasta la **posición más lejana** donde estará el oper
 **Aprobado:** la pantalla **sigue mostrando** el marcador todo el tiempo; al volver el
 router, el teléfono se reconecta solo y se puede seguir.
 
-### S8 · Cierre accidental del servidor
-1. A mitad de un game (ej. 30-15), cierra la ventana del servidor.
-2. Vuelve a arrancarlo (`npm start`).
+### S8 · Cierre accidental de StageMaster
+1. A mitad de un game (ej. 30-15), cierra StageMaster (o termínalo desde el Administrador de tareas).
+2. Vuelve a abrir StageMaster.
 
-**Aprobado:** la pantalla nunca queda en blanco; tras arrancar, el teléfono y la pantalla
-siguen con **30-15 exacto** sin recargar nada; **Deshacer** sigue funcionando.
+**Aprobado:** al reabrir, las pantallas vuelven solas a su monitor y, junto con el
+teléfono (sin recargarlo ni volver a escribir el PIN), muestran **30-15 exacto**;
+**Deshacer** sigue funcionando.
 
 ### S9 · Corte de luz del PC (el peor caso)
 1. A mitad de partido, reinicia el PC (o desconéctalo si es un portátil sin batería).
@@ -160,7 +162,8 @@ pueden mostrar el mismo partido; el PIN incorrecto se rechaza.
 sumar puntos; el de respaldo controla la pista. La estación lo refleja.
 
 ### S12 · Prueba de duración (puede ir en paralelo)
-Simula un partido largo de forma automática y deja la pantalla a la vista:
+Deja StageMaster abierto 1–2 h con un partido en las pantallas. Con el proyecto
+de desarrollo, además, puedes simular un partido largo de forma automática:
 
 ```bash
 npm run simulate -- --match pista-1 --interval 20000
@@ -169,7 +172,7 @@ npm run simulate -- --match pista-1 --interval 20000
 Para una prueba más rápida: `--interval 3000`.
 
 **Aprobado:** tras 1–2 h, la pantalla sigue fluida, el PC no se ha suspendido, no han
-aparecido notificaciones y la memoria de Chrome/Node (Administrador de tareas)
+aparecido notificaciones y la memoria de StageMaster (Administrador de tareas)
 no ha crecido de forma continua.
 
 > Se ejecuta en el portátil. Puedes lanzar uno por pista (`--match pista-2`) a la vez.
@@ -205,7 +208,7 @@ Resolución de la pantalla: ________  Router: ________
 | S5 teléfono bloqueado | ☐ OK ☐ Falla | |
 | S6 teléfono sin Wi-Fi | ☐ OK ☐ Falla | |
 | S7 Router apagado | ☐ OK ☐ Falla | |
-| S8 Cierre del servidor | ☐ OK ☐ Falla | |
+| S8 Cierre de StageMaster | ☐ OK ☐ Falla | |
 | S9 Corte de luz del PC | ☐ OK ☐ Falla | recuperación: ___ min |
 | S10 Errores del operador | ☐ OK ☐ Falla | |
 | S11 Dos partidos simultáneos | ☐ OK ☐ Falla | |

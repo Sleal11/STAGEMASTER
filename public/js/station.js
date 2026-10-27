@@ -94,6 +94,7 @@ function send(eventName, payload) {
 // ─────────────────────────────────────────────────────────────────
 
 function render(state) {
+  document.getElementById('st-open-ads').classList.toggle('hidden', !state.desktop);
   renderNetwork(state.network);
   document.getElementById('st-matches').innerHTML = state.matches.map(matchCardHtml).join('');
   renderScreens(state);
@@ -106,9 +107,10 @@ function renderNetwork(network) {
     el.innerHTML = '<span>⚠ El portátil no está conectado a ninguna red: los teléfonos no podrán entrar</span>';
     return;
   }
-  el.innerHTML = network.addresses.map(function (a) {
-    return '<span>📱 Árbitros (' + esc(a.name) + '): <strong>' + esc(a.controlUrl) + '</strong></span>';
-  }).join('');
+  var others = network.addresses.slice(1).map(function (a) { return esc(a.address); });
+  el.innerHTML = '<span class="st-network-main">📱 Teléfonos de árbitro: <strong>' + esc(network.primary.controlUrl) + '</strong></span>' +
+    (others.length ? '<span class="st-network-alt" title="Si los teléfonos no conectan, prueba con estas direcciones">' +
+      'Otras redes: ' + others.join(', ') + '</span>' : '');
 }
 
 // ── Partidos ──────────────────────────────────────────────────────
@@ -180,10 +182,17 @@ function phoneHtml(match) {
       '<span class="st-phone" style="flex:1">' + status + '</span>' +
       (c ? '<button class="st-btn st-btn-ghost" data-action="unpair" data-match="' + match.id + '">Desvincular</button>' : '') +
     '</div>' +
-    '<div class="st-row">' +
-      '<span class="st-label">PIN</span>' +
-      '<span class="st-pin">' + esc(match.pin) + '</span>' +
-      '<button class="st-btn st-btn-ghost" data-action="newPin" data-match="' + match.id + '">Nuevo PIN</button>' +
+    '<div class="st-access">' +
+      // El SVG del QR lo genera el propio servidor (contenido de confianza)
+      (match.qrSvg ? '<div class="st-qr" title="' + esc(match.qrUrl) + '">' + match.qrSvg + '</div>' : '') +
+      '<div class="st-access-text">' +
+        '<span>' + (match.qrSvg ? 'El árbitro escanea el código con la cámara del teléfono y escribe el PIN:' :
+          'El árbitro abre la dirección de arriba, elige ' + esc(match.label) + ' y escribe el PIN:') + '</span>' +
+        '<div class="st-row">' +
+          '<span class="st-pin">' + esc(match.pin) + '</span>' +
+          '<button class="st-btn st-btn-ghost" data-action="newPin" data-match="' + match.id + '">Nuevo PIN</button>' +
+        '</div>' +
+      '</div>' +
     '</div>';
 }
 
@@ -233,7 +242,8 @@ function renderScreens(state) {
     // Controles: solo si cambió la configuración y el operador no los está usando
     var controls  = card.querySelector('[data-part="controls"]');
     var signature = JSON.stringify([screen.matchId, screen.mode, screen.ads, screen.adInterval, state.ads,
-      state.matches.map(function (m) { return m.id; })]);
+      state.matches.map(function (m) { return m.id; }), state.desktop && [state.desktop.monitors,
+      state.desktop.assignments[screen.id], state.desktop.preferences[screen.id]]]);
     if (controls.dataset.signature !== signature && !controls.contains(document.activeElement)) {
       controls.dataset.signature = signature;
       controls.innerHTML = screenControlsHtml(screen, state);
@@ -241,11 +251,33 @@ function renderScreens(state) {
   });
 }
 
+/** Selector de monitor (solo en la aplicación de escritorio) */
+function monitorSelectHtml(screen, desktop) {
+  if (!desktop) return '';
+  var current = desktop.assignments[screen.id] || (desktop.preferences[screen.id] === 'none' ? 'none' : 'auto');
+  var options = desktop.monitors.map(function (m) {
+    return [m.key, m.label + ' · ' + m.width + '×' + m.height + (m.primary ? ' (aquí está la estación)' : '')];
+  }).concat([['auto', 'Automático (primer monitor libre)'], ['window', 'Ventana de prueba'], ['none', 'No mostrar']]);
+
+  return '<div class="st-row"><span class="st-label">Monitor</span>' +
+    '<select class="st-select" data-action="monitor" data-screen="' + screen.id + '">' +
+    options.map(function (o) {
+      return '<option value="' + esc(o[0]) + '"' + (o[0] === current ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+    }).join('') + '</select></div>';
+}
+
 function screenStatusHtml(screen) {
   var parts = [];
   var displays = screen.displays;
 
-  if (displays.length === 0) {
+  var desktop = lastState && lastState.desktop;
+  var noMonitor = desktop && !desktop.assignments[screen.id];
+
+  if (displays.length === 0 && noMonitor) {
+    parts.push('<div class="st-row st-row-between"><span class="st-status"><span class="st-dot"></span> ' +
+      'Sin monitor: conecta uno o elige dónde mostrarla</span>' +
+      '<button class="st-btn st-btn-ghost" data-action="openScreen" data-screen="' + screen.id + '">Ver en ventana</button></div>');
+  } else if (displays.length === 0) {
     parts.push('<div class="st-row st-row-between"><span class="st-status"><span class="st-dot bad"></span> Sin conexión</span>' +
       '<button class="st-btn st-btn-ghost" data-action="openScreen" data-screen="' + screen.id + '">Abrir ventana</button></div>');
   } else {
@@ -293,12 +325,13 @@ function screenControlsHtml(screen, state) {
     var body = items.length ? items.map(function (ad) {
       var checked = screen.ads[category].indexOf(ad.name) !== -1 ? ' checked' : '';
       return '<label><input type="checkbox" data-action="ad" data-category="' + category + '" data-screen="' + screen.id +
-        '" value="' + esc(ad.name) + '"' + checked + '> ' + (ad.kind === 'video' ? '🎬 ' : '🖼 ') + esc(ad.name) + '</label>';
+        '" value="' + esc(ad.name) + '"' + checked + '> ' + '🖼 ' + esc(ad.name) + '</label>';
     }).join('') : '<span class="st-empty">Carpeta vacía</span>';
     return '<div class="st-ads-box"><h4>' + title + '</h4>' + body + '</div>';
   };
 
   return '' +
+    monitorSelectHtml(screen, state.desktop) +
     '<div class="st-row"><span class="st-label">Partido</span>' +
       '<select class="st-select" data-action="match" data-screen="' + screen.id + '">' + matchOptions + '</select></div>' +
     '<div class="st-row"><span class="st-label">Modo</span><div class="st-segmented">' + modes + '</div></div>' +
@@ -376,8 +409,12 @@ function onClick(event) {
       send('station:identify', { screenId: screenId });
       break;
     case 'openScreen':
-      window.open('/score.html?pantalla=' + screenId.replace('pantalla-', ''), screenId);
-      showToast('Lleva la ventana nueva a su monitor y pulsa F11 (pantalla completa)');
+      if (lastState.desktop) {
+        send('station:openScreen', { screenId: screenId });
+      } else {
+        window.open('/score.html?pantalla=' + screenId.replace('pantalla-', ''), screenId);
+        showToast('Lleva la ventana nueva a su monitor y pulsa F11 (pantalla completa)');
+      }
       break;
     case 'mode':
       updateScreen(screenId, { mode: el.getAttribute('data-mode') });
@@ -394,6 +431,9 @@ function onChange(event) {
   switch (el.getAttribute('data-action')) {
     case 'match':
       updateScreen(screenId, { matchId: el.value });
+      break;
+    case 'monitor':
+      send('station:setMonitor', { screenId: screenId, monitor: el.value });
       break;
     case 'interval':
       updateScreen(screenId, { adInterval: parseInt(el.value, 10) });
@@ -552,6 +592,12 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('form-setup').addEventListener('submit', submitSetup);
   document.getElementById('dlg-setup-cancel').addEventListener('click', function () {
     document.getElementById('dlg-setup').close();
+  });
+  document.getElementById('st-open-ads').addEventListener('click', function () {
+    send('station:openAdsFolder', {});
+  });
+  document.getElementById('st-help').addEventListener('click', function () {
+    window.open('/ayuda.html', 'ayuda', 'width=900,height=800');
   });
   document.getElementById('st-refresh-ads').addEventListener('click', function () {
     send('station:refreshAds', {}).then(function (res) {

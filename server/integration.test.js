@@ -555,6 +555,74 @@ test('station.html solo se sirve en el portátil; la raíz lleva a la estación 
   assert.strictEqual(page.status, 200);
 });
 
+test('Sin aplicación de escritorio (npm start), las órdenes de monitor se rechazan', async () => {
+  assert.strictEqual(estacion.stationState.desktop, null);
+  const res = await send(estacion, 'station:setMonitor', { screenId: 'pantalla-1', monitor: 'window' });
+  assert.strictEqual(res.code, 'FORBIDDEN');
+});
+
+test('Código QR por pista: lleva directo al PIN de esa pista', async () => {
+  await waitFor(() => estacion.stationState.matches.every((m) => m.qrSvg), 'QR generados');
+  const [p1, p2] = estacion.stationState.matches;
+  if (!p1.qrUrl) return { skip: 'este equipo no tiene red local' };
+  assert.match(p1.qrUrl, /\/control\.html\?pista=pista-1$/);
+  assert.match(p2.qrUrl, /\/control\.html\?pista=pista-2$/);
+  assert.ok(p1.qrSvg.startsWith('<svg'));
+});
+
+// ── Aplicación de escritorio: el servidor con un adaptador de monitores SIMULADO ──
+
+test('Escritorio: la estación ve los monitores y elige dónde va cada pantalla', async () => {
+  const desktopDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stagemaster-desk-'));
+  process.env.STAGEMASTER_DATA_DIR = desktopDir;
+  process.env.STAGEMASTER_ADS_DIR  = ADS_DIR;
+
+  const calls = [];
+  let notify = () => {};
+  const fakeDesktop = {
+    onChange: (fn) => { notify = fn; },
+    getState: () => ({
+      monitors: [{ key: '1', label: 'Pantalla del portátil', width: 1920, height: 1080, primary: true },
+                 { key: '2', label: 'Monitor 2', width: 1280, height: 720, primary: false }],
+      preferences: {}, assignments: { 'pantalla-1': calls.length ? 'window' : '2', 'pantalla-2': null },
+      closed: [], adsFolder: ADS_DIR,
+    }),
+    setMonitor: (screenId, monitor) => { calls.push(['setMonitor', screenId, monitor]); notify(); },
+    openScreen: (screenId) => calls.push(['openScreen', screenId]),
+    openAdsFolder: () => calls.push(['openAdsFolder']),
+  };
+
+  const { startServer } = require('./index');
+  const desktopPort = await getFreePort();
+  const app = await startServer({ ports: [desktopPort], desktop: fakeDesktop, logHttp: false });
+  const station = io(`http://localhost:${desktopPort}`, { auth: { role: 'station' }, forceNew: true });
+  let state = null;
+  station.on('stationState', (st) => { state = st; });
+  try {
+    await waitFor(() => state, 'estado de la estación (escritorio)');
+    assert.strictEqual(state.desktop.monitors.length, 2);
+    assert.strictEqual(state.desktop.assignments['pantalla-1'], '2');
+
+    const ask = (ev, payload) => station.timeout(3000).emitWithAck(ev, payload);
+    assert.ok((await ask('station:setMonitor', { screenId: 'pantalla-1', monitor: 'window' })).ok);
+    assert.ok((await ask('station:openScreen', { screenId: 'pantalla-2' })).ok);
+    assert.ok((await ask('station:openAdsFolder', {})).ok);
+    assert.strictEqual((await ask('station:setMonitor', { screenId: 'pantalla-9', monitor: '2' })).code, 'UNKNOWN_SCREEN');
+    assert.deepStrictEqual(calls, [['setMonitor', 'pantalla-1', 'window'], ['openScreen', 'pantalla-2'], ['openAdsFolder']]);
+    await waitFor(() => state.desktop.assignments['pantalla-1'] === 'window', 'la estación recibe el cambio');
+  } finally {
+    station.close();
+    await app.close();
+    fs.rmSync(desktopDir, { recursive: true, force: true });
+  }
+});
+
+test('Escritorio: un teléfono no puede cambiar monitores ni abrir carpetas', async () => {
+  // Con el servidor normal la orden ya se rechaza por no ser estación (antes de mirar el escritorio)
+  const res = await send(telefono1, 'station:setMonitor', { screenId: 'pantalla-1', monitor: 'window' });
+  assert.strictEqual(res.code, 'FORBIDDEN');
+});
+
 // ─────────────────────────────────────────────────────────────────
 // EJECUCIÓN
 // ─────────────────────────────────────────────────────────────────

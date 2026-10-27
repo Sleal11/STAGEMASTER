@@ -6,13 +6,12 @@
  * La publicidad son archivos que el operador copia en la carpeta
  * publicidad/ del proyecto (no hace falta Internet ni subir nada):
  *
- *   publicidad/banner/             Franja inferior bajo el marcador
- *                                  (recomendado: 1920×200 px o proporción similar)
- *   publicidad/pantalla-completa/  Pantalla completa (entre partidos o en modo
- *                                  "Solo publicidad"; recomendado 1920×1080 px)
+ *   banner/             Franja inferior bajo el marcador (recomendado 1920×200 px)
+ *   pantalla-completa/  Pantalla completa: entre partidos o en modo "Solo
+ *                       publicidad" (recomendado 1920×1080 px)
  *
- * Formatos admitidos: imágenes PNG, JPG, WEBP, GIF, SVG y vídeos MP4 / WEBM
- * (los vídeos se reproducen sin sonido).
+ * Formato: imágenes PNG (también se aceptan JPG y WEBP). No se usan vídeos:
+ * el cliente trabaja con PNG y así el sistema es más simple y fiable.
  *
  * Este módulo solo LISTA los archivos y construye sus URL; los sirve Express
  * en /publicidad (ver index.js). Se lee la carpeta en cada consulta, así que
@@ -33,8 +32,7 @@ const CATEGORIES = {
   fullscreen: 'pantalla-completa',
 };
 
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'];
-const VIDEO_EXTENSIONS = ['.mp4', '.webm'];
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
 
 /** Lista los archivos válidos de una categoría, ordenados por nombre */
 function listCategory(category) {
@@ -51,11 +49,10 @@ function listCategory(category) {
 
   return names
     .map((name) => {
-      const ext  = path.extname(name).toLowerCase();
-      const kind = IMAGE_EXTENSIONS.includes(ext) ? 'image' : VIDEO_EXTENSIONS.includes(ext) ? 'video' : null;
-      return kind && {
+      const ext = path.extname(name).toLowerCase();
+      return IMAGE_EXTENSIONS.includes(ext) && {
         name,
-        kind,
+        kind: 'image',
         url: `/publicidad/${CATEGORIES[category]}/${encodeURIComponent(name)}`,
       };
     })
