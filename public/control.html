@@ -19,8 +19,76 @@
 <body>
 
 <!-- ═══════════════════════════════════════════════════════════════
+     BARRA DE PISTA (siempre visible cuando el teléfono está vinculado)
+     Nombre y color de la pista que controla ESTE teléfono, para que el
+     árbitro nunca modifique el marcador equivocado.
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="court-banner" class="court-banner hidden">
+  <span class="court-banner-label">Controlas</span>
+  <span id="court-banner-name" class="court-banner-name">PISTA</span>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PANTALLA 0: VINCULAR EL TELÉFONO A UNA PISTA
+     Paso 1: elegir la pista · Paso 2: introducir el PIN de la estación
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="screen-pair" class="screen hidden">
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-text" data-brand-logo>STAGE<span>MASTER</span></div>
+      <div class="logo-subtitle">Teléfono del árbitro</div>
+    </div>
+  </div>
+
+  <!-- Paso 1: pista -->
+  <div id="pair-step-court">
+    <div class="pair-title">¿Qué pista vas a controlar?</div>
+    <div id="court-list" class="court-list"></div>
+    <div id="court-list-empty" class="pair-hint hidden">Conectando con la estación…</div>
+  </div>
+
+  <!-- Paso 2: PIN -->
+  <div id="pair-step-pin" class="hidden">
+    <div id="pin-court" class="pin-court">PISTA</div>
+    <div class="pair-title">Introduce el PIN de la pista</div>
+    <div class="pair-hint">Lo muestra la estación operadora (portátil)</div>
+
+    <div id="pin-display" class="pin-display">
+      <span class="pin-digit"></span><span class="pin-digit"></span>
+      <span class="pin-digit"></span><span class="pin-digit"></span>
+    </div>
+    <div id="pin-error" class="error-msg pin-error hidden"></div>
+
+    <div id="pin-keypad" class="pin-keypad">
+      <button class="pin-key" data-key="1">1</button>
+      <button class="pin-key" data-key="2">2</button>
+      <button class="pin-key" data-key="3">3</button>
+      <button class="pin-key" data-key="4">4</button>
+      <button class="pin-key" data-key="5">5</button>
+      <button class="pin-key" data-key="6">6</button>
+      <button class="pin-key" data-key="7">7</button>
+      <button class="pin-key" data-key="8">8</button>
+      <button class="pin-key" data-key="9">9</button>
+      <button class="pin-key pin-key-muted" data-key="back">⌫</button>
+      <button class="pin-key" data-key="0">0</button>
+      <button class="pin-key pin-key-muted" data-key="clear">C</button>
+    </div>
+
+    <button class="btn-secondary pair-back" id="btn-pair-back">← Elegir otra pista</button>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="pair-status-dot"></div>
+    <span id="pair-status-text">Conectando con el servidor…</span>
+  </div>
+</div><!-- /screen-pair -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
      PANTALLA 1: CONFIGURACIÓN DEL PARTIDO
-     Visible al abrir la app por primera vez.
+     (también la puede hacer la estación operadora desde el portátil)
      ═══════════════════════════════════════════════════════════════ -->
 <div id="screen-setup" class="screen">
 
@@ -32,36 +100,28 @@
     </div>
   </div>
 
-  <!-- Nombre Equipo A -->
+  <!-- Pareja A: un campo por jugador (en pantalla, uno por línea) -->
   <div class="card">
-    <div class="card-label">Nombre Equipo A</div>
-    <input
-      id="input-name-a"
-      class="input-text"
-      type="text"
-      placeholder="Ej: García / Martínez"
-      maxlength="30"
-      autocomplete="off"
-      autocorrect="off"
-      spellcheck="false"
-    />
-    <div id="error-name-a" class="error-msg hidden">Introduce el nombre del Equipo A</div>
+    <div class="card-label">Pareja A</div>
+    <div class="player-inputs">
+      <input id="input-name-a" class="input-text" type="text" placeholder="Jugador 1 (ej: Jose V)"
+        maxlength="24" autocomplete="off" autocorrect="off" spellcheck="false" />
+      <input id="input-name-a2" class="input-text" type="text" placeholder="Jugador 2 (ej: Santiago R)"
+        maxlength="24" autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+    <div id="error-name-a" class="error-msg hidden">Introduce al menos un jugador de la Pareja A</div>
   </div>
 
-  <!-- Nombre Equipo B -->
+  <!-- Pareja B -->
   <div class="card">
-    <div class="card-label">Nombre Equipo B</div>
-    <input
-      id="input-name-b"
-      class="input-text"
-      type="text"
-      placeholder="Ej: López / Fernández"
-      maxlength="30"
-      autocomplete="off"
-      autocorrect="off"
-      spellcheck="false"
-    />
-    <div id="error-name-b" class="error-msg hidden">Introduce el nombre del Equipo B</div>
+    <div class="card-label">Pareja B</div>
+    <div class="player-inputs">
+      <input id="input-name-b" class="input-text" type="text" placeholder="Jugador 1"
+        maxlength="24" autocomplete="off" autocorrect="off" spellcheck="false" />
+      <input id="input-name-b2" class="input-text" type="text" placeholder="Jugador 2"
+        maxlength="24" autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+    <div id="error-name-b" class="error-msg hidden">Introduce al menos un jugador de la Pareja B</div>
   </div>
 
   <!-- Games por Set -->
@@ -234,6 +294,11 @@
       🎾 CAMBIAR SAQUE
     </button>
 
+    <!-- Desvincular este teléfono (pide confirmación) -->
+    <button class="btn-secondary btn-change-court" id="btn-change-court">
+      ⇄ Cambiar de pista
+    </button>
+
   </div>
 
   <!-- Barra de estado de conexión -->
@@ -312,6 +377,7 @@
      conserva para pruebas (engine.test.js lo compara con engine.js).
      ═══════════════════════════════════════════════════════════════ -->
 <script src="/socket.io/socket.io.js"></script>
+<script src="js/score-format.js"></script>
 <script src="js/brand.js"></script>
 <script src="js/control.js"></script>
 

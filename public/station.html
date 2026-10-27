@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <!--
+    station.html — Estación operadora (solo en el portátil: http://localhost:3000)
+
+    Desde aquí la persona encargada del sistema ve y controla:
+      - Los DOS partidos (pistas): estado, marcador, PIN y teléfono del árbitro
+      - Las DOS pantallas: conexión, resolución, partido asignado, modo,
+        publicidad y si el marcador que muestran está al día
+
+    Relación con otros archivos:
+      → css/shared.css · css/station.css
+      → js/score-format.js (textos del marcador) · js/brand.js (logo)
+      → js/station.js (conexión y dibujo)
+      ← server/realtime/socketServer.js ('stationState' y eventos station:*)
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StageMaster · Estación operadora</title>
+  <link rel="stylesheet" href="css/shared.css" />
+  <link rel="stylesheet" href="css/station.css" />
+</head>
+<body class="station-body">
+
+  <!-- ── Barra superior ─────────────────────────────────────────── -->
+  <header class="st-top">
+    <div class="st-brand">
+      <div class="st-logo" data-brand-logo>STAGE<span>MASTER</span></div>
+      <div class="st-title">Estación operadora</div>
+    </div>
+    <div id="st-network" class="st-network"></div>
+    <div class="st-top-actions">
+      <button id="st-open-ads" class="st-btn st-btn-ghost hidden">📁 Carpeta de publicidad</button>
+      <button id="st-help" class="st-btn st-btn-ghost">❔ Ayuda</button>
+    </div>
+    <div class="st-conn">
+      <span id="st-conn-dot" class="st-dot"></span>
+      <span id="st-conn-text">Conectando…</span>
+    </div>
+  </header>
+
+  <!-- Aviso si no se puede usar la estación -->
+  <div id="st-blocked" class="st-blocked hidden"></div>
+
+  <main class="st-main">
+    <section>
+      <h2 class="st-section-title">Partidos</h2>
+      <div id="st-matches" class="st-grid"></div>
+    </section>
+
+    <section>
+      <div class="st-section-head">
+        <h2 class="st-section-title">Pantallas</h2>
+        <button id="st-refresh-ads" class="st-btn st-btn-ghost">↻ Actualizar publicidad</button>
+      </div>
+      <div id="st-screens" class="st-grid"></div>
+      <p class="st-help">
+        Publicidad: imágenes <strong>PNG</strong> en la carpeta de publicidad, dentro de <code>banner</code>
+        (franja bajo el marcador, 1920×200) o <code>pantalla-completa</code> (1920×1080).
+        Después pulsa «Actualizar publicidad».
+      </p>
+    </section>
+  </main>
+
+  <!-- ── Diálogo: configurar partido ─────────────────────────────── -->
+  <dialog id="dlg-setup" class="st-dialog">
+    <form id="form-setup" method="dialog">
+      <h3 id="dlg-setup-title" class="st-dialog-title">Configurar partido</h3>
+
+      <div class="st-form-grid">
+        <fieldset>
+          <legend>Pareja A</legend>
+          <input name="a1" maxlength="24" placeholder="Jugador 1 (ej: Jose V)" required autocomplete="off" />
+          <input name="a2" maxlength="24" placeholder="Jugador 2 (ej: Santiago R)" autocomplete="off" />
+        </fieldset>
+        <fieldset>
+          <legend>Pareja B</legend>
+          <input name="b1" maxlength="24" placeholder="Jugador 1" required autocomplete="off" />
+          <input name="b2" maxlength="24" placeholder="Jugador 2" autocomplete="off" />
+        </fieldset>
+      </div>
+
+      <div class="st-form-grid st-form-grid-3">
+        <label>Games por set
+          <select name="gamesPerSet">
+            <option>1</option><option>2</option><option>3</option>
+            <option>4</option><option>5</option><option selected>6</option>
+          </select>
+        </label>
+        <label>Sets
+          <select name="totalSets">
+            <option>1</option><option selected>3</option><option>5</option>
+          </select>
+        </label>
+        <label>Saque inicial
+          <select name="initialServer">
+            <option value="A">Pareja A</option><option value="B">Pareja B</option>
+          </select>
+        </label>
+        <label>Puntuación
+          <select name="scoringSystem">
+            <option value="advantage">Ventaja</option>
+            <option value="goldenPoint">Punto de oro</option>
+            <option value="starPoint">Punto Estrella</option>
+          </select>
+        </label>
+        <label>Desempate
+          <select name="tiebreakType">
+            <option value="tiebreak">Tie Break</option>
+            <option value="superTiebreak">Súper Tie Break</option>
+            <option value="none">Ninguno</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="dlg-setup-error" class="st-error hidden"></div>
+
+      <div class="st-dialog-actions">
+        <button type="button" id="dlg-setup-cancel" class="st-btn st-btn-ghost">Cancelar</button>
+        <button type="submit" class="st-btn st-btn-primary">Iniciar partido</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ── Diálogo: confirmación ───────────────────────────────────── -->
+  <dialog id="dlg-confirm" class="st-dialog st-dialog-small">
+    <h3 id="dlg-confirm-title" class="st-dialog-title"></h3>
+    <p id="dlg-confirm-message" class="st-dialog-message"></p>
+    <div class="st-dialog-actions">
+      <button type="button" id="dlg-confirm-cancel" class="st-btn st-btn-ghost">Cancelar</button>
+      <button type="button" id="dlg-confirm-ok" class="st-btn st-btn-danger">Confirmar</button>
+    </div>
+  </dialog>
+
+  <div id="st-toast" class="st-toast hidden" role="status" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/score-format.js"></script>
+  <script src="js/brand.js"></script>
+  <script src="js/station.js"></script>
+</body>
+</html>

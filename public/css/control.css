@@ -563,7 +563,8 @@ body.is-offline .btn-secondary {
   position: fixed;
   left: var(--space-md);
   right: var(--space-md);
-  top: calc(env(safe-area-inset-top, 0px) + var(--space-md));
+  /* Abajo: nunca tapa la barra con el nombre de la pista */
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-md));
   z-index: 200;
   padding: var(--space-md);
   border-radius: var(--radius-md);
@@ -574,7 +575,7 @@ body.is-offline .btn-secondary {
   font-size: 0.95rem;
   font-weight: 600;
   text-align: center;
-  animation: slideDown var(--transition-normal);
+  animation: slideUp var(--transition-normal);
 }
 
 .toast.is-error {
@@ -736,4 +737,183 @@ body.is-offline .btn-secondary {
 
 .section-spacer {
   height: var(--space-md);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   VINCULACIÓN CON UNA PISTA (dos partidos simultáneos)
+   ───────────────────────────────────────────────────────────────── */
+
+/* Barra fija con la pista que controla este teléfono.
+   --court-color la pone control.js con el color de la pista. */
+.court-banner {
+  --court-color: var(--accent-bright);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) var(--space-md) 10px;
+  background: var(--court-color);
+  color: #04122B;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.court-banner-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.court-banner-name {
+  font-family: var(--font-score);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pair-title {
+  margin: var(--space-md) 0 var(--space-sm);
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pair-hint {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+}
+
+.court-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Botón de cada pista: grande, con el color de la pista */
+.court-option {
+  --court-color: var(--accent-bright);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  min-height: 96px;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  border: 3px solid var(--court-color);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.court-option:active { transform: scale(0.98); }
+
+.court-option-name {
+  font-family: var(--font-score);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--court-color);
+}
+
+.court-option-info {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pin-court {
+  --court-color: var(--accent-bright);
+  margin-top: var(--space-sm);
+  padding: 10px;
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-family: var(--font-score);
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #04122B;
+  background: var(--court-color);
+}
+
+.pin-display {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: var(--space-md) 0;
+}
+
+.pin-digit {
+  width: 58px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  border: 2px solid var(--border-bright);
+  font-family: var(--font-score);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pin-display.is-error { animation: shake 360ms ease; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-10px); }
+  75%      { transform: translateX(10px); }
+}
+
+.pin-error { text-align: center; }
+
+/* Teclado numérico: teclas de 64 px, cómodas con el pulgar */
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: var(--space-md);
+}
+
+.pin-key {
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  font-family: var(--font-score);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pin-key:active { background: var(--accent-bright); }
+.pin-key-muted  { color: var(--text-secondary); font-size: 1.4rem; }
+
+.pin-keypad.is-busy { opacity: 0.5; pointer-events: none; }
+
+.pair-back {
+  width: 100%;
+  height: var(--touch-action);
+}
+
+.btn-change-court {
+  width: 100%;
+  height: var(--touch-action);
+  margin-top: var(--space-sm);
+}
+
+/* Dos jugadores por pareja */
+.player-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
 }

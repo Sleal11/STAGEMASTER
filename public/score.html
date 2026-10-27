@@ -3,111 +3,116 @@
 <head>
   <meta charset="UTF-8" />
   <!--
-    score.html — Pantalla LED (vista del espectador)
+    score.html — Pantalla de score y publicidad (vista del espectador)
 
-    Esta vista muestra ÚNICAMENTE el marcador. No contiene botones,
-    menús, formularios ni enlaces. El PC conectado a la pantalla LED
-    abre esta URL en Chrome/Edge en modo pantalla completa (F11).
+    Se abre una ventana por pantalla física conectada al portátil:
+      score.html?pantalla=1   →  Pantalla 1
+      score.html?pantalla=2   →  Pantalla 2
+
+    Qué partido muestra, el modo (marcador / marcador + publicidad / solo
+    publicidad) y qué anuncios rota lo decide la ESTACIÓN OPERADORA en
+    vivo: esta página nunca necesita reiniciarse.
+
+    Sin botones, menús, formularios ni enlaces: solo el marcador.
 
     Relación con otros archivos:
-      → css/shared.css   tokens de diseño (colores, tipografía)
-      → css/score.css    estilos exclusivos de la pantalla LED
-      → js/score.js      recibe el estado por Socket.IO y lo dibuja
-      ← server/index.js  sirve este archivo y emite 'matchUpdate'
+      → css/shared.css · css/score.css   estilos
+      → js/score-format.js               textos del marcador (compartido)
+      → js/brand.js                      logo
+      → js/score.js                      conexión, dibujo, publicidad
+      ← server/realtime/socketServer.js  'screenConfig', 'matchUpdate', 'identify'
   -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0A1628" />
-  <title>StageMaster · Score</title>
+  <meta name="theme-color" content="#041024" />
+  <title>StageMaster · Pantalla</title>
   <link rel="stylesheet" href="css/shared.css" />
   <link rel="stylesheet" href="css/score.css" />
 </head>
 <body class="score-body">
 
-<!-- ═══════════════════════════════════════════════════════════════
-     ICONOS (sprite SVG oculto)
-     Se definen una sola vez y se reutilizan con <use href="#...">.
-     Usamos SVG en lugar de emojis (🎾 ⭐) porque los emojis se ven
-     distinto en cada sistema operativo y no podemos controlar su color.
-     ═══════════════════════════════════════════════════════════════ -->
-<svg class="sb-sprite" aria-hidden="true">
-  <!-- Isotipo de pelota: indicador de saque -->
+<!-- Iconos (sprite SVG): pelota de saque y estrella del ganador.
+     SVG en lugar de emojis: se ven igual en cualquier sistema operativo. -->
+<svg class="d-sprite" aria-hidden="true">
   <symbol id="icon-ball" viewBox="0 0 100 100">
     <circle cx="50" cy="50" r="46" fill="#D4F21E" />
-    <path d="M14 22 C 38 36, 38 64, 14 78" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" />
-    <path d="M86 22 C 62 36, 62 64, 86 78" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" />
+    <path d="M14 22 C 38 36, 38 64, 14 78" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" />
+    <path d="M86 22 C 62 36, 62 64, 86 78" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" />
   </symbol>
-  <!-- Isotipo de estrella: ganador del partido -->
   <symbol id="icon-star" viewBox="0 0 100 100">
-    <polygon points="50,4 62,37 97,38 69,59 79,94 50,74 21,94 31,59 3,38 38,37" fill="#FFD700" />
+    <polygon points="50,4 62,37 97,38 69,59 79,94 50,74 21,94 31,59 3,38 38,37" fill="#FFD54A" />
   </symbol>
 </svg>
 
-<main id="scoreboard" class="scoreboard">
+<main id="display" class="display">
 
-  <!-- ── Marca + badge de fase ─────────────────────────────────── -->
-  <header class="sb-header">
-    <div class="sb-logo" data-brand-logo>STAGE<span>MASTER</span></div>
-    <div id="sb-badge" class="sb-badge hidden"></div>
+  <!-- ── Cabecera: logo (izquierda) · fase + pista (derecha) ───── -->
+  <header class="d-header">
+    <div class="d-logo" data-brand-logo>STAGE<span>MASTER</span></div>
+    <div class="d-header-right">
+      <div id="d-badge" class="d-badge hidden"></div>
+      <div id="d-court" class="d-court"></div>
+    </div>
   </header>
 
-  <!-- ── Estado de espera (no hay partido activo) ──────────────── -->
-  <section id="sb-waiting" class="sb-waiting">
-    <div class="sb-waiting-title">PÁDEL</div>
-    <div class="sb-waiting-text">Esperando partido…</div>
+  <!-- ── Zona principal ───────────────────────────────────────── -->
+  <section id="d-stage" class="d-stage">
+
+    <!-- Sin partido (y sin publicidad a pantalla completa) -->
+    <div id="d-waiting" class="d-waiting">
+      <div id="d-waiting-court" class="d-waiting-court"></div>
+      <div class="d-waiting-text">Próximo partido</div>
+    </div>
+
+    <!-- Marcador -->
+    <div id="d-board" class="d-board hidden">
+      <div class="d-head">
+        <span></span>
+        <span></span>
+        <span>SETS</span>
+        <span>GAMES</span>
+        <span>PUNTOS</span>
+      </div>
+
+      <div id="row-a" class="d-row">
+        <span class="d-icon">
+          <svg class="icon-ball"><use href="#icon-ball" /></svg>
+          <svg class="icon-star"><use href="#icon-star" /></svg>
+        </span>
+        <span id="names-a" class="d-names"></span>
+        <span id="sets-a" class="d-cell d-sets"></span>
+        <span id="games-a" class="d-cell d-games"></span>
+        <span id="pts-a" class="d-cell d-pts"></span>
+      </div>
+
+      <div class="d-divider"><span id="d-divider-label" class="d-divider-label"></span></div>
+
+      <div id="row-b" class="d-row">
+        <span class="d-icon">
+          <svg class="icon-ball"><use href="#icon-ball" /></svg>
+          <svg class="icon-star"><use href="#icon-star" /></svg>
+        </span>
+        <span id="names-b" class="d-names"></span>
+        <span id="sets-b" class="d-cell d-sets"></span>
+        <span id="games-b" class="d-cell d-games"></span>
+        <span id="pts-b" class="d-cell d-pts"></span>
+      </div>
+
+      <div id="d-history" class="d-history"></div>
+    </div>
+
+    <!-- Publicidad a pantalla completa (modo "Solo publicidad" o sin partido) -->
+    <div id="d-fullad" class="d-fullad hidden"></div>
   </section>
 
-  <!-- ── Marcador ──────────────────────────────────────────────── -->
-  <section id="sb-board" class="sb-board hidden">
+  <!-- ── Franja publicitaria (modo "Marcador + publicidad") ──────── -->
+  <footer id="d-banner" class="d-banner hidden"></footer>
 
-    <!-- Cabecera de columnas -->
-    <div class="sb-head">
-      <span></span>
-      <span></span>
-      <span>PTS</span>
-      <span>GAMES</span>
-      <span>SETS</span>
-    </div>
-
-    <!-- Fila equipo A -->
-    <div id="row-a" class="sb-row">
-      <span class="sb-icon">
-        <svg class="icon-ball"><use href="#icon-ball" /></svg>
-        <svg class="icon-star"><use href="#icon-star" /></svg>
-      </span>
-      <span id="name-a" class="sb-name"></span>
-      <span id="pts-a" class="sb-cell sb-pts"></span>
-      <span id="games-a" class="sb-cell sb-games"></span>
-      <span id="sets-a" class="sb-cell sb-sets"></span>
-    </div>
-
-    <!-- Separador (muestra "GANADOR DEL PARTIDO" al finalizar) -->
-    <div class="sb-divider">
-      <span id="sb-divider-label" class="sb-divider-label"></span>
-    </div>
-
-    <!-- Fila equipo B -->
-    <div id="row-b" class="sb-row">
-      <span class="sb-icon">
-        <svg class="icon-ball"><use href="#icon-ball" /></svg>
-        <svg class="icon-star"><use href="#icon-star" /></svg>
-      </span>
-      <span id="name-b" class="sb-name"></span>
-      <span id="pts-b" class="sb-cell sb-pts"></span>
-      <span id="games-b" class="sb-cell sb-games"></span>
-      <span id="sets-b" class="sb-cell sb-sets"></span>
-    </div>
-  </section>
-
-  <!-- ── Historial de sets ─────────────────────────────────────── -->
-  <footer id="sb-history" class="sb-history"></footer>
-
+  <!-- Identificación (la estación pulsa "Identificar") -->
+  <div id="d-identify" class="d-identify hidden"></div>
 </main>
 
-<!--
-  /socket.io/socket.io.js lo sirve automáticamente el servidor
-  Socket.IO (no es un archivo de public/). Debe cargarse antes de score.js.
--->
 <script src="/socket.io/socket.io.js"></script>
+<script src="js/score-format.js"></script>
 <script src="js/brand.js"></script>
 <script src="js/score.js"></script>
 </body>

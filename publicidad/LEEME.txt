@@ -1,0 +1,18 @@
+PUBLICIDAD DE STAGEMASTER
+=========================
+
+Copia aquí los anuncios en formato PNG. No hace falta Internet ni
+reiniciar nada: después de copiar un archivo, pulsa "Actualizar
+publicidad" en la estación y márcalo en la pantalla donde quieras verlo.
+
+  banner/              Franja inferior, debajo del marcador.
+                       Tamaño recomendado: 1920 × 200 px.
+
+  pantalla-completa/   Pantalla completa: entre partidos o en el modo
+                       "Solo publicidad".
+                       Tamaño recomendado: 1920 × 1080 px.
+
+Las imágenes nunca se recortan ni se deforman: si la proporción no
+coincide con la zona, se centran con bordes oscuros.
+
+Los archivos "ejemplo-*.png" son de demostración y se pueden borrar.

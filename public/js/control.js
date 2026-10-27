@@ -1,25 +1,32 @@
 /**
- * control.js — Lógica del Panel de Control (iPhone)
+ * control.js — Teléfono del árbitro (control.html)
  *
  * Responsabilidad:
- *   1. Leer la configuración del formulario de setup
- *   2. Enviar las acciones del operador al servidor (Socket.IO)
- *   3. Renderizar el estado que devuelve el servidor
- *   4. Gestionar confirmaciones para acciones peligrosas
- *   5. Mostrar el estado de la conexión y avisos de error
+ *   1. Vincular el teléfono a UNA pista con el PIN de la estación
+ *   2. Mostrar siempre qué pista controla (barra de color fija)
+ *   3. Leer la configuración del formulario de setup
+ *   4. Enviar las acciones del árbitro al servidor (Socket.IO)
+ *   5. Renderizar el estado que devuelve el servidor
+ *   6. Confirmaciones para acciones peligrosas, estado de conexión y avisos
  *
- * El panel NO calcula el marcador: el único que lo hace es el servidor
- * (server/sports/padel/engine.js). Así el iPhone y la pantalla LED
- * siempre muestran exactamente el mismo estado.
+ * El teléfono NO calcula el marcador: lo hace el servidor
+ * (server/sports/padel/engine.js), así teléfono, pantallas y estación
+ * muestran exactamente el mismo estado.
  *
- * FLUJO DE UNA ACCIÓN (ej: "Punto A"):
+ * VINCULACIÓN:
+ *   Pista + PIN → servidor devuelve un token → se guarda en el teléfono
+ *   (localStorage) y se envía al reconectar. Si la estación desvincula el
+ *   teléfono o otro lo reemplaza, llega 'controllerRevoked' y se vuelve a
+ *   la pantalla de vinculación.
+ *
+ * FLUJO DE UNA ACCIÓN (ej: "Punto A" en la Pista 1):
  *   Botón "PUNTO A"
  *     → handlePointA() → dispatch('pointA')
- *       → sendRequest('pointA', { version })   ← bloquea nuevos toques
- *         → servidor: matchManager → engine.js → nuevo estado
- *         → io.emit('matchUpdate', estado)     ← a TODOS (iPhone + LED)
- *       → socket.on('matchUpdate') → applyServerState() → renderMatch()
- *       → ack { ok: true }                     ← desbloquea los botones
+ *       → sendRequest('matchAction', { matchId: 'pista-1', action, version })
+ *         → servidor: ¿teléfono vinculado a pista-1? → Match → engine.js
+ *         → 'matchUpdate' SOLO a la sala de pista-1 (este teléfono + sus pantallas)
+ *       → applyServerState() → renderMatch()
+ *       → ack { ok: true }   ← desbloquea los botones
  */
 
 'use strict';
@@ -28,11 +35,20 @@
 // ESTADO GLOBAL DEL PANEL
 // ─────────────────────────────────────────────────────────────────
 
-/** Texto del badge cuando el siguiente punto decide el game */
-var DECISIVE_POINT_LABELS = {
-  goldenPoint: 'PUNTO DE ORO',
-  starPoint:   'PUNTO ESTRELLA',
-};
+/** Clave donde el teléfono guarda su token de vinculación */
+var TOKEN_STORAGE_KEY = 'stagemaster.controllerToken';
+
+/** Pista que controla este teléfono: { matchId, label, color } o null si no está vinculado */
+var myCourt = null;
+
+/** Pista elegida en la pantalla de vinculación (antes de introducir el PIN) */
+var selectedCourt = null;
+
+/** Dígitos del PIN tecleados */
+var pinDigits = '';
+
+/** Pista indicada en la dirección (QR de la estación): control.html?pista=pista-1 */
+var courtFromUrl = new URLSearchParams(window.location.search).get('pista');
 
 /** Estado actual del partido (recibido del servidor). null = no hay partido. */
 var matchState = null;
@@ -81,11 +97,19 @@ function getSelectedValue(groupId) {
   return active ? active.getAttribute('data-value') : null;
 }
 
+/** Une los dos jugadores de una pareja: "Jose V / Santiago R" (el 2º es opcional) */
+function readTeamName(firstId, secondId) {
+  return [firstId, secondId]
+    .map(function (id) { return document.getElementById(id).value.trim(); })
+    .filter(Boolean)
+    .join(' / ');
+}
+
 /** Construye el objeto de configuración desde el formulario de setup */
 function buildConfigFromForm() {
   return {
-    nameA:         document.getElementById('input-name-a').value.trim(),
-    nameB:         document.getElementById('input-name-b').value.trim(),
+    nameA:         readTeamName('input-name-a', 'input-name-a2'),
+    nameB:         readTeamName('input-name-b', 'input-name-b2'),
     gamesPerSet:   parseInt(getSelectedValue('group-games-per-set'), 10),
     totalSets:     parseInt(getSelectedValue('group-total-sets'), 10),
     scoringSystem: getSelectedValue('group-scoring'),
@@ -127,7 +151,7 @@ function validateConfig(cfg) {
 
 /** Muestra una pantalla y oculta las demás */
 function showScreen(screenName) {
-  var screens = ['setup', 'match', 'finished'];
+  var screens = ['pair', 'setup', 'match', 'finished'];
   screens.forEach(function (name) {
     var el = document.getElementById('screen-' + name);
     if (name === screenName) {
@@ -148,17 +172,6 @@ function formatPoints(points, phase) {
   if (phase !== 'normal') return String(points);
   // En juego normal: 0, 15, 30, 40, AD
   return String(points); // El motor ya almacena 0/15/30/40/'AD'
-}
-
-/**
- * Texto de un set terminado para el historial:
- *   set normal → "6-3" | con tiebreak → "7-6 (8-6)" | Super TB decisivo → "STB 10-8"
- */
-function formatSetScore(set) {
-  if (set.superTiebreak) return 'STB ' + set.tiebreak.A + '-' + set.tiebreak.B;
-  var text = set.A + '-' + set.B;
-  if (set.tiebreak) text += ' (' + set.tiebreak.A + '-' + set.tiebreak.B + ')';
-  return text;
 }
 
 /** Renderiza el estado completo del partido en la pantalla de control */
@@ -205,29 +218,20 @@ function renderMatch() {
   var badge     = document.getElementById('phase-badge');
   var setLabel  = document.getElementById('match-status-label');
 
-  setLabel.textContent = phase === 'superTiebreak' && p.A.games === 0 && p.B.games === 0
+  setLabel.textContent = ScoreFormat.isDecidingSuperTiebreak(matchState)
     ? 'SUPER TIE BREAK DECISIVO'
     : 'SET ' + matchState.currentSet + ' · EN CURSO';
 
-  if (phase === 'tiebreak') {
-    badge.textContent = 'TIE BREAK';
-    badge.classList.remove('hidden');
-  } else if (phase === 'superTiebreak') {
-    badge.textContent = 'SUPER TB';
-    badge.classList.remove('hidden');
-  } else if (matchState.decisivePoint) {
-    // 40-40 decisivo: el siguiente punto gana el game
-    badge.textContent = DECISIVE_POINT_LABELS[matchState.config.scoringSystem] || 'PUNTO DECISIVO';
-    badge.classList.remove('hidden');
-  } else {
-    badge.classList.add('hidden');
-  }
+  // TIE BREAK / SUPER TIE BREAK / PUNTO DE ORO / PUNTO ESTRELLA (texto compartido con las pantallas)
+  var badgeInfo = ScoreFormat.badgeFor(matchState);
+  badge.classList.toggle('hidden', !badgeInfo);
+  if (badgeInfo) badge.textContent = badgeInfo.text;
 
   // ── Historial de sets ────────────────────────────────────────
   var historyEl = document.getElementById('set-history');
   if (matchState.setScores.length > 0) {
     historyEl.textContent = matchState.setScores
-      .map(formatSetScore)
+      .map(ScoreFormat.formatSetScore)
       .join('  ·  ');
   } else {
     historyEl.textContent = '';
@@ -246,7 +250,7 @@ function renderFinished() {
 
   // Construir resultado de sets
   var setsStr = matchState.setScores
-    .map(formatSetScore)
+    .map(ScoreFormat.formatSetScore)
     .join(' · ');
   document.getElementById('final-sets').textContent = setsStr;
 }
@@ -262,8 +266,8 @@ function renderFinished() {
  * La UI se actualiza cuando llega 'matchUpdate'.
  */
 function dispatch(action) {
-  if (!matchState) return;
-  sendRequest(action, { version: matchState.version });
+  if (!matchState || !myCourt) return;
+  sendRequest('matchAction', { matchId: myCourt.matchId, action: action, version: matchState.version });
 }
 
 /** Manejador del botón "Punto A" */
@@ -338,7 +342,8 @@ function handleStartMatch() {
  * @param {boolean} force - true si el operador confirmó reemplazar un partido en curso
  */
 function requestStartMatch(cfg, force) {
-  sendRequest('setupMatch', { config: cfg, force: force }, {
+  if (!myCourt) return;
+  sendRequest('setupMatch', { matchId: myCourt.matchId, config: cfg, force: force }, {
     onSuccess: function () {
       editingNewMatch = false;
       routeToScreen();
@@ -365,8 +370,8 @@ function handleResetConfirm() {
     'El marcador volverá a 0. Se perderá el progreso actual.',
     function () {
       // El servidor reinicia con la misma configuración y nombres
-      if (!matchState) return;
-      sendRequest('resetMatch', { version: matchState.version });
+      if (!matchState || !myCourt) return;
+      sendRequest('resetMatch', { matchId: myCourt.matchId, version: matchState.version });
     }
   );
 }
@@ -415,10 +420,15 @@ function connectToServer() {
     return;
   }
 
-  socket = io();
+  // El token (si lo hay) se envía al conectar y en cada reconexión
+  var token = readToken();
+  socket = io({ auth: token ? { role: 'controller', token: token } : { role: 'controller' } });
 
   socket.on('connect', function () {
-    setConnectionStatus('connected', 'Conectado');
+    setConnectionStatus('connected', myCourt ? 'Conectado · ' + myCourt.label : 'Conectado');
+    // Sin token: elegir pista. Con token: el servidor responderá con
+    // 'controllerSession' (sigue vinculado) o 'controllerRevoked'.
+    if (!socket.auth.token) showPairing();
   });
 
   socket.on('disconnect', function () {
@@ -426,17 +436,25 @@ function connectToServer() {
     showToast('Conexión perdida. Reconectando…', true);
   });
 
-  socket.on('serverConnected', function (data) {
-    setConnectionStatus('connected', 'Conectado · ' + data.clientsCount + ' dispositivo(s)');
+  // El servidor confirma la pista de este teléfono (al vincular y al reconectar)
+  socket.on('controllerSession', function (session) {
+    myCourt = session;
+    showCourtBanner();
+    setConnectionStatus('connected', 'Conectado · ' + session.label);
   });
 
-  socket.on('clientsCount', function (count) {
-    if (socket.connected) {
-      setConnectionStatus('connected', 'Conectado · ' + count + ' dispositivo(s)');
-    }
+  // Este teléfono perdió el permiso (desvinculado o reemplazado por otro)
+  socket.on('controllerRevoked', function (data) {
+    forgetPairing();
+    showToast(data.message || 'Este teléfono ya no controla ninguna pista.', true);
+    showPairing();
   });
 
-  socket.on('matchUpdate', applyServerState);
+  socket.on('matchUpdate', function (payload) {
+    // Solo el partido de ESTE teléfono (el servidor ya filtra; doble protección)
+    if (!myCourt || payload.matchId !== myCourt.matchId) return;
+    applyServerState(payload.state);
+  });
 }
 
 /**
@@ -460,6 +478,7 @@ function sendRequest(eventName, payload, handlers) {
 
   if (!socket || !socket.connected) {
     showToast('Sin conexión con el servidor. Espera a que se reconecte.', true);
+    if (handlers.onResult) handlers.onResult({ ok: false });
     return;
   }
   if (requestPending) return;
@@ -474,6 +493,7 @@ function sendRequest(eventName, payload, handlers) {
       showToast('El servidor no respondió. Revisa el marcador antes de seguir.', true);
       return;
     }
+    if (handlers.onResult) handlers.onResult(response);
     if (response.ok) {
       if (handlers.onSuccess) handlers.onSuccess();
       return;
@@ -486,9 +506,11 @@ function sendRequest(eventName, payload, handlers) {
 /** Gestión por defecto de una respuesta de error del servidor */
 function handleRequestError(response) {
   showToast(response.message || 'No se pudo completar la acción', true);
-
-  // El servidor envía su estado actual para que el panel se resincronice
-  if (response.state !== undefined) applyServerState(response.state);
+  // Sin permiso: volver a vincular (el servidor también envía 'controllerRevoked')
+  if (response.code === 'NOT_PAIRED') {
+    forgetPairing();
+    showPairing();
+  }
 }
 
 /** Bloquea/desbloquea nuevas peticiones y muestra feedback si tarda */
@@ -521,7 +543,13 @@ function applyServerState(state) {
 
 /** Decide qué pantalla mostrar según el estado del partido */
 function routeToScreen() {
-  // El operador está preparando un partido nuevo: no interrumpirle
+  // Teléfono sin vincular: primero elegir pista y PIN
+  if (!myCourt) {
+    showPairing();
+    return;
+  }
+
+  // El árbitro está preparando un partido nuevo: no interrumpirle
   if (editingNewMatch || !matchState) {
     showScreen('setup');
     return;
@@ -542,10 +570,13 @@ function routeToScreen() {
 
 /** Actualiza el punto y el texto de la barra de estado */
 function setConnectionStatus(kind, text) {
-  var dot = document.getElementById('status-dot');
-  dot.classList.toggle('connected', kind === 'connected');
-  dot.classList.toggle('offline',   kind === 'offline');
-  document.getElementById('status-text').textContent = text;
+  // Hay dos barras de estado: la del marcador y la de vinculación
+  [['status-dot', 'status-text'], ['pair-status-dot', 'pair-status-text']].forEach(function (ids) {
+    var dot = document.getElementById(ids[0]);
+    dot.classList.toggle('connected', kind === 'connected');
+    dot.classList.toggle('offline',   kind === 'offline');
+    document.getElementById(ids[1]).textContent = text;
+  });
   document.body.classList.toggle('is-offline', kind === 'offline');
 }
 
@@ -560,6 +591,197 @@ function showToast(message, isError) {
   toastTimer = setTimeout(function () {
     toast.classList.add('hidden');
   }, 3500);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// VINCULACIÓN CON UNA PISTA (PIN)
+// ─────────────────────────────────────────────────────────────────
+
+/** El token se guarda en el teléfono; si el navegador lo impide, se pide el PIN otra vez */
+function readToken() {
+  try { return window.localStorage.getItem(TOKEN_STORAGE_KEY); } catch (e) { return null; }
+}
+
+function saveToken(token) {
+  try { window.localStorage.setItem(TOKEN_STORAGE_KEY, token); } catch (e) { /* solo esta sesión */ }
+}
+
+/** Olvida la vinculación (token, pista y partido) */
+function forgetPairing() {
+  try { window.localStorage.removeItem(TOKEN_STORAGE_KEY); } catch (e) { /* sin acción */ }
+  if (socket) socket.auth = { role: 'controller' };
+  myCourt    = null;
+  matchState = null;
+  editingNewMatch   = false;
+  reviewingFinished = false;
+  document.getElementById('court-banner').classList.add('hidden');
+}
+
+/** Barra fija con el nombre y el color de la pista de este teléfono */
+function showCourtBanner() {
+  var banner = document.getElementById('court-banner');
+  banner.style.setProperty('--court-color', myCourt.color);
+  document.getElementById('court-banner-name').textContent = myCourt.label;
+  banner.classList.remove('hidden');
+}
+
+/** Pantalla de vinculación, paso 1: lista de pistas (desde el servidor) */
+function showPairing() {
+  showScreen('pair');
+  showPairStep('court');
+  if (!socket || !socket.connected) return;
+
+  socket.timeout(REQUEST_TIMEOUT_MS).emit('listCourts', {}, function (err, response) {
+    if (err || !response.ok) return;
+    renderCourtList(response.courts);
+
+    // Si se llegó escaneando el QR de una pista, se salta la elección de pista
+    var fromQr = response.courts.filter(function (c) { return c.id === courtFromUrl; })[0];
+    if (fromQr) {
+      courtFromUrl = null;   // solo la primera vez
+      selectCourt(fromQr);
+    }
+  });
+}
+
+function showPairStep(step) {
+  document.getElementById('pair-step-court').classList.toggle('hidden', step !== 'court');
+  document.getElementById('pair-step-pin').classList.toggle('hidden', step !== 'pin');
+}
+
+/** Un botón grande por pista, con su color y su estado */
+function renderCourtList(courts) {
+  var list = document.getElementById('court-list');
+  list.innerHTML = '';
+  document.getElementById('court-list-empty').classList.toggle('hidden', courts.length > 0);
+
+  courts.forEach(function (court) {
+    var btn = document.createElement('button');
+    btn.className = 'court-option';
+    btn.style.setProperty('--court-color', court.color);
+
+    var name = document.createElement('span');
+    name.className   = 'court-option-name';
+    name.textContent = court.label;
+
+    var info = document.createElement('span');
+    info.className   = 'court-option-info';
+    info.textContent = describeCourt(court);
+
+    btn.appendChild(name);
+    btn.appendChild(info);
+    btn.addEventListener('click', function () { selectCourt(court); });
+    list.appendChild(btn);
+  });
+}
+
+function describeCourt(court) {
+  var match = court.names ? court.names.join('  vs  ') : 'Sin partido configurado';
+  return court.controllerConnected ? match + ' · ⚠ ya tiene un teléfono conectado' : match;
+}
+
+/** Paso 2: introducir el PIN de la pista elegida */
+function selectCourt(court) {
+  selectedCourt = court;
+  pinDigits = '';
+  var title = document.getElementById('pin-court');
+  title.textContent = court.label;
+  title.style.setProperty('--court-color', court.color);
+  document.getElementById('pin-error').classList.add('hidden');
+  renderPin();
+  showPairStep('pin');
+}
+
+function renderPin() {
+  var cells = document.querySelectorAll('#pin-display .pin-digit');
+  Array.prototype.forEach.call(cells, function (cell, i) {
+    cell.textContent = pinDigits.charAt(i) ? '•' : '';
+  });
+}
+
+/** Teclado numérico del PIN; al completar 4 dígitos se envía solo */
+function handlePinKey(key) {
+  if (key === 'back') pinDigits = pinDigits.slice(0, -1);
+  else if (key === 'clear') pinDigits = '';
+  else if (pinDigits.length < 4) pinDigits += key;
+  renderPin();
+  if (pinDigits.length === 4) submitPin(false);
+}
+
+/**
+ * Envía pista + PIN al servidor.
+ * @param {boolean} force - true si el árbitro confirmó reemplazar a otro teléfono conectado
+ */
+function submitPin(force) {
+  if (!selectedCourt) return;
+  var keypad = document.getElementById('pin-keypad');
+  keypad.classList.add('is-busy');
+
+  sendRequest('pair', {
+    matchId:    selectedCourt.id,
+    pin:        pinDigits,
+    deviceName: guessDeviceName(),
+    force:      force,
+  }, {
+    onSuccess: function () {},   // la respuesta con el token llega en onResult
+    onResult: function (response) {
+      keypad.classList.remove('is-busy');
+      if (!response.ok) return;
+      saveToken(response.token);
+      socket.auth = { role: 'controller', token: response.token };
+      // 'controllerSession' y 'matchUpdate' llegan del servidor: abrir el marcador
+      myCourt = { matchId: response.matchId, label: response.label, color: response.color };
+      showCourtBanner();
+      showToast('Teléfono vinculado a ' + response.label, false);
+      routeToScreen();
+    },
+    onError: function (response) {
+      keypad.classList.remove('is-busy');
+      if (response.code === 'CONTROLLER_ACTIVE') {
+        showModal('Pista ocupada', response.message, function () { submitPin(true); });
+        return true;
+      }
+      showPinError(response.message);
+      return true;
+    },
+  });
+}
+
+function showPinError(message) {
+  pinDigits = '';
+  renderPin();
+  var display = document.getElementById('pin-display');
+  display.classList.remove('is-error');
+  void display.offsetWidth;
+  display.classList.add('is-error');
+  var error = document.getElementById('pin-error');
+  error.textContent = message;
+  error.classList.remove('hidden');
+}
+
+/** Nombre del teléfono que verá la estación (orientativo) */
+function guessDeviceName() {
+  var ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return 'iPhone';
+  if (/Android/.test(ua)) return 'Android';
+  return 'Teléfono';
+}
+
+/** "Cambiar de pista": desvincula este teléfono (con confirmación) */
+function handleChangeCourt() {
+  if (!myCourt) return;
+  showModal(
+    'Cambiar de pista',
+    'Este teléfono dejará de controlar ' + myCourt.label + '. Para volver necesitarás el PIN.',
+    function () {
+      sendRequest('unpair', {}, {
+        onSuccess: function () {
+          forgetPairing();
+          showPairing();
+        },
+      });
+    }
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -617,12 +839,9 @@ function initSelectionGroup(groupId) {
 
 /** Actualiza las etiquetas del grupo de saque con los nombres escritos */
 function updateServerButtonLabels() {
-  var nameA = document.getElementById('input-name-a').value.trim();
-  var nameB = document.getElementById('input-name-b').value.trim();
-
-  // Mostrar nombre corto (primer elemento antes del '/')
-  var shortA = nameA ? nameA.split('/')[0].trim() : 'Equipo A';
-  var shortB = nameB ? nameB.split('/')[0].trim() : 'Equipo B';
+  // Nombre corto: el primer jugador de cada pareja
+  var shortA = document.getElementById('input-name-a').value.trim() || 'Pareja A';
+  var shortB = document.getElementById('input-name-b').value.trim() || 'Pareja B';
 
   document.getElementById('server-btn-a').textContent = shortA;
   document.getElementById('server-btn-b').textContent = shortB;
@@ -656,6 +875,14 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('btn-reset').addEventListener('click', handleResetConfirm);
   document.getElementById('btn-finish').addEventListener('click', handleFinishConfirm);
 
+  document.getElementById('btn-change-court').addEventListener('click', handleChangeCourt);
+
+  // ── Vinculación: teclado del PIN y volver a la lista de pistas ─
+  document.querySelectorAll('#pin-keypad .pin-key').forEach(function (key) {
+    key.addEventListener('click', function () { handlePinKey(key.getAttribute('data-key')); });
+  });
+  document.getElementById('btn-pair-back').addEventListener('click', showPairing);
+
   // ── Botones de pantalla "finalizado" ─────────────────────────
   document.getElementById('btn-new-match').addEventListener('click', handleNewMatch);
   document.getElementById('btn-back-to-match').addEventListener('click', handleBackToMatch);
@@ -670,8 +897,9 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ── Pantalla inicial y conexión ──────────────────────────────
-  // Si hay un partido en el servidor, 'matchUpdate' llevará al marcador
-  showScreen('setup');
+  // Con token guardado, el servidor devolverá la pista y su marcador;
+  // sin token, 'connect' muestra la vinculación.
+  showScreen('pair');
   connectToServer();
 
 });

@@ -1,0 +1,352 @@
+/*
+ * station.css — Estación operadora (station.html)
+ *
+ * Interfaz de escritorio para el portátil: dos columnas (pista 1 / pista 2
+ * y pantalla 1 / pantalla 2), estados con color + texto (nunca solo color)
+ * y controles agrupados por tarjeta para ajustes rápidos durante el evento.
+ */
+
+.station-body {
+  --st-ok:      #22C55E;
+  --st-warn:    #F59E0B;
+  --st-bad:     #EF4444;
+  --st-muted:   #6B88AD;
+  background: #06142C;
+  min-height: 100vh;
+  font-size: 15px;
+}
+
+.hidden { display: none !important; }
+
+/* ── Barra superior ─────────────────────────────────────────────── */
+.st-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 24px;
+  background: #0A2350;
+  border-bottom: 3px solid #8FD3FF;
+}
+
+.st-brand { display: flex; align-items: center; gap: 16px; }
+
+.st-logo {
+  --logo-height: 48px;
+  font-family: var(--font-score);
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: #fff;
+}
+.st-logo span { color: #8FD3FF; }
+
+.st-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #BEE6FF;
+  padding-left: 16px;
+  border-left: 2px solid #1E4F9C;
+}
+
+.st-network {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: #BEE6FF;
+}
+
+.st-network strong { color: #fff; font-size: 1rem; }
+
+.st-conn { display: flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+
+.st-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--st-muted);
+  flex-shrink: 0;
+}
+.st-dot.ok   { background: var(--st-ok); }
+.st-dot.warn { background: var(--st-warn); }
+.st-dot.bad  { background: var(--st-bad); }
+
+.st-blocked {
+  margin: 24px;
+  padding: 20px;
+  border-radius: 12px;
+  background: #3A1214;
+  border: 2px solid var(--st-bad);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* ── Secciones ──────────────────────────────────────────────────── */
+.st-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 24px 40px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.st-section-head { display: flex; align-items: center; justify-content: space-between; }
+
+.st-section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8FD3FF;
+  margin-bottom: 10px;
+}
+
+.st-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  gap: 16px;
+}
+
+.st-help { margin-top: 10px; font-size: 0.85rem; color: var(--st-muted); }
+.st-help code { color: #BEE6FF; }
+
+/* ── Tarjetas ───────────────────────────────────────────────────── */
+.st-card {
+  --court-color: #8FD3FF;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0C2C63;
+  border: 2px solid #1E4F9C;
+}
+
+.st-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--court-color);
+  color: #04122B;
+}
+
+.st-card-name {
+  font-family: var(--font-score);
+  font-weight: 700;
+  font-size: 1.6rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.st-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: rgba(4, 18, 43, 0.85);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.st-card-body { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px; }
+
+.st-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.st-row-between { justify-content: space-between; }
+
+.st-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8FD3FF;
+  min-width: 90px;
+}
+
+/* Mini marcador */
+.st-score {
+  display: grid;
+  grid-template-columns: 1fr repeat(3, 56px);
+  gap: 4px 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #041024;
+}
+
+.st-score-h { font-size: 0.7rem; font-weight: 700; color: #8FD3FF; text-align: center; }
+.st-score-name { font-weight: 700; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-score-name.is-serving::before { content: '● '; color: #D4F21E; }
+.st-score-name.is-winner { color: #FFD54A; }
+.st-score-name.is-winner::before { content: '★ '; }
+.st-score-num { font-family: var(--font-score); font-weight: 700; font-size: 1.5rem; text-align: center; }
+.st-score-pts { background: #8FD3FF; color: #04122B; border-radius: 6px; }
+
+.st-history { font-size: 0.85rem; color: #BEE6FF; }
+.st-empty { color: var(--st-muted); font-style: italic; }
+
+/* Teléfono / PIN */
+.st-phone { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+
+.st-pin {
+  font-family: var(--font-score);
+  font-weight: 700;
+  font-size: 1.8rem;
+  letter-spacing: 6px;
+  padding: 2px 12px;
+  border-radius: 8px;
+  background: #041024;
+  color: #fff;
+}
+
+/* Estado de una pantalla */
+.st-status { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.st-warning {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--st-warn);
+  font-size: 0.85rem;
+}
+
+/* Publicidad */
+.st-ads { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.st-ads-box {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #041024;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.st-ads-box h4 { font-size: 0.75rem; color: #8FD3FF; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+.st-ads-box label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 3px 0; cursor: pointer; }
+
+/* ── Controles ──────────────────────────────────────────────────── */
+.st-btn {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #fff;
+  background: #1B5FB8;
+  cursor: pointer;
+}
+.st-btn:hover    { filter: brightness(1.15); }
+.st-btn:disabled { opacity: 0.4; cursor: default; filter: none; }
+.st-btn-primary  { background: #1E90FF; }
+.st-btn-danger   { background: #C62828; }
+.st-btn-ghost    { background: transparent; border: 1px solid #3B6DB3; color: #BEE6FF; }
+.st-btn-big      { height: 48px; font-size: 1rem; }
+
+.st-select, .st-input, .st-form-grid input, .st-form-grid select {
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #3B6DB3;
+  background: #041024;
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.st-input-small { width: 70px; }
+
+.st-segmented { display: inline-flex; border: 1px solid #3B6DB3; border-radius: 8px; overflow: hidden; }
+.st-segmented button {
+  height: 38px;
+  padding: 0 12px;
+  background: transparent;
+  color: #BEE6FF;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.st-segmented button.is-active { background: #8FD3FF; color: #04122B; }
+
+details.st-backup summary { cursor: pointer; font-size: 0.85rem; color: #8FD3FF; font-weight: 600; }
+details.st-backup .st-row { margin-top: 8px; }
+
+/* ── Diálogos ───────────────────────────────────────────────────── */
+.st-dialog {
+  margin: auto;
+  width: min(680px, 92vw);
+  padding: 22px;
+  border-radius: 14px;
+  border: 2px solid #8FD3FF;
+  background: #0A2350;
+  color: #fff;
+}
+.st-dialog::backdrop { background: rgba(2, 8, 20, 0.75); }
+.st-dialog-small { width: min(460px, 92vw); }
+.st-dialog-title { font-size: 1.3rem; margin-bottom: 14px; }
+.st-dialog-message { color: #BEE6FF; margin-bottom: 18px; line-height: 1.5; }
+.st-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+.st-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.st-form-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.st-form-grid fieldset { display: flex; flex-direction: column; gap: 8px; border: 1px solid #1E4F9C; border-radius: 10px; padding: 10px; }
+.st-form-grid legend { padding: 0 6px; color: #8FD3FF; font-weight: 700; }
+.st-form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 700; color: #8FD3FF; }
+
+.st-error { padding: 8px 10px; border-radius: 8px; background: #3A1214; border: 1px solid var(--st-bad); }
+
+.st-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 100;
+  max-width: 420px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #0C2C63;
+  border: 2px solid #8FD3FF;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.st-toast.is-error { background: #3A1214; border-color: var(--st-bad); }
+
+/* shared.css quita la apariencia nativa de los <input> (pensado para el
+   teléfono); las casillas de publicidad la necesitan para verse */
+.st-ads-box input[type="checkbox"] {
+  -webkit-appearance: checkbox;
+  appearance: auto;
+  width: 18px;
+  height: 18px;
+  accent-color: #8FD3FF;
+  flex-shrink: 0;
+}
+
+/* ── Acciones de la barra superior ──────────────────────────────── */
+.st-top-actions { display: flex; gap: 8px; }
+
+/* ── Dirección principal para los teléfonos ─────────────────────── */
+.st-network-main strong { font-size: 1.05rem; }
+.st-network-alt { font-size: 0.8rem; color: var(--st-muted); }
+
+/* ── Acceso del árbitro: QR + PIN ───────────────────────────────── */
+.st-access {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #041024;
+}
+
+.st-qr {
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+  padding: 6px;
+  border-radius: 8px;
+  background: #fff;
+}
+.st-qr svg { width: 100%; height: 100%; display: block; }
+
+.st-access-text { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: #BEE6FF; }
+.st-access-text .st-row { gap: 8px; }

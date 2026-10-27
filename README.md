@@ -1,182 +1,125 @@
 # StageMaster · Marcador profesional de pádel
 
-Marcador en tiempo real para pantallas LED en eventos deportivos.
-El operador lleva el partido desde un **iPhone** y la **pantalla LED** se
-actualiza al instante. Funciona **sin Internet**, dentro de una red local.
+Aplicación para Windows que convierte un **portátil** en la estación de un
+evento de pádel: **hasta 2 partidos simultáneos**, **1 o 2 pantallas** externas
+(score + publicidad) y un **teléfono de árbitro** por partido. Funciona **sin
+Internet**: solo necesita una red Wi-Fi para los teléfonos.
 
 ```
- iPhone (control.html) ──Wi-Fi──► Servidor (PC) ──► Pantalla LED (score.html)
+ 📱 Árbitro Pista 1 ─┐                         ┌─ cable ─► 📺 Pantalla 1
+                     ├─ Wi-Fi ─► 💻 StageMaster ┤
+ 📱 Árbitro Pista 2 ─┘          (portátil)      └─ cable ─► 📺 Pantalla 2
 ```
-
-| Interfaz | Dispositivo | Dirección |
-|---|---|---|
-| Panel de control | iPhone del operador | `http://IP-DEL-PC:3000/control.html` |
-| Pantalla LED | PC conectado a la LED | `http://localhost:3000/score.html` |
 
 ---
 
-## Instalación (una sola vez, con Internet)
+## Para el cliente: usar StageMaster
 
-1. Instalar **Node.js 18 o superior** (versión LTS): <https://nodejs.org>
-2. En la carpeta del proyecto:
-   ```bash
-   npm install
-   npm test
-   ```
-   `npm test` debe terminar con `Fallidas: 0` en los tres bloques de pruebas.
+1. Copiar **`StageMaster-2.0.0.exe`** al portátil (no se instala nada).
+2. Conectar las pantallas y conectar el portátil a la Wi-Fi del evento.
+3. Doble clic en el `.exe`. Se abren solas la **estación** (en el portátil) y
+   las **pantallas** (en los monitores externos).
+   - La primera vez, Windows puede avisar *"Windows protegió su PC"*:
+     **Más información → Ejecutar de todas formas** (el `.exe` no está firmado).
+   - Si pregunta por el **Firewall**: **Permitir** (redes privadas).
+4. Todo lo demás se explica en el botón **❔ Ayuda** de la estación.
 
-A partir de aquí **no hace falta Internet**: tipografías, logo y librerías
-están dentro del proyecto.
+| Dónde | Qué guarda |
+|---|---|
+| `%APPDATA%\StageMaster\datos` | Partidos, PIN, teléfonos vinculados, pantallas (se recuperan al reabrir) |
+| `Documentos\StageMaster\Publicidad` | Imágenes PNG de publicidad (botón **📁 Carpeta de publicidad**) |
 
-## Uso en el evento
+## Para desarrollo
 
-**Opción rápida (Windows):** doble clic en **`INICIAR-STAGEMASTER.bat`**.
-Arranca el servidor y abre la pantalla LED en modo kiosco (pantalla completa,
-sin barras). En la ventana "SERVIDOR" aparece la dirección para el iPhone.
+Requisitos: **Node.js 18+**.
 
-**Opción manual:**
 ```bash
-npm start
+npm install          # dependencias (incluye Electron para la aplicación)
+npm test             # todas las pruebas
+npm run app          # abrir la aplicación de escritorio
+npm start            # solo el servidor (páginas en el navegador: http://localhost:3000)
+npm run dist:win     # generar dist/StageMaster-<versión>.exe
+npm run simulate -- --match pista-1   # operador virtual que juega un partido
 ```
-Luego abrir la LED en Chrome/Edge (`http://localhost:3000/score.html`, F11)
-y el panel en el iPhone con la dirección que muestra la consola.
 
-Documentación para el evento:
-- [`docs/MANUAL-OPERADOR.md`](docs/MANUAL-OPERADOR.md): guía del operador del iPhone.
-- [`docs/CHECKLIST-EVENTO.md`](docs/CHECKLIST-EVENTO.md): montaje del día y qué hacer ante cada problema.
-- [`docs/SIMULACRO-EVENTO.md`](docs/SIMULACRO-EVENTO.md): prueba completa con el equipo real antes de un evento.
+**Obtener el `.exe` sin compilar nada:** GitHub lo compila en Windows con cada
+cambio (`.github/workflows/stagemaster-windows.yml`). Pestaña **Actions** →
+última ejecución de *"StageMaster para Windows"* → **Artifacts** →
+`StageMaster-Windows`. Al crear una etiqueta `v*` (ej. `v2.0.0`) se publica
+también en **Releases**.
 
-## Pruebas
+### Pruebas
 
 | Comando | Qué prueba |
 |---|---|
-| `npm test` | Todo (motor + servidor + integración) |
 | `npm run test:engine` | Reglas del pádel (motor puro) |
-| `npm run test:server` | Validación, versiones, persistencia |
-| `npm run test:integration` | Servidor real + dispositivos virtuales: partido completo, doble toque, dos operadores, reconexión, reinicio del servidor, carga |
-| `npm run simulate` | Operador virtual que juega un partido contra el servidor (ver `tools/simulate-match.js`) |
+| `npm run test:server` | Partidos aislados, versiones, PIN/tokens, pantallas, publicidad, persistencia |
+| `npm run test:desktop` | Qué pantalla va en qué monitor (conectar/desconectar monitores) |
+| `npm run test:integration` | Servidor real + estación + 2 teléfonos + 2 pantallas virtuales, QR, adaptador de escritorio |
 
 ---
 
 ## Reglas implementadas (reglamento FIP 2026)
 
-- Puntos 0 · 15 · 30 · 40, con tres sistemas al llegar a 40-40:
-  - **Ventaja**: hay que ganar dos puntos seguidos.
-  - **Punto de oro**: el siguiente punto gana el game.
-  - **Punto Estrella** (FIP 2026): ventaja en el 1.er y 2.º 40-40, punto decisivo en el 3.º.
-- **Set**: se gana con los games configurados (1–6) y 2 de diferencia; empate a N-N → desempate.
-- **Tie Break** a 7 con 2 de diferencia (sin límite: 7-6 no termina, 8-6 sí).
-  El set se registra como 7-6 (8-6).
-- **Súper Tie Break** a 10 con 2 de diferencia: **sustituye al set decisivo**
-  (1-1 en best-of-3, 2-2 en best-of-5). En partidos a 1 set se juega a 6-6.
-- **Sin desempate**: el set decisivo continúa hasta 2 games de diferencia.
-- **Saque**: alterna cada game; en el tie break, 1 punto y luego cada 2. El set
-  siguiente lo empieza quien recibió primero en el tie break.
-- **Partido**: best-of-1, 3 o 5 sets (número impar).
-- **Deshacer** revierte la última acción (punto, cambio de saque o finalizar).
-
----
+- Puntos 0 · 15 · 30 · 40 con **Ventaja**, **Punto de oro** o **Punto Estrella**
+  (ventaja en el 1.er y 2.º 40-40; en el 3.º, punto decisivo, que la pantalla
+  anuncia como **PUNTO DE ORO**).
+- Sets de 1–6 games con 2 de diferencia; **Tie Break** a 7 y **Súper Tie Break**
+  a 10 (sustituye al set decisivo), siempre con 2 de diferencia.
+- Saque alterno; en el tie break, 1 punto y luego cada 2.
+- Partidos a 1, 3 o 5 sets. **Deshacer** revierte la última acción.
 
 ## Arquitectura
 
-| Capa | Tecnología | Por qué |
-|---|---|---|
-| Frontend | HTML + CSS + JavaScript (sin frameworks) | Simple, sin compilación, fácil de entender |
-| Backend | Node.js + Express | Mismo lenguaje que el frontend |
-| Tiempo real | Socket.IO | Reconexión automática, funciona en red local |
-| Reglas | JavaScript puro (funciones puras) | Probables de forma aislada |
-| Persistencia | Archivo JSON (`data/match.json`) | Sin base de datos que instalar |
-
-### Responsabilidades
-
-```
-server/
-├── index.js               Comunicación: Express + Socket.IO, ack, /health
-├── matchManager.js        Partido activo: versión, protecciones, estado público
-├── storage.js             Guarda y recupera el partido en disco
-└── sports/
-    └── padel/
-        ├── config.js      Valida la configuración del partido
-        └── engine.js      MOTOR: reglas del pádel (funciones puras)
-
-public/
-├── control.html / css/control.css / js/control.js   Panel del iPhone
-├── score.html   / css/score.css   / js/score.js     Pantalla LED (solo presentación)
-├── css/shared.css         Tokens de diseño, tipografías locales, logo
-├── js/brand.js            Muestra el logo si existe img/logo-stagemaster.png
-├── js/engine-browser.js   Copia del motor para el navegador (solo pruebas)
-├── fonts/                 Inter y Oswald (licencia SIL OFL)
-└── img/                   Logo
-
-tools/simulate-match.js    Operador virtual (pruebas)
-docs/                      Manual del operador, checklist y simulacro
-data/                      Partido guardado (se crea solo; no se versiona)
-```
-
-### Flujo de una acción
-
-```
-Operador pulsa "PUNTO A"
- → control.js: sendRequest('pointA', { version })     (bloquea nuevos toques)
- → index.js:   handleRequest → matchManager.action('pointA', version)
- → matchManager: ¿versión actual? → engine.applyAction() → commit()
-                 (nueva versión + guardado en data/match.json)
- → io.emit('matchUpdate', estadoPúblico)               → todos los dispositivos
- → ack({ ok: true })                                    → el iPhone desbloquea
- → score.js: renderScore() + animaciones               (pantalla LED)
-```
-
-### Protocolo Socket.IO
-
-| Evento (cliente → servidor) | Datos | Respuesta (ack) |
-|---|---|---|
-| `setupMatch` | `{ config, force }` | `{ ok }` o `{ ok:false, code, message, state }` |
-| `pointA` `pointB` `undo` `changeServer` `finishMatch` | `{ version }` | ídem |
-| `resetMatch` | `{ version }` | ídem |
-
-Códigos de error: `INVALID_CONFIG`, `MATCH_IN_PROGRESS`, `STALE_VERSION`, `NO_MATCH`.
-
-| Evento (servidor → clientes) | Datos |
+| Capa | Tecnología |
 |---|---|
-| `matchUpdate` | Estado público del partido, o `null` si no hay partido. Se envía también al conectar. |
-| `serverConnected` / `clientsCount` | Número de dispositivos conectados |
+| Aplicación de escritorio | Electron (servidor + ventanas en un solo `.exe`) |
+| Interfaces | HTML + CSS + JavaScript (sin frameworks) |
+| Servidor | Node.js + Express |
+| Tiempo real | Socket.IO sobre Wi-Fi local, una sala por partido |
+| Reglas | JavaScript puro (funciones puras) |
+| Persistencia | Archivos JSON |
 
-### Estado público del partido
-
-```javascript
-{
-  config:    { sport: 'padel', gamesPerSet, totalSets, setsToWin, scoringSystem, tiebreakType, initialServer },
-  players:   { A: { name, points, games, sets }, B: { ... } },  // points: 0|15|30|40|'AD' o 0,1,2… en tie break
-  currentSet, server: 'A'|'B', status: 'playing'|'finished', winner: null|'A'|'B',
-  phase:     'normal'|'tiebreak'|'superTiebreak',
-  setScores: [{ A: 6, B: 3 }, { A: 7, B: 6, tiebreak: { A: 8, B: 6 } }, { A: 1, B: 0, tiebreak: {...}, superTiebreak: true }],
-  deuceCount, decisivePoint,          // Punto Estrella / punto decisivo
-  version, canUndo                    // añadidos por el servidor
-}
+```
+desktop/
+├── main.js              Aplicación: arranca el servidor, abre estación y pantallas, monitores
+└── monitors.js          Qué pantalla va en qué monitor (lógica pura, probada)
+server/
+├── index.js             startServer(): HTTP, páginas, publicidad
+├── core/
+│   ├── Match.js         Un partido: marcador, versión, protecciones, PIN, teléfono
+│   ├── matchRegistry.js Las pistas (instancias de Match)
+│   ├── screens.js       Pantallas: partido, modo, publicidad, presencia
+│   ├── ads.js           Biblioteca de publicidad (PNG)
+│   ├── auth.js          PIN, tokens, límite de intentos, solo-localhost
+│   ├── network.js       Dirección para los teléfonos y códigos QR
+│   ├── storage.js       Archivos JSON con escritura atómica
+│   └── errors.js        Errores con código
+├── realtime/socketServer.js   Roles, permisos, salas por partido, difusión
+└── sports/padel/              engine.js (motor) · config.js (validación)
+public/
+├── station.html · js/station.js   Estación operadora
+├── score.html   · js/score.js     Pantallas (score + publicidad)
+├── control.html · js/control.js   Teléfono del árbitro
+├── ayuda.html                     Ayuda para el cliente
+└── js/score-format.js             Textos del marcador (compartido)
+publicidad/              Ejemplos que se copian a Documentos la primera vez
 ```
 
-### Protecciones
+**Roles:** estación (solo en el portátil), pantalla (solo en el portátil, solo
+lectura) y teléfono (vinculado a UNA pista con PIN → token). Cada actualización
+de un partido se envía solo a la sala de ese partido. Detalles de red,
+sincronización y seguridad: [`docs/RED-Y-COMUNICACION.md`](docs/RED-Y-COMUNICACION.md).
 
-- **Doble pulsación y dos operadores**: cada acción lleva la versión del marcador
-  que veía el operador; si ya cambió, se rechaza (`STALE_VERSION`).
-- **Partido en curso**: iniciar otro exige confirmación (`force`).
-- **Datos inválidos**: el servidor valida la configuración (`config.js`).
-- **Desconexiones**: Socket.IO reconecta solo y el servidor reenvía el estado.
-  Sin conexión, el panel no envía acciones (evita puntos "tardíos").
-- **Reinicio del servidor o corte de luz**: el partido se recupera de
-  `data/match.json` (escritura atómica), con historial para deshacer.
+**Protocolo Socket.IO:** documentado al principio de `server/realtime/socketServer.js`.
 
-### Añadir otro deporte
+**Añadir otro deporte:** crear `server/sports/<deporte>/engine.js` y `config.js`,
+hacer que `Match.js` elija el motor según el deporte y crear su vista de pantalla.
 
-1. Crear `server/sports/<deporte>/engine.js` con `createMatch(config)` y
-   `applyAction(state, action)` (funciones puras) y su `config.js`.
-2. Hacer que `matchManager.js` elija el motor según `config.sport`.
-3. Crear la vista de la LED de ese deporte.
+## Documentación
 
-El protocolo, la persistencia, las versiones y las protecciones se reutilizan tal cual.
-
----
-
-## Licencias de terceros
+- [`docs/CHECKLIST-EVENTO.md`](docs/CHECKLIST-EVENTO.md) — día del evento.
+- [`docs/SIMULACRO-EVENTO.md`](docs/SIMULACRO-EVENTO.md) — prueba completa con el equipo real.
+- [`docs/RED-Y-COMUNICACION.md`](docs/RED-Y-COMUNICACION.md) — Wi-Fi vs Bluetooth, red, sincronización, seguridad.
 
 Tipografías **Inter** y **Oswald**: SIL Open Font License 1.1 (`public/fonts/LICENSE-*.txt`).

@@ -35,8 +35,12 @@ const SCORING_SYSTEMS = ['advantage', 'goldenPoint', 'starPoint'];
 const TIEBREAK_TYPES  = ['tiebreak', 'superTiebreak', 'none'];
 const SERVERS         = ['A', 'B'];
 
-/** Igual que el maxlength de los inputs de control.html */
-const MAX_NAME_LENGTH = 30;
+/**
+ * Nombres: cada pareja tiene 1 o 2 jugadores, separados por "/"
+ * (ej. "Jose V / Santiago R"). Igual que el maxlength de los formularios.
+ */
+const MAX_PLAYER_NAME_LENGTH = 24;
+const MAX_PLAYERS_PER_TEAM   = 2;
 
 // ─────────────────────────────────────────────────────────────────
 // API PÚBLICA
@@ -84,16 +88,27 @@ function validateConfig(raw) {
 // FUNCIONES AUXILIARES
 // ─────────────────────────────────────────────────────────────────
 
-/** Normaliza un nombre de equipo: sin espacios sobrantes, no vacío, longitud máxima */
+/**
+ * Normaliza el nombre de una pareja: jugadores separados por " / ",
+ * sin espacios sobrantes, sin vacíos y con longitud máxima por jugador.
+ * Ej. "  Jose V/Santiago   R " → "Jose V / Santiago R"
+ */
 function cleanName(value, side) {
-  const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
-  if (!name) {
+  const players = (typeof value === 'string' ? value : '')
+    .split('/')
+    .map((player) => player.trim().replace(/\s+/g, ' '))
+    .filter(Boolean);
+
+  if (players.length === 0) {
     fail(`Introduce el nombre del Equipo ${side}`);
   }
-  if (name.length > MAX_NAME_LENGTH) {
-    fail(`El nombre del Equipo ${side} no puede superar ${MAX_NAME_LENGTH} caracteres`);
+  if (players.length > MAX_PLAYERS_PER_TEAM) {
+    fail(`El Equipo ${side} tiene más de ${MAX_PLAYERS_PER_TEAM} jugadores`);
   }
-  return name;
+  if (players.some((player) => player.length > MAX_PLAYER_NAME_LENGTH)) {
+    fail(`Cada jugador del Equipo ${side} puede tener como máximo ${MAX_PLAYER_NAME_LENGTH} caracteres`);
+  }
+  return players.join(' / ');
 }
 
 /** Comprueba que el valor esté en la lista de opciones permitidas */
