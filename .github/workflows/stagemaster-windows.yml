@@ -55,4 +55,14 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          name: StageMaster ${{ github.ref_name }}
           files: dist/*.exe
+          body: |
+            ## Descargar y usar
+
+            1. Descarga **StageMaster-….exe** (abajo, en *Assets*). No se instala nada.
+            2. Cópialo a la laptop del evento y ábrelo con doble clic.
+            3. Si Windows avisa *"Windows protegió su PC"*: **Más información → Ejecutar de todas formas**.
+            4. Si pregunta por el **Firewall**: **Permitir** (redes privadas), para que se conecten los teléfonos.
+
+            Todo lo demás está en el botón **❔ Ayuda** de la estación.
