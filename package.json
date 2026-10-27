@@ -1,6 +1,6 @@
 {
   "name": "stagemaster",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Marcador profesional de pádel para eventos: 2 partidos, 2 pantallas y teléfonos de árbitro",
   "main": "desktop/main.js",
   "scripts": {
@@ -22,8 +22,8 @@
     "socket.io": "^4.7.2"
   },
   "devDependencies": {
-    "electron": "^33.2.1",
-    "electron-builder": "^25.1.8",
+    "electron": "44.9.3",
+    "electron-builder": "26.17.0",
     "socket.io-client": "^4.8.1"
   },
   "engines": {

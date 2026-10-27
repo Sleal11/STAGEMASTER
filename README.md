@@ -15,7 +15,9 @@ Internet**: solo necesita una red Wi-Fi para los teléfonos.
 
 ## Para el cliente: usar StageMaster
 
-1. Copiar **`StageMaster-2.0.0.exe`** al portátil (no se instala nada).
+1. Descargar la última versión desde
+   **[Releases](https://github.com/Sleal11/STAGEMASTER/releases/latest)**
+   (`StageMaster-<versión>.exe`, en *Assets*) y copiarla al portátil (no se instala nada).
 2. Conectar las pantallas y conectar el portátil a la Wi-Fi del evento.
 3. Doble clic en el `.exe`. Se abren solas la **estación** (en el portátil) y
    las **pantallas** (en los monitores externos).
@@ -45,8 +47,12 @@ npm run simulate -- --match pista-1   # operador virtual que juega un partido
 **Obtener el `.exe` sin compilar nada:** GitHub lo compila en Windows con cada
 cambio (`.github/workflows/stagemaster-windows.yml`). Pestaña **Actions** →
 última ejecución de *"StageMaster para Windows"* → **Artifacts** →
-`StageMaster-Windows`. Al crear una etiqueta `v*` (ej. `v2.0.0`) se publica
-también en **Releases**.
+`StageMaster-Windows`.
+
+**Publicar una versión nueva para el cliente:** subir `version` en
+`package.json`, fusionar en `main` y crear la etiqueta `v<versión>` (ej.
+`v2.0.1`) sobre ese commit. GitHub compila el `.exe` y lo publica en
+**Releases**, cuyo enlace `releases/latest` siempre apunta a la última.
 
 ### Pruebas
 
