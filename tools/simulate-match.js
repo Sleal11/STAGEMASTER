@@ -5,20 +5,24 @@
  * STAGEMASTER — SIMULADOR DE PARTIDO ("operador virtual")
  * Archivo: tools/simulate-match.js
  *
- * Se conecta al servidor como si fuera un iPhone y juega un partido
+ * Se conecta al servidor (como la estación) y juega un partido
  * punto a punto, a un ritmo configurable. Sirve para:
  *   - Mirar la pantalla LED REAL durante un partido entero sin pulsar nada
  *   - Pruebas de duración (dejarlo horas y comprobar que nada se degrada)
- *   - Probar a la vez con el iPhone: si el operador real también pulsa,
+ *   - Probar a la vez con el teléfono: si el árbitro real también pulsa,
  *     el control de versiones evita que se pisen
  *
  * Uso (con el servidor ya arrancado):
  *   npm run simulate
  *   npm run simulate -- --interval 1000
- *   npm run simulate -- --url http://192.168.0.121:3000 --new --sets 5 --scoring starPoint
+ *   npm run simulate -- --match pista-2 --new --sets 5 --scoring starPoint
+ *
+ * Se conecta como ESTACIÓN, así que debe ejecutarse en el propio portátil
+ * del servidor (la estación solo se acepta desde localhost).
  *
  * Opciones:
  *   --url <dirección>     Servidor (por defecto http://localhost:3000)
+ *   --match <pista>       Partido a simular: pista-1 o pista-2 (por defecto pista-1)
  *   --interval <ms>       Tiempo entre puntos (por defecto 2500)
  *   --new                 Empieza un partido nuevo aunque haya uno en curso
  *   --sets <1|3|5>        Sets del partido nuevo (por defecto 3)
@@ -26,7 +30,7 @@
  *   --scoring <advantage|goldenPoint|starPoint>   (por defecto advantage)
  *   --tiebreak <tiebreak|superTiebreak|none>      (por defecto superTiebreak)
  *
- * Si ya hay un partido en curso (iniciado desde el iPhone) y no se pasa
+ * Si ya hay un partido en curso en esa pista y no se pasa
  * --new, el simulador lo CONTINÚA. Ctrl+C lo detiene en cualquier momento.
  * ─────────────────────────────────────────────────────────────────
  */
@@ -46,6 +50,7 @@ function readOptions(argv) {
     url:      get('url', 'http://localhost:3000'),
     interval: Math.max(100, Number(get('interval', 2500)) || 2500),
     forceNew: argv.includes('--new'),
+    matchId:  get('match', 'pista-1'),
     config: {
       nameA:         'Simulación A',
       nameB:         'Simulación B',
@@ -96,7 +101,7 @@ function nextAction(state) {
 
 function main() {
   const options = readOptions(process.argv.slice(2));
-  const socket  = io(options.url, { reconnectionDelayMax: 2000 });
+  const socket  = io(options.url, { auth: { role: 'station' }, reconnectionDelayMax: 2000 });
 
   let state     = undefined;
   let timer     = null;
@@ -114,17 +119,28 @@ function main() {
     if (reason !== 'io client disconnect') console.log('🔴 Desconectado. Reconectando...');
   });
   socket.on('connect_error', (err) => {
+    if (err.data && err.data.code === 'STATION_LOCAL_ONLY') {
+      console.log('❌ El simulador debe ejecutarse en el portátil del servidor (localhost).');
+      process.exit(1);
+    }
     if (!started) console.log(`⚠  No se puede conectar a ${options.url} (${err.message}). ¿Está el servidor arrancado?`);
   });
 
-  socket.on('matchUpdate', async (newState) => {
-    state = newState;
+  // Como estación recibe el resumen de todos los partidos: se queda con el suyo
+  socket.on('stationState', async (stationState) => {
+    const match = stationState.matches.find((m) => m.id === options.matchId);
+    if (!match) {
+      console.log(`❌ No existe el partido "${options.matchId}". Usa pista-1 o pista-2.`);
+      process.exit(1);
+    }
+    state = match.state;
 
     // Primera vez: decidir si continuar el partido actual o crear uno nuevo
     if (!started) {
       started = true;
       if (!state || state.status === 'finished' || options.forceNew) {
-        const res = await socket.timeout(3000).emitWithAck('setupMatch', { config: options.config, force: true });
+        const res = await socket.timeout(3000).emitWithAck('setupMatch',
+          { matchId: options.matchId, config: options.config, force: true });
         if (!res.ok) {
           console.log(`❌ No se pudo crear el partido: ${res.message}`);
           process.exit(1);
@@ -153,13 +169,14 @@ function main() {
     busy = true;
     const accion = nextAction(state);
     try {
-      const res = await socket.timeout(3000).emitWithAck(accion, { version: state.version });
+      const res = await socket.timeout(3000).emitWithAck('matchAction',
+        { matchId: options.matchId, action: accion, version: state.version });
       actions++;
       if (res.ok) {
         // El estado nuevo llega por 'matchUpdate'; esperamos un instante para mostrarlo
         setTimeout(() => console.log(`${accion.padEnd(7)} → ${describe(state)}`), 30);
       } else if (res.code === 'STALE_VERSION') {
-        console.log('↻  El marcador cambió desde otro dispositivo (iPhone): se reintenta');
+        console.log('↻  El marcador cambió desde otro dispositivo (teléfono): se reintenta');
       } else {
         console.log(`⚠  ${accion} rechazado: ${res.message}`);
       }

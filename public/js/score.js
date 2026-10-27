@@ -1,25 +1,22 @@
 /**
- * score.js — Lógica de la Pantalla LED (score.html)
+ * score.js — Pantalla de score y publicidad (score.html?pantalla=N)
  *
- * Responsabilidad ÚNICA: PRESENTACIÓN.
- *   1. Conectarse al servidor por Socket.IO
- *   2. Escuchar el evento 'matchUpdate'
- *   3. Dibujar el estado recibido en el DOM
+ * Responsabilidad: PRESENTACIÓN. Nunca modifica el partido.
+ *   1. Se conecta como pantalla N (role: 'display')
+ *   2. Recibe su configuración ('screenConfig'): partido, modo, publicidad
+ *   3. Recibe el estado de SU partido ('matchUpdate') y lo dibuja
+ *   4. Rota la publicidad (franja inferior o pantalla completa)
+ *   5. Informa a la estación de su resolución, de la versión dibujada
+ *      (sincronización) y de los anuncios que fallan ('display:report')
  *
- * Esta vista NUNCA modifica el partido ni emite acciones.
- * No usa el motor de reglas: solo interpreta el estado que calcula el servidor.
- *
- * FLUJO (ej: el operador pulsa "PUNTO A" en el iPhone):
- *   control.js → socket.emit('pointA')
- *     → server/index.js → matchManager → engine.js → nuevo estado
- *     → io.emit('matchUpdate', estado)
- *       → score.js: socket.on('matchUpdate') → renderScore(estado)
- *         → el DOM de la pantalla LED se actualiza
+ * FLUJO (el árbitro de la Pista 1 suma un punto):
+ *   teléfono → servidor → 'matchUpdate' a la sala match:pista-1
+ *     → solo las pantallas que muestran la Pista 1 lo reciben
+ *     → renderScore() → animaciones → 'display:report' (versión dibujada)
  *
  * Relación con otros archivos:
- *   ← server/index.js   emite 'matchUpdate' (también al conectar/reconectar)
- *   → score.html        IDs del DOM que se actualizan
- *   → css/score.css     clases de estado (is-serving, is-winner, ...)
+ *   ← server/realtime/socketServer.js
+ *   → js/score-format.js (textos), css/score.css (clases de estado)
  */
 
 'use strict';
@@ -28,48 +25,69 @@
 // CONSTANTES
 // ─────────────────────────────────────────────────────────────────
 
-/** Texto del badge para cada fase de desempate */
-var PHASE_LABELS = {
-  tiebreak:      'TIE BREAK',
-  superTiebreak: 'SUPER TIE BREAK',
-};
+/** Tamaño mínimo de un nombre respecto a su tamaño normal antes de abreviarlo */
+var NAME_SCALE_BEFORE_ABBREVIATING = 0.8;
 
-/** Texto del badge cuando el siguiente punto decide el game (40-40 decisivo) */
-var DECISIVE_POINT_LABELS = {
-  goldenPoint: 'PUNTO DE ORO',
-  starPoint:   'PUNTO ESTRELLA',
-};
+/** Tamaño mínimo absoluto de un nombre (nunca más pequeño que esto) */
+var NAME_SCALE_MIN = 0.6;
 
-/** Tamaño mínimo del nombre (en % del tamaño CSS) al ajustarlo para que quepa */
-var MIN_NAME_SCALE = 0.55;
+/** Duración del cartel de identificación */
+var IDENTIFY_MS = 6000;
+
+/** Duración máxima de un vídeo publicitario antes de pasar al siguiente */
+var VIDEO_MAX_MS = 120000;
+
+var ANIM = {
+  point:  'anim-point',
+  game:   'anim-game',
+  set:    'anim-set',
+  row:    'anim-row',
+  chip:   'anim-chip',
+  winner: 'anim-winner',
+};
 
 // ─────────────────────────────────────────────────────────────────
 // ESTADO DE LA VISTA
 // ─────────────────────────────────────────────────────────────────
 
-/** Último estado recibido. Se conserva si se pierde la conexión. */
-var lastState = null;
-
-/** Referencias al DOM (se rellenan una sola vez en cacheDom) */
-var dom = {};
+var socket       = null;
+var screenId     = readScreenId();
+var screenConfig = null;   // Configuración recibida de la estación
+var lastState    = null;   // Último estado del partido dibujado
+var dom          = {};
+var bannerAds    = null;   // Rotador de la franja
+var fullAds      = null;   // Rotador de pantalla completa
+var identifyTimer = null;
 
 // ─────────────────────────────────────────────────────────────────
 // INICIALIZACIÓN
 // ─────────────────────────────────────────────────────────────────
 
-/** Guarda las referencias a los elementos del DOM que se actualizan */
+/** ?pantalla=2 → 'pantalla-2' (por defecto la 1) */
+function readScreenId() {
+  var params = new URLSearchParams(window.location.search);
+  var value  = params.get('pantalla') || params.get('screen') || '1';
+  return /^pantalla-/.test(value) ? value : 'pantalla-' + value;
+}
+
 function cacheDom() {
-  dom.waiting      = document.getElementById('sb-waiting');
-  dom.board        = document.getElementById('sb-board');
-  dom.badge        = document.getElementById('sb-badge');
-  dom.dividerLabel = document.getElementById('sb-divider-label');
-  dom.history      = document.getElementById('sb-history');
+  dom.display      = document.getElementById('display');
+  dom.court        = document.getElementById('d-court');
+  dom.badge        = document.getElementById('d-badge');
+  dom.waiting      = document.getElementById('d-waiting');
+  dom.waitingCourt = document.getElementById('d-waiting-court');
+  dom.board        = document.getElementById('d-board');
+  dom.dividerLabel = document.getElementById('d-divider-label');
+  dom.history      = document.getElementById('d-history');
+  dom.fullad       = document.getElementById('d-fullad');
+  dom.banner       = document.getElementById('d-banner');
+  dom.identify     = document.getElementById('d-identify');
 
   ['A', 'B'].forEach(function (side) {
     var id = side.toLowerCase();
     dom[side] = {
       row:   document.getElementById('row-' + id),
-      name:  document.getElementById('name-' + id),
+      names: document.getElementById('names-' + id),
       pts:   document.getElementById('pts-' + id),
       games: document.getElementById('games-' + id),
       sets:  document.getElementById('sets-' + id),
@@ -78,203 +96,381 @@ function cacheDom() {
 }
 
 /**
- * Abre la conexión con el servidor.
- * Socket.IO reintenta automáticamente si se pierde la conexión, y el
- * servidor reenvía 'matchUpdate' al reconectar, así que no hace falta
- * lógica extra de recuperación aquí.
+ * Conexión con el servidor. Socket.IO reconecta solo; al reconectar el
+ * servidor reenvía la configuración y el estado. Si se pierde la conexión
+ * NO se borra nada: el público sigue viendo el último marcador.
  */
 function connectToServer() {
-  // Si /socket.io/socket.io.js no cargó (servidor caído al abrir la página)
   if (typeof io !== 'function') {
-    console.error('[Score] Socket.IO no disponible. Reintentando en 3 s...');
+    console.error('[Pantalla] Socket.IO no disponible. Reintentando en 3 s...');
     setTimeout(function () { window.location.reload(); }, 3000);
     return;
   }
 
-  var socket = io();
+  socket = io({ auth: { role: 'display', screenId: screenId } });
 
-  socket.on('connect', function () {
-    console.log('[Score] Conectado al servidor:', socket.id);
+  socket.on('connect_error', function (err) {
+    if (err.data && err.data.code === 'UNKNOWN_SCREEN') {
+      dom.waitingCourt.textContent = 'Pantalla no válida';
+      console.error('[Pantalla] ' + err.message + '. Usa score.html?pantalla=1 o ?pantalla=2');
+    }
   });
 
-  // Ante una desconexión NO borramos el marcador: el público sigue viendo
-  // el último resultado mientras Socket.IO reconecta.
-  socket.on('disconnect', function (reason) {
-    console.warn('[Score] Desconectado (' + reason + '). Reconectando...');
+  socket.on('screenConfig', applyScreenConfig);
+  socket.on('matchUpdate', function (payload) {
+    // Solo el partido asignado (protección extra; el servidor ya filtra por sala)
+    if (!screenConfig || payload.matchId !== screenConfig.matchId) return;
+    renderScore(payload.state);
   });
-
-  socket.on('matchUpdate', function (state) {
-    renderScore(state);
-  });
+  socket.on('identify', showIdentify);
 }
 
 // ─────────────────────────────────────────────────────────────────
-// RENDERIZADO
+// CONFIGURACIÓN DE LA PANTALLA (enviada por la estación, en vivo)
 // ─────────────────────────────────────────────────────────────────
 
-/** Punto de entrada: dibuja el estado completo del partido */
+function applyScreenConfig(config) {
+  var matchChanged = !screenConfig || screenConfig.matchId !== config.matchId;
+  screenConfig = config;
+  if (matchChanged) lastState = null;   // Otro partido: no animar el cambio
+
+  dom.court.textContent = config.matchLabel;
+  dom.court.style.setProperty('--court-color', config.matchColor);
+  dom.waitingCourt.textContent = config.matchLabel;
+
+  bannerAds.setItems(config.mode === 'scoreAds' ? config.ads.banner : [], config.adInterval);
+  fullAds.setItems(config.mode === 'score' ? [] : config.ads.fullscreen, config.adInterval);
+  updateLayout();
+}
+
+/**
+ * Decide qué se ve según el modo, si hay partido y si hay publicidad
+ * que funcione:
+ *   'ads'      → publicidad a pantalla completa (o espera si no hay)
+ *   'scoreAds' → marcador + franja; sin partido → publicidad completa
+ *   'score'    → solo marcador
+ */
+function updateLayout() {
+  if (!screenConfig) return;
+  var hasMatch   = !!lastState;
+  var mode       = screenConfig.mode;
+  var showFullAd = fullAds.hasPlayable() && (mode === 'ads' || (mode === 'scoreAds' && !hasMatch));
+  var showBanner = mode === 'scoreAds' && hasMatch && bannerAds.hasPlayable();
+
+  dom.display.classList.toggle('is-fullad', showFullAd && mode === 'ads');
+  dom.fullad.classList.toggle('hidden', !showFullAd);
+  dom.display.classList.toggle('has-banner', showBanner);
+  dom.banner.classList.toggle('hidden', !showBanner);
+  dom.board.classList.toggle('hidden', !hasMatch || showFullAd);
+  dom.waiting.classList.toggle('hidden', hasMatch || showFullAd);
+
+  fullAds.setActive(showFullAd);
+  bannerAds.setActive(showBanner);
+
+  // El espacio del marcador cambió (aparece/desaparece la franja): reajustar nombres
+  if (hasMatch && !showFullAd) fitAllNames();
+  sendReport();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MARCADOR
+// ─────────────────────────────────────────────────────────────────
+
 function renderScore(state) {
-  if (!isValidState(state)) {
-    showWaiting();
+  var previous = lastState;
+  lastState = isValidState(state) ? state : null;
+
+  if (!lastState) {
+    dom.badge.classList.add('hidden');
+    updateLayout();
     return;
   }
 
-  var previous = lastState;
-  lastState = state;
-  dom.waiting.classList.add('hidden');
-  dom.board.classList.remove('hidden');
-
   var finished = state.status === 'finished';
-
   renderTeam(state, 'A', finished);
   renderTeam(state, 'B', finished);
-  renderBadge(state, finished);
-  renderDivider(state, finished);
+  renderBadge(state);
+  dom.dividerLabel.textContent = finished ? (state.winner ? 'GANADOR' : 'PARTIDO FINALIZADO') : '';
   renderHistory(state, finished);
+  updateLayout();
   animateChanges(previous, state);
 }
 
-/** Muestra la pantalla de espera (no hay partido activo) */
-function showWaiting() {
-  lastState = null;
-  dom.board.classList.add('hidden');
-  dom.badge.classList.add('hidden');
-  dom.history.innerHTML = '';
-  dom.waiting.classList.remove('hidden');
-}
-
-/** Dibuja la fila de un equipo: nombre, puntos, games, sets e icono */
 function renderTeam(state, side, finished) {
   var player = state.players[side];
   var el     = dom[side];
 
-  el.name.textContent  = player.name;
+  renderNames(el.names, player.name);
   el.sets.textContent  = player.sets;
-
-  // Al terminar, puntos y games dejan de tener sentido → guion
-  el.pts.textContent   = finished ? '-' : formatPoints(player.points);
-  el.games.textContent = finished ? '-' : player.games;
+  el.games.textContent = finished ? '–' : player.games;
+  el.pts.textContent   = finished ? '–' : String(player.points);
+  el.games.classList.toggle('is-empty', finished);
+  el.pts.classList.toggle('is-empty', finished);
   el.pts.classList.toggle('is-advantage', !finished && player.points === 'AD');
 
-  // Saque: solo mientras se juega. Estrella: solo si hay ganador.
   el.row.classList.toggle('is-serving', !finished && state.server === side);
   el.row.classList.toggle('is-winner',  finished && state.winner === side);
   el.row.classList.toggle('is-loser',   finished && state.winner !== null && state.winner !== side);
+}
 
-  fitText(el.name);
+function renderBadge(state) {
+  var badge = ScoreFormat.badgeFor(state);
+  dom.badge.classList.toggle('hidden', !badge);
+  if (!badge) return;
+  dom.badge.textContent = badge.text;
+  dom.badge.classList.toggle('is-gold', badge.gold);
 }
 
 /**
- * Badge superior:
- *   - TIE BREAK / SUPER TIE BREAK durante el desempate
- *   - PUNTO DE ORO / PUNTO ESTRELLA cuando el siguiente punto decide el game
- *     (el motor lo indica en state.decisivePoint)
- */
-function renderBadge(state, finished) {
-  var label  = null;
-  var isGold = false;
-
-  if (!finished) {
-    if (PHASE_LABELS[state.phase]) {
-      label = PHASE_LABELS[state.phase];
-    } else if (state.decisivePoint) {
-      label  = DECISIVE_POINT_LABELS[state.config.scoringSystem] || 'PUNTO DECISIVO';
-      isGold = true;
-    }
-  }
-
-  dom.badge.classList.toggle('hidden', label === null);
-  dom.badge.classList.toggle('is-gold', isGold);
-  if (label !== null) dom.badge.textContent = label;
-}
-
-/** Texto del separador entre filas: solo aparece al terminar el partido */
-function renderDivider(state, finished) {
-  var text = '';
-  if (finished) {
-    text = state.winner ? 'GANADOR DEL PARTIDO' : 'PARTIDO FINALIZADO';
-  }
-  dom.dividerLabel.textContent = text;
-}
-
-/**
- * Historial de sets en la parte inferior.
- * Ej. en juego:     [SET 1 6-3] [SET 2 4-6] [SET 3 · EN CURSO]
- * Ej. finalizado:   [SET 1 6-3] [SET 2 4-6] [SET 3 7-6 (8-6)]
+ * Historial: [SET 1 6-3] [SET 2 7-6 (8-6)] [SET 3 · EN JUEGO]
+ * El Súper Tie Break decisivo se muestra como [SUPER TB 10-8].
  */
 function renderHistory(state, finished) {
-  var chips = state.setScores.map(function (set, index) {
-    // Super Tie Break decisivo (sustituye al set): se muestran sus puntos, ej. 10-8
+  dom.history.innerHTML = '';
+  state.setScores.forEach(function (set, index) {
     if (set.superTiebreak) {
-      return buildSetChip('SUPER TB', set.tiebreak.A + '-' + set.tiebreak.B, false);
+      dom.history.appendChild(buildChip('SUPER TB', set.tiebreak.A + '-' + set.tiebreak.B, null, false));
+    } else {
+      var detail = set.tiebreak ? '(' + set.tiebreak.A + '-' + set.tiebreak.B + ')' : null;
+      dom.history.appendChild(buildChip('SET ' + (index + 1), set.A + '-' + set.B, detail, false));
     }
-    // Si el set se decidió en tiebreak, se añade el detalle: 7-6 (8-6)
-    var detail = set.tiebreak ? '(' + set.tiebreak.A + '-' + set.tiebreak.B + ')' : null;
-    return buildSetChip('SET ' + (index + 1), set.A + '-' + set.B, false, detail);
   });
 
-  var current = state.players;
-  var setNumber = state.setScores.length + 1;
-
   if (!finished) {
-    var currentLabel = isDecidingSuperTiebreak(state) ? 'SUPER TB' : 'SET ' + setNumber;
-    chips.push(buildSetChip(currentLabel, 'EN CURSO', true));
-  } else if (current.A.games > 0 || current.B.games > 0) {
-    // Partido finalizado manualmente a mitad de set: mostramos el parcial
-    chips.push(buildSetChip('SET ' + setNumber, current.A.games + '-' + current.B.games, false));
+    var label = ScoreFormat.isDecidingSuperTiebreak(state) ? 'SUPER TB' : 'SET ' + (state.setScores.length + 1);
+    dom.history.appendChild(buildChip(label, 'EN JUEGO', null, true));
   }
-
-  dom.history.innerHTML = '';
-  chips.forEach(function (chip) { dom.history.appendChild(chip); });
 }
 
-/**
- * Crea el elemento DOM de una "chip" del historial de sets.
- * @param {string} [detail] - Texto secundario opcional, ej. "(8-6)" del tiebreak
- */
-function buildSetChip(label, score, isCurrent, detail) {
+function buildChip(label, score, detail, isCurrent) {
   var chip = document.createElement('div');
-  chip.className = 'sb-set-chip' + (isCurrent ? ' is-current' : '');
-
-  var labelEl = document.createElement('span');
-  labelEl.className   = 'sb-set-chip-label';
-  labelEl.textContent = label;
-
-  var scoreEl = document.createElement('span');
-  scoreEl.className   = 'sb-set-chip-score';
-  scoreEl.textContent = score;
-
-  chip.appendChild(labelEl);
-  chip.appendChild(scoreEl);
-
-  if (detail) {
-    var detailEl = document.createElement('span');
-    detailEl.className   = 'sb-set-chip-detail';
-    detailEl.textContent = detail;
-    chip.appendChild(detailEl);
-  }
+  chip.className = 'd-set-chip' + (isCurrent ? ' is-current' : '');
+  [[label, 'd-set-chip-label'], [score, ''], [detail, 'd-set-chip-detail']].forEach(function (part) {
+    if (!part[0]) return;
+    var span = document.createElement('span');
+    span.className   = part[1];
+    span.textContent = part[0];
+    chip.appendChild(span);
+  });
   return chip;
 }
 
+function isValidState(state) {
+  return !!(state && state.players && state.players.A && state.players.B && Array.isArray(state.setScores));
+}
+
 // ─────────────────────────────────────────────────────────────────
-// ANIMACIONES
-// Se comparan el estado anterior y el nuevo, y solo se anima lo que
-// cambió. Así, re-dibujar el mismo estado (ej. al cambiar el tamaño de
-// la ventana) o un "Deshacer" no disparan celebraciones falsas.
+// NOMBRES: una línea por jugador, ajuste INDIVIDUAL de cada línea
 // ─────────────────────────────────────────────────────────────────
 
-/** Clases de animación definidas en score.css */
-var ANIM = {
-  point:  'anim-point',    // los puntos cambian (giro tipo marcador)
-  game:   'anim-game',     // un equipo gana un game (destello)
-  set:    'anim-set',      // un equipo gana un set (pulso grande)
-  row:    'anim-row',      // destello de la fila del equipo que anota game/set
-  chip:   'anim-chip',     // aparece un set nuevo en el historial
-  winner: 'anim-winner',   // final del partido
-};
+/** Crea una línea por jugador ("Jose V / Santiago R" → 2 líneas) */
+function renderNames(container, teamName) {
+  var players = ScoreFormat.splitTeamName(teamName);
+  var key     = players.join('|');
+  if (container.dataset.key === key) return;   // Sin cambios: no rehacer
+
+  container.dataset.key = key;
+  container.innerHTML   = '';
+  container.classList.toggle('is-single', players.length === 1);
+  players.forEach(function (player) {
+    var line = document.createElement('span');
+    line.className    = 'd-name-line';
+    line.dataset.full = player;
+    container.appendChild(line);
+  });
+  fitNames(container);
+}
+
+function fitAllNames() {
+  fitNames(dom.A.names);
+  fitNames(dom.B.names);
+}
+
+function fitNames(container) {
+  Array.prototype.forEach.call(container.children, fitNameLine);
+}
+
+/**
+ * Ajusta UNA línea sin afectar a las demás (un nombre excepcionalmente
+ * largo no encoge a todos):
+ *   1. Nombre completo a su tamaño normal
+ *   2. Nombre completo reduciendo hasta el 80 %
+ *   3. Formato abreviado "Nombre I" ("Santiago R") a tamaño normal → 80 %
+ *   4. Reducción hasta el 60 % (mínimo legible)
+ *   5. Si aun así no cabe, el CSS corta con "…" (nunca se sale de la caja)
+ */
+function fitNameLine(line) {
+  var full = line.dataset.full;
+  line.textContent    = full;
+  line.title          = full;
+  line.style.fontSize = '';
+  if (line.clientWidth === 0) return;   // No visible ahora: se reajusta al mostrarse
+
+  var base = parseFloat(window.getComputedStyle(line).fontSize);
+  if (fits(line) || shrinkUntilFits(line, base, NAME_SCALE_BEFORE_ABBREVIATING)) return;
+
+  var short = ScoreFormat.abbreviateName(full);
+  if (short !== full) {
+    line.textContent    = short;
+    line.style.fontSize = '';
+    if (fits(line) || shrinkUntilFits(line, base, NAME_SCALE_BEFORE_ABBREVIATING)) return;
+  }
+  shrinkUntilFits(line, base, NAME_SCALE_MIN);
+}
+
+function fits(el) {
+  return el.scrollWidth <= el.clientWidth + 1;
+}
+
+/** Reduce la letra en pasos del 4 % hasta que quepa o llegue a minScale */
+function shrinkUntilFits(el, base, minScale) {
+  var size = parseFloat(el.style.fontSize) || base;
+  while (!fits(el) && size > base * minScale) {
+    size = Math.max(size * 0.96, base * minScale);
+    el.style.fontSize = size + 'px';
+  }
+  return fits(el);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PUBLICIDAD
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Rotador de anuncios dentro de un contenedor.
+ *   - Imágenes: se muestran adInterval segundos.
+ *   - Vídeos: sin sonido, hasta que terminan (máx. 2 min).
+ *   - Un anuncio que falla al cargar se salta y se informa a la estación.
+ *   - Si todos fallan, el contenedor se oculta y el marcador ocupa su espacio.
+ */
+function createAdRotator(container) {
+  var items = [], intervalMs = 10000, index = -1, timer = null;
+  var active = false, signature = '', errors = {}, current = null;
+
+  function playable() {
+    return items.filter(function (item) { return !errors[item.url]; });
+  }
+
+  function setItems(newItems, seconds) {
+    var newSignature = JSON.stringify(newItems.map(function (i) { return i.url; })) + '|' + seconds;
+    if (newSignature === signature) return;
+    signature  = newSignature;
+    items      = newItems.slice();
+    intervalMs = seconds * 1000;
+    errors     = {};
+    restart();
+  }
+
+  function setActive(isActive) {
+    if (isActive === active) return;
+    active = isActive;
+    restart();
+  }
+
+  function restart() {
+    clearTimeout(timer);
+    container.innerHTML = '';
+    current = null;
+    index = -1;
+    if (active) next();
+  }
+
+  function next() {
+    clearTimeout(timer);
+    var list = playable();
+    if (!active || list.length === 0) return;
+
+    // Un único anuncio que ya se está viendo: no hace falta recargarlo
+    if (list.length === 1 && current && current.dataset.url === list[0].url) return;
+
+    do { index = (index + 1) % items.length; } while (errors[items[index].url]);
+    show(items[index]);
+  }
+
+  function show(item) {
+    var el = document.createElement(item.kind === 'video' ? 'video' : 'img');
+    el.className   = 'ad-media';
+    el.dataset.url = item.url;
+
+    el.onerror = function () {
+      errors[item.url] = true;
+      el.remove();
+      if (current === el) current = null;
+      updateLayout();   // Si ya no queda ninguno, se oculta la zona de publicidad
+      next();
+    };
+
+    var reveal = function () {
+      var previous = current;
+      current = el;
+      el.classList.add('is-visible');
+      if (previous) setTimeout(function () { previous.remove(); }, 650);
+    };
+
+    if (item.kind === 'video') {
+      el.muted = true;
+      el.playsInline = true;
+      el.autoplay = true;
+      el.loop = playable().length === 1;
+      el.onloadeddata = reveal;
+      el.onended = next;
+      timer = setTimeout(next, VIDEO_MAX_MS);
+    } else {
+      el.onload = reveal;
+      timer = setTimeout(next, intervalMs);
+    }
+    el.src = item.url;
+    container.appendChild(el);
+  }
+
+  return {
+    setItems:    setItems,
+    setActive:   setActive,
+    hasPlayable: function () { return playable().length > 0; },
+    errors:      function () { return Object.keys(errors); },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// INFORME A LA ESTACIÓN (resolución, sincronización, errores)
+// ─────────────────────────────────────────────────────────────────
+
+function sendReport() {
+  if (!socket || !socket.connected || !screenConfig) return;
+  socket.emit('display:report', {
+    viewport:        { width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio || 1 },
+    renderedMatchId: screenConfig.matchId,
+    renderedVersion: lastState ? lastState.version : null,
+    adErrors:        bannerAds.errors().concat(fullAds.errors()),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// IDENTIFICACIÓN ("¿cuál es la Pantalla 2?")
+// ─────────────────────────────────────────────────────────────────
+
+function showIdentify(data) {
+  dom.identify.innerHTML = '';
+  [
+    [data.label.toUpperCase(), 'd-identify-title'],
+    ['Muestra: ' + (screenConfig ? screenConfig.matchLabel : '—'), 'd-identify-sub'],
+    [window.innerWidth + ' × ' + window.innerHeight + ' px', 'd-identify-sub'],
+  ].forEach(function (part) {
+    var div = document.createElement('div');
+    div.className   = part[1];
+    div.textContent = part[0];
+    dom.identify.appendChild(div);
+  });
+  dom.identify.classList.remove('hidden');
+  clearTimeout(identifyTimer);
+  identifyTimer = setTimeout(function () { dom.identify.classList.add('hidden'); }, IDENTIFY_MS);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ANIMACIONES (solo lo que cambió; nunca al deshacer ni al redimensionar)
+// ─────────────────────────────────────────────────────────────────
 
 function animateChanges(previous, state) {
-  // Primera vez, o es otro partido (nuevo o reiniciado): no animar
   if (!previous || state.version <= previous.version || !isSameMatch(previous, state)) return;
 
   ['A', 'B'].forEach(function (side) {
@@ -283,8 +479,6 @@ function animateChanges(previous, state) {
     var el     = dom[side];
 
     if (now.points !== before.points) playAnimation(el.pts, ANIM.point);
-
-    // Solo se celebra cuando el marcador SUBE (un undo baja y no se celebra)
     if (now.sets > before.sets) {
       playAnimation(el.sets, ANIM.set);
       playAnimation(el.row, ANIM.row);
@@ -294,36 +488,28 @@ function animateChanges(previous, state) {
     }
   });
 
-  // Set nuevo en el historial → la última chip completada aparece animada
   if (state.setScores.length > previous.setScores.length) {
     var chip = dom.history.children[state.setScores.length - 1];
     if (chip) playAnimation(chip, ANIM.chip);
   }
-
-  // Fin del partido → la fila ganadora hace un barrido de luz
   if (state.status === 'finished' && previous.status !== 'finished' && state.winner) {
     playAnimation(dom[state.winner].row, ANIM.winner);
   }
 }
 
-/** true si ambos estados son del mismo partido (mismos equipos y reglas) */
 function isSameMatch(a, b) {
   return a.players.A.name === b.players.A.name &&
          a.players.B.name === b.players.B.name &&
          JSON.stringify(a.config) === JSON.stringify(b.config);
 }
 
-/**
- * Reproduce una animación CSS desde el principio, aunque ya se
- * estuviera reproduciendo (ej. dos puntos seguidos muy rápidos).
- */
+/** Reproduce una animación CSS desde el principio */
 function playAnimation(el, className) {
   el.classList.remove(className);
-  void el.offsetWidth;            // fuerza al navegador a "olvidar" la animación anterior
+  void el.offsetWidth;
   el.classList.add(className);
   el.addEventListener('animationend', function onEnd(event) {
-    // 'animationend' sube desde los hijos (ej. el giro de los puntos dentro
-    // de la fila) y desde ::after: solo cuenta la animación del propio elemento
+    // 'animationend' sube desde los hijos: solo cuenta la del propio elemento
     if (event.target !== el || event.pseudoElement) return;
     el.classList.remove(className);
     el.removeEventListener('animationend', onEnd);
@@ -331,63 +517,18 @@ function playAnimation(el, className) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// FUNCIONES AUXILIARES
+// PANTALLA SIEMPRE ENCENDIDA
 // ─────────────────────────────────────────────────────────────────
 
-/** Comprobación mínima de que el estado recibido tiene la forma esperada */
-function isValidState(state) {
-  return !!(state && state.players && state.players.A && state.players.B &&
-            Array.isArray(state.setScores));
-}
-
-/** El motor ya guarda 0/15/30/40/'AD' (normal) o 0,1,2... (tie break) */
-function formatPoints(points) {
-  return String(points);
-}
-
-/**
- * true si se está jugando un Super Tie Break que sustituye al set decisivo
- * (reglamento FIP). Se distingue del súper tie break a 6-6 de un partido
- * a 1 set porque en el decisivo no se ha jugado ningún game.
- */
-function isDecidingSuperTiebreak(state) {
-  return state.phase === 'superTiebreak' &&
-         state.players.A.games === 0 &&
-         state.players.B.games === 0;
-}
-
-/**
- * Reduce el tamaño de letra de un elemento hasta que su texto quepa
- * en una línea (nombres largos como "García / Martínez").
- * Si aun al mínimo no cabe, el CSS lo corta con "…".
- */
-function fitText(el) {
-  el.style.fontSize = '';   // volver al tamaño definido en score.css
-  var baseSize = parseFloat(window.getComputedStyle(el).fontSize);
-  var size     = baseSize;
-
-  while (el.scrollWidth > el.clientWidth && size > baseSize * MIN_NAME_SCALE) {
-    size *= 0.92;
-    el.style.fontSize = size + 'px';
-  }
-}
-
-/**
- * Intenta impedir que la pantalla se apague por inactividad.
- * La Wake Lock API solo existe en contextos seguros (localhost/HTTPS);
- * si no está disponible, se ignora (en la Fase 10 se configura el SO).
- */
+/** Wake Lock: solo disponible en localhost/HTTPS (las pantallas usan localhost) */
 function keepScreenAwake() {
   if (!('wakeLock' in navigator)) return;
-
   function request() {
     navigator.wakeLock.request('screen').catch(function (err) {
-      console.warn('[Score] Wake Lock no disponible:', err.message);
+      console.warn('[Pantalla] Wake Lock no disponible:', err.message);
     });
   }
-
   request();
-  // El navegador libera el bloqueo al ocultar la pestaña; lo pedimos de nuevo
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') request();
   });
@@ -399,12 +540,23 @@ function keepScreenAwake() {
 
 document.addEventListener('DOMContentLoaded', function () {
   cacheDom();
-  showWaiting();
+  bannerAds = createAdRotator(dom.banner);
+  fullAds   = createAdRotator(dom.fullad);
   connectToServer();
   keepScreenAwake();
 
-  // Al cambiar la resolución (o entrar en F11) reajustamos los nombres
+  // Al cambiar la resolución (o entrar en pantalla completa): reajustar e informar
+  var resizeTimer = null;
   window.addEventListener('resize', function () {
-    if (lastState) renderScore(lastState);
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (lastState) fitAllNames();
+      sendReport();
+    }, 150);
   });
+
+  // Las tipografías cargan después del primer dibujo: reajustar al terminar
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { if (lastState) fitAllNames(); });
+  }
 });

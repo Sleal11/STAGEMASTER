@@ -1,25 +1,48 @@
 /*
- * score.css — Estilos de la Pantalla LED (score.html)
+ * score.css — Pantalla de score y publicidad (score.html)
  *
- * Objetivos:
- *   - Ocupar el 100% de la pantalla sin scroll, cursor ni elementos del navegador
- *   - Números grandes y alto contraste para lectura a distancia
- *   - Adaptarse a cualquier resolución (Full HD, 4K, pantallas LED panorámicas)
+ * Objetivos (requisitos del cliente):
+ *   - Legible a distancia y en resoluciones BAJAS (desde 640×360)
+ *   - Alto contraste: azules oscuros (fondos) + azules claros (zonas clave)
+ *     + letras blancas
+ *   - Logo grande arriba a la izquierda
+ *   - Sin scroll, sin cursor, sin elementos del navegador
  *
- * Unidad de escala --u:
- *   Todos los tamaños se expresan como múltiplos de --u = min(1vw, 1.7778vh).
- *   - En una pantalla 16:9, 1vw === 1.7778vh → la escala sigue al ancho.
- *   - En una pantalla MÁS ANCHA que 16:9 (tira LED), manda la altura,
- *     así el marcador nunca se sale por arriba/abajo.
- *   - En una pantalla MÁS ALTA que 16:9, manda el ancho.
- *   Resultado: el diseño mantiene sus proporciones en cualquier resolución.
+ * COMPOSICIÓN (rejilla de 3 filas que ocupa toda la pantalla):
+ *   ┌──────────────────────────────────────────────┐
+ *   │ LOGO                      [BADGE]  PISTA 1   │  cabecera  (--header-h)
+ *   ├──────────────────────────────────────────────┤
+ *   │  marcador (o publicidad a pantalla completa) │  zona principal (resto)
+ *   ├──────────────────────────────────────────────┤
+ *   │  franja publicitaria                         │  (--banner-h, solo si hay)
+ *   └──────────────────────────────────────────────┘
  *
- * Depende de: shared.css (tokens de color y tipografía)
+ * UNIDADES: el marcador usa unidades de CONTENEDOR (cqh / cqw) de la zona
+ * principal. Así, si aparece o desaparece la franja publicitaria, o la
+ * pantalla es 4:3, 16:9 o panorámica, el marcador se reparte el espacio
+ * que realmente tiene, sin desbordarse.
  */
 
 /* ─────────────────────────────────────────────────────────────────
-   BASE: pantalla completa, sin scroll, sin cursor
+   PALETA DE LA PANTALLA (contraste comprobado sobre cada fondo)
    ───────────────────────────────────────────────────────────────── */
+.score-body {
+  --d-bg:          #041024;   /* fondo general (azul casi negro)          */
+  --d-header:      #0A2350;   /* cabecera                                 */
+  --d-row:         #0C2C63;   /* fila de cada pareja (azul oscuro)        */
+  --d-row-edge:    #1E4F9C;
+  --d-sets-bg:     #1B5FB8;   /* celda de sets (azul medio, letra blanca) */
+  --d-light:       #8FD3FF;   /* azul claro: puntos y títulos             */
+  --d-light-soft:  #BEE6FF;
+  --d-ink:         #04122B;   /* texto oscuro sobre azul claro            */
+  --d-gold:        #FFD54A;   /* ganador                                  */
+  --d-cyan:        #22D3EE;   /* destellos de animación                   */
+
+  --header-h: clamp(52px, 15vh, 230px);
+  --banner-h: clamp(48px, 17vh, 260px);
+  --safe-x:   clamp(10px, 2.2vw, 64px);   /* margen seguro lateral */
+}
+
 html,
 .score-body {
   width: 100%;
@@ -29,460 +52,458 @@ html,
 
 .score-body {
   min-height: 0;
-  cursor: none;            /* El cursor del ratón nunca aparece en la LED */
+  cursor: none;
   user-select: none;
   -webkit-user-select: none;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(30, 144, 255, 0.18) 0%, transparent 70%),
-    linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 55%);
+  background: var(--d-bg);
 }
 
-/* Ocultar cualquier scrollbar en Chrome/Edge */
 .score-body::-webkit-scrollbar { display: none; }
 
-/* Sprite de iconos: existe en el DOM pero no ocupa espacio */
-.sb-sprite {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-}
+.d-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 
 /* ─────────────────────────────────────────────────────────────────
-   CONTENEDOR PRINCIPAL
+   REJILLA PRINCIPAL
    ───────────────────────────────────────────────────────────────── */
-.scoreboard {
-  --u: min(1vw, 1.7778vh);
-
-  /* Anchos de columna: icono | nombre | puntos | games | sets */
-  --col-icon:  calc(var(--u) * 6);
-  --col-pts:   calc(var(--u) * 15);
-  --col-num:   calc(var(--u) * 12);
-
+.display {
+  position: relative;
   width: 100vw;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: calc(var(--u) * 2.5);
-  padding: calc(var(--u) * 2.5) calc(var(--u) * 4);
+  display: grid;
+  grid-template-rows: var(--header-h) minmax(0, 1fr) 0;
+}
+
+.display.has-banner {
+  grid-template-rows: var(--header-h) minmax(0, 1fr) var(--banner-h);
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   CABECERA: LOGO + BADGE DE FASE
+   CABECERA
    ───────────────────────────────────────────────────────────────── */
-.sb-header {
+.d-header {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: calc(var(--u) * 1.2);
+  justify-content: space-between;
+  gap: 2vw;
+  padding: 0 var(--safe-x);
+  background: linear-gradient(180deg, #0D2B60 0%, var(--d-header) 100%);
+  border-bottom: max(2px, 0.35vh) solid var(--d-light);
+  min-width: 0;
 }
 
-.sb-logo {
-  font-family: var(--font-score);
-  font-weight: 600;
-  font-size: calc(var(--u) * 2.4);
-  letter-spacing: 0.35em;
-  padding-left: 0.35em;          /* compensa el letter-spacing para centrar */
-  color: var(--text-primary);
-}
-
-.sb-logo span {
-  color: var(--accent-bright);
-}
-
-/* Logo en imagen (dos líneas): más alto que el texto de respaldo */
-.sb-logo {
-  --logo-height: calc(var(--u) * 6.5);
-}
-
-.sb-badge {
+/* Logo: altura generosa (78 % de la cabecera), proporción intacta */
+.d-logo {
+  --logo-height: calc(var(--header-h) * 0.78);
+  display: flex;
+  align-items: center;
+  height: 100%;
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: calc(var(--u) * 2.2);
-  letter-spacing: 0.2em;
-  padding: calc(var(--u) * 0.5) calc(var(--u) * 2.2);
-  border-radius: var(--radius-pill);
-  color: var(--bg-primary);
-  background: var(--accent-cyan);
-  box-shadow: 0 0 calc(var(--u) * 2) rgba(0, 212, 255, 0.55);
+  font-size: calc(var(--header-h) * 0.38);
+  letter-spacing: 0.06em;
+  color: #FFFFFF;
+  white-space: nowrap;
+}
+
+.d-logo span { color: var(--d-light); }
+
+.d-logo .brand-logo-img {
+  max-width: 34vw;
+  object-fit: contain;
+}
+
+.d-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.6vw;
+  min-width: 0;
+}
+
+/* Pista que muestra esta pantalla (color identificativo de la pista) */
+.d-court {
+  --court-color: var(--d-light);
+  font-family: var(--font-score);
+  font-weight: 700;
+  font-size: calc(var(--header-h) * 0.34);
+  line-height: 1;
+  text-transform: uppercase;
+  padding: 0.18em 0.55em;
+  border-radius: 0.25em;
+  color: var(--d-ink);
+  background: var(--court-color);
+  white-space: nowrap;
+}
+
+.d-court:empty { display: none; }
+
+.d-badge {
+  font-family: var(--font-score);
+  font-weight: 700;
+  font-size: calc(var(--header-h) * 0.30);
+  line-height: 1;
+  padding: 0.22em 0.6em;
+  border-radius: 0.25em;
+  color: var(--d-ink);
+  background: var(--d-light-soft);
+  white-space: nowrap;
   animation: slideDown var(--transition-slow);
 }
 
-/* Punto de oro: badge dorado para diferenciarlo del Tie Break */
-.sb-badge.is-gold {
-  background: var(--winner-gold);
-  box-shadow: 0 0 calc(var(--u) * 2) rgba(255, 215, 0, 0.55);
-}
+.d-badge.is-gold { background: var(--d-gold); }
 
 /* ─────────────────────────────────────────────────────────────────
-   ESTADO DE ESPERA
+   ZONA PRINCIPAL (contenedor de referencia para cqh / cqw)
    ───────────────────────────────────────────────────────────────── */
-.sb-waiting {
+.d-stage {
+  position: relative;
+  container-type: size;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5cqh var(--safe-x);
+}
+
+/* ── Espera (sin partido) ───────────────────────────────────────── */
+.d-waiting {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(var(--u) * 1.5);
+  gap: 4cqh;
+  text-align: center;
   animation: fadeIn var(--transition-slow);
 }
 
-.sb-waiting-title {
+.d-waiting-court {
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: calc(var(--u) * 9);
-  letter-spacing: 0.25em;
-  padding-left: 0.25em;
-  color: var(--text-primary);
+  font-size: min(26cqh, 16cqw);
+  line-height: 1;
+  color: #FFFFFF;
 }
 
-.sb-waiting-text {
+.d-waiting-text {
   font-family: var(--font-ui);
-  font-weight: 500;
-  font-size: calc(var(--u) * 2.4);
-  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: min(9cqh, 5.5cqw);
+  color: var(--d-light);
   animation: pulse 2.4s ease-in-out infinite;
 }
 
 /* ─────────────────────────────────────────────────────────────────
    MARCADOR
    ───────────────────────────────────────────────────────────────── */
-.sb-board {
+.d-board {
+  /* Anchos de columna: proporcionales a la ALTURA disponible, con tope
+     según el ANCHO (pantallas 4:3 o estrechas) */
+  --col-icon:  min(9cqh, 6cqw);
+  --col-sets:  min(17cqh, 11cqw);
+  --col-games: min(21cqh, 14cqw);
+  --col-pts:   min(32cqh, 21cqw);
+  --gap:       min(1.6cqh, 1.2cqw);
+
   width: 100%;
-  max-width: calc(var(--u) * 92);
-  display: flex;
-  flex-direction: column;
+  max-width: 260cqh;              /* en pantallas muy panorámicas no se estira de más */
+  height: 100%;
+  display: grid;
+  grid-template-rows: 8cqh 1fr 5cqh 1fr 11cqh;
   animation: fadeIn var(--transition-slow);
 }
 
-/* Cabecera y filas comparten la misma rejilla de columnas */
-.sb-head,
-.sb-row {
+.d-head,
+.d-row {
   display: grid;
-  grid-template-columns: var(--col-icon) minmax(0, 1fr) var(--col-pts) var(--col-num) var(--col-num);
+  grid-template-columns: var(--col-icon) minmax(0, 1fr) var(--col-sets) var(--col-games) var(--col-pts);
   align-items: center;
-  column-gap: calc(var(--u) * 1.2);
+  column-gap: var(--gap);
 }
 
-.sb-head {
-  padding: 0 calc(var(--u) * 1.5) calc(var(--u) * 0.8);
+.d-head {
+  padding: 0 min(1.5cqh, 1cqw);
 }
 
-.sb-head span {
+.d-head span {
   font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: calc(var(--u) * 1.5);
-  letter-spacing: 0.25em;
+  font-weight: 700;
+  font-size: max(14px, min(5cqh, 2.6cqw));   /* nunca por debajo de 14 px */
+  line-height: 1;
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--d-light);
 }
 
-/* ── Fila de equipo ───────────────────────────────────────────── */
-.sb-row {
+/* ── Fila de una pareja ─────────────────────────────────────────── */
+.d-row {
   position: relative;
-  height: calc(var(--u) * 13);
-  padding: 0 calc(var(--u) * 1.5);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, rgba(17, 45, 94, 0.95) 0%, rgba(13, 35, 71, 0.85) 100%);
-  border: 1px solid var(--border-color);
-  transition: opacity var(--transition-slow), border-color var(--transition-slow);
+  height: 100%;
+  padding: 0 min(1.5cqh, 1cqw);
+  border-radius: min(2cqh, 1.4cqw);
+  background: var(--d-row);
+  border: max(2px, 0.4cqh) solid var(--d-row-edge);
+  transition: opacity var(--transition-slow);
 }
 
-/* Barra lateral de acento en el equipo que saca */
-.sb-row::before {
+/* Barra de acento en la pareja que saca */
+.d-row::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 18%;
-  bottom: 18%;
-  width: calc(var(--u) * 0.45);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  left: max(-2px, -0.4cqh);
+  top: 16%;
+  bottom: 16%;
+  width: max(4px, 0.9cqh);
+  border-radius: 0 999px 999px 0;
   background: transparent;
-  transition: background var(--transition-normal);
 }
 
-.sb-row.is-serving::before {
-  background: var(--accent-bright);
-  box-shadow: 0 0 calc(var(--u) * 1.2) var(--accent-bright);
+.d-row.is-serving::before { background: var(--d-light); }
+
+.d-row.is-winner {
+  border-color: var(--d-gold);
+  box-shadow: 0 0 2.5cqh rgba(255, 213, 74, 0.45);
 }
 
-/* Ganador: borde dorado; perdedor: atenuado */
-.sb-row.is-winner {
-  border-color: rgba(255, 215, 0, 0.7);
-  box-shadow: var(--glow-gold);
-}
+.d-row.is-loser { opacity: 0.6; }
 
-.sb-row.is-loser {
-  opacity: 0.55;
-}
-
-/* ── Icono (pelota / estrella) ───────────────────────────────── */
-.sb-icon {
+/* ── Icono (pelota de saque / estrella) ─────────────────────────── */
+.d-icon {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.sb-icon svg {
+.d-icon svg {
   display: none;
-  width: calc(var(--u) * 4);
-  height: calc(var(--u) * 4);
+  width: 88%;
+  aspect-ratio: 1;
 }
 
-.sb-row.is-serving .icon-ball {
+.d-row.is-serving .icon-ball { display: block; animation: fadeIn var(--transition-normal); }
+.d-row.is-winner .icon-star  { display: block; animation: starPulse 1.6s ease-in-out infinite; }
+
+/* ── Nombres: una línea por jugador ─────────────────────────────── */
+.d-names {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1cqh;
+  min-width: 0;
+  height: 100%;
+}
+
+.d-name-line {
   display: block;
-  filter: drop-shadow(0 0 calc(var(--u) * 0.6) rgba(212, 242, 30, 0.6));
-  animation: fadeIn var(--transition-normal);
-}
-
-.sb-row.is-winner .icon-star {
-  display: block;
-  width: calc(var(--u) * 4.6);
-  height: calc(var(--u) * 4.6);
-  animation: starPulse 1.6s ease-in-out infinite;
-}
-
-/* ── Nombre del equipo ───────────────────────────────────────── */
-.sb-name {
   font-family: var(--font-score);
-  font-weight: 600;
-  font-size: calc(var(--u) * 5);   /* score.js puede reducirlo si no cabe */
+  font-weight: 700;
+  font-size: min(12.5cqh, 7.5cqw);   /* score.js puede reducirla SOLO en esa línea */
+  line-height: 1.02;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--text-primary);
+  color: #FFFFFF;
 }
 
-.sb-row.is-winner .sb-name {
-  color: var(--winner-gold);
-}
+/* Pareja con un solo nombre (ej. "EQUIPO AZUL"): una línea más grande */
+.d-names.is-single .d-name-line { font-size: min(17cqh, 9cqw); }
 
-/* ── Celdas numéricas ────────────────────────────────────────── */
-.sb-cell {
+.d-row.is-winner .d-name-line { color: var(--d-gold); }
+
+/* ── Celdas numéricas ───────────────────────────────────────────── */
+.d-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 82%;
   font-family: var(--font-score);
   font-weight: 700;
-  text-align: center;
   line-height: 1;
-  font-variant-numeric: tabular-nums;   /* todos los dígitos con el mismo ancho */
+  font-variant-numeric: tabular-nums;
+  border-radius: min(1.6cqh, 1.1cqw);
 }
 
-/* Puntos: el dato que más cambia → el más grande y en caja propia */
-.sb-pts {
-  font-size: calc(var(--u) * 9);
-  height: calc(var(--u) * 10.5);
+/* SETS: azul medio, letra blanca */
+.d-sets {
+  font-size: min(21cqh, 12cqw);
+  background: var(--d-sets-bg);
+  color: #FFFFFF;
+}
+
+/* GAMES: sobre el azul oscuro de la fila, letra blanca grande */
+.d-games {
+  font-size: min(25cqh, 15cqw);
+  color: #FFFFFF;
+}
+
+/* PUNTOS: el dato que más cambia → caja azul claro con número oscuro */
+.d-pts {
+  font-size: min(26cqh, 17cqw);
+  background: var(--d-light);
+  color: var(--d-ink);
+}
+
+.d-pts.is-advantage { background: var(--d-gold); }
+.d-cell.is-empty    { opacity: 0.35; }
+
+/* ── Separador entre parejas ────────────────────────────────────── */
+.d-divider {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-  border: 1px solid var(--border-bright);
-  color: var(--text-primary);
 }
 
-/* Ventaja (AD): resaltado en cian */
-.sb-pts.is-advantage {
-  color: var(--accent-cyan);
-}
-
-.sb-games {
-  font-size: calc(var(--u) * 8);
-  color: var(--text-primary);
-}
-
-.sb-sets {
-  font-size: calc(var(--u) * 8);
-  color: var(--accent-bright);
-}
-
-/* ── Separador entre filas ───────────────────────────────────── */
-.sb-divider {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: calc(var(--u) * 3.5);
-}
-
-.sb-divider::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border-bright), transparent);
-}
-
-.sb-divider-label {
-  position: relative;
+.d-divider-label {
   font-family: var(--font-score);
-  font-weight: 600;
-  font-size: calc(var(--u) * 1.8);
-  letter-spacing: 0.3em;
-  padding: 0 calc(var(--u) * 2);
-  color: var(--winner-gold);
-  background: var(--bg-primary);
+  font-weight: 700;
+  font-size: min(5cqh, 3cqw);
+  line-height: 1;
+  padding: 0.2em 0.8em;
+  border-radius: 0.3em;
+  color: var(--d-ink);
+  background: var(--d-gold);
 }
 
-.sb-divider-label:empty {
-  display: none;
-}
+.d-divider-label:empty { display: none; }
 
-/* ─────────────────────────────────────────────────────────────────
-   HISTORIAL DE SETS
-   ───────────────────────────────────────────────────────────────── */
-.sb-history {
+/* ── Historial de sets ──────────────────────────────────────────── */
+.d-history {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
-  gap: calc(var(--u) * 1.2);
-  min-height: calc(var(--u) * 4);
+  gap: min(1.6cqh, 1.2cqw);
+  min-width: 0;
+  overflow: hidden;
 }
 
-.sb-set-chip {
+.d-set-chip {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--u) * 0.9);
-  padding: calc(var(--u) * 0.6) calc(var(--u) * 1.8);
-  border-radius: var(--radius-pill);
-  background: rgba(17, 45, 94, 0.7);
-  border: 1px solid var(--border-color);
-}
-
-.sb-set-chip-label {
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: calc(var(--u) * 1.4);
-  letter-spacing: 0.15em;
-  color: var(--text-secondary);
-}
-
-.sb-set-chip-score {
+  gap: 0.4em;
+  padding: 0.25em 0.7em;
+  border-radius: 999px;
   font-family: var(--font-score);
-  font-weight: 600;
-  font-size: calc(var(--u) * 2.4);
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: max(15px, min(6cqh, 3.2cqw));
+  line-height: 1.1;
+  white-space: nowrap;
+  color: #FFFFFF;
+  background: var(--d-row);
+  border: max(2px, 0.35cqh) solid var(--d-row-edge);
 }
 
-/* Detalle del tiebreak, ej. "(8-6)" */
-.sb-set-chip-detail {
-  font-family: var(--font-score);
-  font-weight: 500;
-  font-size: calc(var(--u) * 1.6);
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
+.d-set-chip-label { color: var(--d-light); }
+.d-set-chip-detail { color: var(--d-light-soft); font-size: 0.8em; }
 
-/* Set en curso: borde de acento */
-.sb-set-chip.is-current {
-  border-color: var(--accent-bright);
-}
-
-.sb-set-chip.is-current .sb-set-chip-score {
-  font-size: calc(var(--u) * 1.6);
-  letter-spacing: 0.15em;
-  color: var(--accent-bright);
+.d-set-chip.is-current {
+  border-color: var(--d-light);
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   ANIMACIONES (Fase 8)
-   score.js añade estas clases solo cuando el dato cambia y las quita
-   al terminar. Duraciones cortas: el marcador debe leerse siempre.
+   PUBLICIDAD
    ───────────────────────────────────────────────────────────────── */
-
-/* Puntos: giro tipo marcador mecánico */
-.sb-row {
-  perspective: calc(var(--u) * 60);
+.d-banner {
+  position: relative;
+  overflow: hidden;
+  background: #020A16;
+  border-top: max(2px, 0.35vh) solid var(--d-light);
 }
 
-.sb-pts.anim-point {
-  animation: pointFlip 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+.d-fullad {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #020A16;
 }
+
+/* Modo "Solo publicidad": la publicidad ocupa TODA la pantalla */
+.display.is-fullad .d-fullad {
+  position: fixed;
+  z-index: 5;
+}
+
+.ad-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;          /* nunca se recorta ni se deforma */
+  opacity: 0;
+  transition: opacity 600ms ease;
+}
+
+.ad-media.is-visible { opacity: 1; }
+
+/* ─────────────────────────────────────────────────────────────────
+   IDENTIFICACIÓN DE PANTALLA
+   ───────────────────────────────────────────────────────────────── */
+.d-identify {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3vh;
+  background: rgba(4, 16, 36, 0.94);
+  border: 1.2vh solid var(--d-light);
+  font-family: var(--font-score);
+  font-weight: 700;
+  color: #FFFFFF;
+  text-align: center;
+}
+
+.d-identify-title { font-size: min(22vh, 14vw); line-height: 1; }
+.d-identify-sub   { font-size: min(7vh, 4.5vw); color: var(--d-light); }
+
+/* ─────────────────────────────────────────────────────────────────
+   ANIMACIONES (score.js las activa solo cuando el dato cambia)
+   ───────────────────────────────────────────────────────────────── */
+.d-row { perspective: 120cqh; }
+
+.d-pts.anim-point { animation: pointFlip 420ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 
 @keyframes pointFlip {
   0%   { transform: rotateX(-90deg); opacity: 0.2; }
-  60%  { transform: rotateX(12deg);  opacity: 1;   }
+  60%  { transform: rotateX(12deg);  opacity: 1; }
   100% { transform: rotateX(0deg); }
 }
 
-/* Game ganado: destello azul en el número de games */
-.sb-games.anim-game {
-  animation: gameFlash 900ms ease-out;
-}
+.d-games.anim-game { animation: gameFlash 900ms ease-out; }
 
 @keyframes gameFlash {
-  0%   { color: var(--accent-cyan); text-shadow: 0 0 calc(var(--u) * 3) var(--accent-cyan); transform: scale(1.25); }
-  100% { color: var(--text-primary); text-shadow: none; transform: scale(1); }
+  0%   { color: var(--d-cyan); transform: scale(1.25); }
+  100% { color: #FFFFFF; transform: scale(1); }
 }
 
-/* Set ganado: pulso más grande y prolongado en el número de sets */
-.sb-sets.anim-set {
-  animation: setPulse 1600ms ease-out;
-}
+.d-sets.anim-set { animation: setPulse 1600ms ease-out; }
 
 @keyframes setPulse {
-  0%   { transform: scale(1);    text-shadow: none; }
-  20%  { transform: scale(1.45); color: var(--accent-cyan); text-shadow: 0 0 calc(var(--u) * 4) var(--accent-cyan); }
-  45%  { transform: scale(1.1);  }
-  65%  { transform: scale(1.3);  text-shadow: 0 0 calc(var(--u) * 3) var(--accent-bright); }
-  100% { transform: scale(1);    color: var(--accent-bright); text-shadow: none; }
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.3); background: var(--d-cyan); color: var(--d-ink); }
+  60%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
-/* Fila del equipo que gana un game o un set: borde iluminado */
-.sb-row.anim-row {
-  animation: rowFlash 900ms ease-out;
-}
+.d-row.anim-row { animation: rowFlash 900ms ease-out; }
 
 @keyframes rowFlash {
-  0%   { border-color: var(--accent-cyan); box-shadow: 0 0 calc(var(--u) * 3) rgba(0, 212, 255, 0.55); }
-  100% { border-color: var(--border-color); box-shadow: none; }
+  0%   { border-color: var(--d-cyan); box-shadow: 0 0 3cqh rgba(34, 211, 238, 0.55); }
+  100% { border-color: var(--d-row-edge); box-shadow: none; }
 }
 
-/* Nuevo set en el historial */
-.sb-set-chip.anim-chip {
-  animation: chipIn 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
+.d-set-chip.anim-chip { animation: chipIn 700ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 
 @keyframes chipIn {
-  0%   { opacity: 0; transform: translateY(calc(var(--u) * 2)) scale(0.8); border-color: var(--accent-cyan); }
+  0%   { opacity: 0; transform: translateY(2cqh) scale(0.8); }
   100% { opacity: 1; transform: none; }
 }
 
-/* Final del partido: barrido de luz dorada sobre la fila ganadora */
-.sb-row.anim-winner::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(100deg, transparent 30%, rgba(255, 215, 0, 0.35) 50%, transparent 70%);
-  background-size: 250% 100%;
-  animation: winnerSweep 1400ms ease-in-out;
-}
-
-/* La animación se declara en la fila para que 'animationend' llegue a score.js */
-.sb-row.anim-winner {
-  animation: winnerGlow 1400ms ease-in-out;
-}
-
-@keyframes winnerSweep {
-  0%   { background-position: 120% 0; }
-  100% { background-position: -20% 0; }
-}
+.d-row.anim-winner { animation: winnerGlow 1400ms ease-in-out; }
 
 @keyframes winnerGlow {
-  0%, 100% { box-shadow: var(--glow-gold); }
-  50%      { box-shadow: 0 0 calc(var(--u) * 5) rgba(255, 215, 0, 0.7); }
+  0%, 100% { box-shadow: 0 0 2.5cqh rgba(255, 213, 74, 0.45); }
+  50%      { box-shadow: 0 0 6cqh rgba(255, 213, 74, 0.8); }
 }
 
-/* Accesibilidad: si el sistema pide reducir movimiento, sin animaciones */
 @media (prefers-reduced-motion: reduce) {
-  .scoreboard *,
-  .scoreboard *::before,
-  .scoreboard *::after {
-    animation: none !important;
-  }
+  .display *, .display *::before, .display *::after { animation: none !important; transition: none !important; }
 }

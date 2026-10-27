@@ -5,9 +5,9 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node server/sports/padel/engine.test.js && node server/matchManager.test.js && node server/integration.test.js",
+    "test": "node server/sports/padel/engine.test.js && node server/core/core.test.js && node server/integration.test.js",
     "test:engine": "node server/sports/padel/engine.test.js",
-    "test:server": "node server/matchManager.test.js",
+    "test:server": "node server/core/core.test.js",
     "test:integration": "node server/integration.test.js",
     "simulate": "node tools/simulate-match.js"
   },

@@ -9,10 +9,11 @@ rem
 rem  1. Comprueba que Node.js y las dependencias estén instalados
 rem  2. Abre el servidor en su propia ventana (si no estaba abierto)
 rem  3. Espera a que el servidor responda (/health)
-rem  4. Abre la pantalla LED en Chrome (o Edge) en modo kiosco:
-rem     pantalla completa, sin barras, sin pestañas
+rem  4. Abre la ESTACIÓN OPERADORA en el portátil (ventana normal)
+rem  5. Abre 1 o 2 PANTALLAS en Chrome (o Edge) en modo kiosco, cada una
+rem     en su monitor externo: pantalla completa, sin barras ni pestañas
 rem
-rem  Para salir de la pantalla LED: Alt + F4
+rem  Para salir de una pantalla: hacer clic en ella y pulsar Alt + F4
 rem  Para apagar el sistema: cerrar la ventana "SERVIDOR"
 rem ================================================================
 
@@ -21,10 +22,19 @@ rem ---------------- CONFIGURACIÓN ---------------------------------
 rem Puerto del servidor (cambiar solo si el 3000 está ocupado)
 set PORT=3000
 
-rem Posición horizontal (en píxeles) donde se abre la pantalla LED:
-rem   0    = monitor principal
-rem   1920 = segundo monitor a la derecha de uno Full HD (Windows + P: "Extender")
-set LED_X=0
+rem Cuántas pantallas externas hay conectadas al portátil: 1 o 2
+set SCREENS=2
+
+rem Posición horizontal (en píxeles) de cada pantalla, con Windows en modo
+rem "Extender" (Windows + P). Es la suma de los anchos de los monitores que
+rem quedan a su izquierda en Configuración > Pantalla. Ejemplo con un
+rem portátil de 1920 px y dos monitores a su derecha de 1280 px:
+rem   SCREEN1_X=1920   (justo a la derecha del portátil)
+rem   SCREEN2_X=3200   (1920 + 1280)
+rem Si una pantalla se abre en el monitor equivocado: arrastrarla o usar
+rem Windows + Shift + flecha, y ajustar estos números para la próxima vez.
+set SCREEN1_X=1920
+set SCREEN2_X=3840
 
 rem ----------------------------------------------------------------
 
@@ -77,24 +87,39 @@ if not defined BROWSER if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\
 if not defined BROWSER if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" set "BROWSER=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
 if not defined BROWSER goto no_browser
 
-echo   [3/3] Abriendo la pantalla LED...
+echo   [3/3] Abriendo la estación operadora y las pantallas...
 
-rem Perfil de navegador PROPIO de StageMaster: no mezcla pestañas, extensiones
-rem ni avisos del navegador personal, y garantiza que el modo kiosco se aplique.
-start "" "%BROWSER%" --kiosk "http://localhost:%PORT%/score.html" ^
-  --user-data-dir="%LocalAppData%\StageMaster\navegador" ^
-  --window-position=%LED_X%,0 ^
+rem Estación operadora: ventana de aplicación normal en el portátil
+start "" "%BROWSER%" --app="http://localhost:%PORT%/station.html" ^
+  --user-data-dir="%LocalAppData%\StageMaster\estacion" ^
+  --window-position=0,0 --window-size=1400,900 --no-first-run
+
+rem Cada pantalla usa un perfil de navegador PROPIO: así Chrome permite dos
+rem ventanas en modo kiosco a la vez, sin pestañas ni avisos personales.
+start "" "%BROWSER%" --kiosk "http://localhost:%PORT%/score.html?pantalla=1" ^
+  --user-data-dir="%LocalAppData%\StageMaster\pantalla-1" ^
+  --window-position=%SCREEN1_X%,0 ^
   --no-first-run --noerrdialogs --disable-translate ^
   --overscroll-history-navigation=0
+
+if "%SCREENS%"=="2" (
+  start "" "%BROWSER%" --kiosk "http://localhost:%PORT%/score.html?pantalla=2" ^
+    --user-data-dir="%LocalAppData%\StageMaster\pantalla-2" ^
+    --window-position=%SCREEN2_X%,0 ^
+    --no-first-run --noerrdialogs --disable-translate ^
+    --overscroll-history-navigation=0
+)
 
 echo.
 echo   ============================================
 echo    LISTO
 echo   ============================================
 echo.
-echo    Pantalla LED : abierta en modo kiosco (salir: Alt + F4)
-echo    iPhone       : abre la dirección "iPhone" que muestra
-echo                   la ventana "SERVIDOR" (red Wi-Fi o Ethernet)
+echo    Estacion   : ventana "Estacion operadora" en el portatil
+echo    Pantallas  : %SCREENS% en modo kiosco (salir: clic + Alt + F4)
+echo                 En la estacion pulsa "Identificar" para comprobar
+echo                 que cada una esta en su monitor.
+echo    Arbitros   : la direccion y los PIN aparecen en la estacion.
 echo.
 echo    Esta ventana se puede cerrar. La del SERVIDOR NO.
 echo.
