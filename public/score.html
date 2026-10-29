@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <!--
-    score.html — Pantalla de score y publicidad (vista del espectador)
+    score.html — Pantalla de score y publicidad (vista del público)
 
-    Se abre una ventana por pantalla física conectada al portátil:
+    Se abre una ventana por pantalla física (monitor o pantalla LED):
       score.html?pantalla=1   →  Pantalla 1
       score.html?pantalla=2   →  Pantalla 2
 
-    Qué partido muestra, el modo (marcador / marcador + publicidad / solo
-    publicidad) y qué anuncios rota lo decide la ESTACIÓN OPERADORA en
+    Qué partido muestra, la cinta publicitaria, la lista de reproducción
+    (imágenes y vídeos), la publicidad al terminar y el formato de salida
+    (monitor completo o LED 832×416 / 416×208) los decide la ESTACIÓN en
     vivo: esta página nunca necesita reiniciarse.
 
-    Sin botones, menús, formularios ni enlaces: solo el marcador.
+    Sin botones, menús ni enlaces: solo lo que ve el público.
 
     Relación con otros archivos:
-      → css/shared.css · css/score.css   estilos
-      → js/score-format.js               textos del marcador (compartido)
-      → js/brand.js                      logo
-      → js/score.js                      conexión, dibujo, publicidad
-      ← server/realtime/socketServer.js  'screenConfig', 'matchUpdate', 'identify'
+      → css/shared.css · css/score.css      estilos
+      → js/display/main.js                  conexión y capas (módulos ES)
+      → img/icons.svg                       pelota de saque y estrella
+      ← server/realtime/socketServer.js     'screenConfig', 'matchUpdate', 'identify'
   -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#041024" />
@@ -30,22 +30,11 @@
 </head>
 <body class="score-body">
 
-<!-- Iconos (sprite SVG): pelota de saque y estrella del ganador.
-     SVG en lugar de emojis: se ven igual en cualquier sistema operativo. -->
-<svg class="d-sprite" aria-hidden="true">
-  <symbol id="icon-ball" viewBox="0 0 100 100">
-    <circle cx="50" cy="50" r="46" fill="#D4F21E" />
-    <path d="M14 22 C 38 36, 38 64, 14 78" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" />
-    <path d="M86 22 C 62 36, 62 64, 86 78" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" />
-  </symbol>
-  <symbol id="icon-star" viewBox="0 0 100 100">
-    <polygon points="50,4 62,37 97,38 69,59 79,94 50,74 21,94 31,59 3,38 38,37" fill="#FFD54A" />
-  </symbol>
-</svg>
-
+<!-- Caja de salida: todo el monitor o el formato LED exacto -->
+<div id="output" class="output">
 <main id="display" class="display">
 
-  <!-- ── Cabecera: logo (izquierda) · fase + pista (derecha) ───── -->
+  <!-- ── Cabecera: logo (izquierda) · estado + pista (derecha) ── -->
   <header class="d-header">
     <div class="d-logo" data-brand-logo>STAGE<span>MASTER</span></div>
     <div class="d-header-right">
@@ -54,10 +43,10 @@
     </div>
   </header>
 
-  <!-- ── Zona principal ───────────────────────────────────────── -->
+  <!-- ── Zona del marcador ─────────────────────────────────────── -->
   <section id="d-stage" class="d-stage">
 
-    <!-- Sin partido (y sin publicidad a pantalla completa) -->
+    <!-- Sin partido (y sin lista de reproducción) -->
     <div id="d-waiting" class="d-waiting">
       <div id="d-waiting-court" class="d-waiting-court"></div>
       <div class="d-waiting-text">Próximo partido</div>
@@ -66,17 +55,13 @@
     <!-- Marcador -->
     <div id="d-board" class="d-board hidden">
       <div class="d-head">
-        <span></span>
-        <span></span>
-        <span>SETS</span>
-        <span>GAMES</span>
-        <span>PUNTOS</span>
+        <span></span><span></span><span>SETS</span><span>GAMES</span><span>PUNTOS</span>
       </div>
 
       <div id="row-a" class="d-row">
         <span class="d-icon">
-          <svg class="icon-ball"><use href="#icon-ball" /></svg>
-          <svg class="icon-star"><use href="#icon-star" /></svg>
+          <svg class="icon-ball"><use href="img/icons.svg#ball"></use></svg>
+          <svg class="icon-star"><use href="img/icons.svg#star"></use></svg>
         </span>
         <span id="names-a" class="d-names"></span>
         <span id="sets-a" class="d-cell d-sets"></span>
@@ -88,8 +73,8 @@
 
       <div id="row-b" class="d-row">
         <span class="d-icon">
-          <svg class="icon-ball"><use href="#icon-ball" /></svg>
-          <svg class="icon-star"><use href="#icon-star" /></svg>
+          <svg class="icon-ball"><use href="img/icons.svg#ball"></use></svg>
+          <svg class="icon-star"><use href="img/icons.svg#star"></use></svg>
         </span>
         <span id="names-b" class="d-names"></span>
         <span id="sets-b" class="d-cell d-sets"></span>
@@ -99,21 +84,25 @@
 
       <div id="d-history" class="d-history"></div>
     </div>
-
-    <!-- Publicidad a pantalla completa (modo "Solo publicidad" o sin partido) -->
-    <div id="d-fullad" class="d-fullad hidden"></div>
   </section>
 
-  <!-- ── Franja publicitaria (modo "Marcador + publicidad") ──────── -->
-  <footer id="d-banner" class="d-banner hidden"></footer>
+  <!-- ── Cinta publicitaria (parte del marcador) ───────────────── -->
+  <footer id="d-ribbon" class="d-ribbon hidden"></footer>
+
+  <!-- ── Lista de reproducción a pantalla completa ─────────────── -->
+  <div id="d-media" class="d-media hidden"></div>
+
+  <!-- ── Logo: lista vacía o sin archivos reproducibles ────────── -->
+  <div id="d-standby" class="d-standby hidden">
+    <div class="d-standby-logo" data-brand-logo>STAGE<span>MASTER</span></div>
+  </div>
 
   <!-- Identificación (la estación pulsa "Identificar") -->
   <div id="d-identify" class="d-identify hidden"></div>
 </main>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="js/score-format.js"></script>
-<script src="js/brand.js"></script>
-<script src="js/score.js"></script>
+<script type="module" src="js/display/main.js"></script>
 </body>
 </html>

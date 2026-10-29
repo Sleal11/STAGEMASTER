@@ -8,6 +8,7 @@
  *   4. Enviar las acciones del árbitro al servidor (Socket.IO)
  *   5. Renderizar el estado que devuelve el servidor
  *   6. Confirmaciones para acciones peligrosas, estado de conexión y avisos
+ *   7. Pausar / reanudar el partido (en pausa no se puede puntuar)
  *
  * El teléfono NO calcula el marcador: lo hace el servidor
  * (server/sports/padel/engine.js), así teléfono, pantallas y estación
@@ -27,9 +28,14 @@
  *         → 'matchUpdate' SOLO a la sala de pista-1 (este teléfono + sus pantallas)
  *       → applyServerState() → renderMatch()
  *       → ack { ok: true }   ← desbloquea los botones
+ *
+ * Módulo ES: comparte el formato del marcador, el logo y los iconos con
+ * la estación y las pantallas (js/common/).
  */
 
-'use strict';
+import * as ScoreFormat from './common/score-format.js';
+import { applyLogo }    from './common/brand.js';
+import { icon }         from './common/ui.js';
 
 // ─────────────────────────────────────────────────────────────────
 // ESTADO GLOBAL DEL PANEL
@@ -166,21 +172,13 @@ function showScreen(screenName) {
 // RENDERIZADO DEL PARTIDO
 // ─────────────────────────────────────────────────────────────────
 
-/** Convierte los puntos internos a texto para mostrar en el marcador */
-function formatPoints(points, phase) {
-  // En tiebreak, los puntos son numéricos directamente (0, 1, 2...)
-  if (phase !== 'normal') return String(points);
-  // En juego normal: 0, 15, 30, 40, AD
-  return String(points); // El motor ya almacena 0/15/30/40/'AD'
-}
-
 /** Renderiza el estado completo del partido en la pantalla de control */
 function renderMatch() {
   if (!matchState) return;
 
   var p      = matchState.players;
   var server = matchState.server;
-  var phase  = matchState.phase;
+  var paused = !!matchState.paused;
 
   // ── Nombres ──────────────────────────────────────────────────
   document.getElementById('team-name-a-match').textContent = p.A.name;
@@ -189,8 +187,9 @@ function renderMatch() {
   document.getElementById('btn-point-b-name').textContent  = p.B.name;
 
   // ── Puntos ───────────────────────────────────────────────────
-  document.getElementById('pts-a').textContent = formatPoints(p.A.points, phase);
-  document.getElementById('pts-b').textContent = formatPoints(p.B.points, phase);
+  // El motor ya guarda 0/15/30/40/'AD' (y números en el tie break)
+  document.getElementById('pts-a').textContent = String(p.A.points);
+  document.getElementById('pts-b').textContent = String(p.B.points);
 
   // ── Games ────────────────────────────────────────────────────
   document.getElementById('games-a').textContent = p.A.games;
@@ -202,6 +201,15 @@ function renderMatch() {
 
   // ── Deshacer: solo si el servidor tiene historial ─────────────
   document.getElementById('btn-undo').disabled = !matchState.canUndo;
+
+  // ── Pausa: sin puntos ni cambio de saque hasta reanudar ───────
+  ['btn-point-a', 'btn-point-b', 'btn-change-server'].forEach(function (id) {
+    document.getElementById(id).disabled = paused;
+  });
+  var pauseBtn = document.getElementById('btn-pause');
+  pauseBtn.innerHTML = paused ? icon('play') + 'Reanudar' : icon('pause') + 'Pausar';
+  pauseBtn.classList.toggle('is-resume', paused);
+  document.getElementById('paused-banner').classList.toggle('hidden', !paused);
 
   // ── Indicador de saque ───────────────────────────────────────
   var iconA = document.getElementById('server-icon-a');
@@ -293,7 +301,7 @@ function handleUndo() {
   if (!undoPendingConfirm) {
     // Primera pulsación: pedir confirmación
     undoPendingConfirm = true;
-    btn.textContent = '⚠ CONFIRMAR DESHACER';
+    btn.innerHTML = icon('alert') + 'CONFIRMAR DESHACER';
     btn.classList.add('confirming');
 
     // Auto-cancelar después de 3 segundos
@@ -313,7 +321,7 @@ function resetUndoConfirm() {
   clearTimeout(undoConfirmTimer);
   var btn = document.getElementById('btn-undo');
   if (btn) {
-    btn.textContent = '↩ DESHACER ÚLTIMA ACCIÓN';
+    btn.innerHTML = icon('undo') + 'DESHACER ÚLTIMA ACCIÓN';
     btn.classList.remove('confirming');
   }
 }
@@ -321,6 +329,13 @@ function resetUndoConfirm() {
 /** Manejador del botón "Cambiar Saque" */
 function handleChangeServer() {
   dispatch('changeServer');
+}
+
+/** Pausar / Reanudar (lesión, lluvia, revisión…): en pausa no se puede puntuar */
+function handlePause() {
+  if (!matchState) return;
+  resetUndoConfirm();
+  dispatch(matchState.paused ? 'resume' : 'pause');
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -677,7 +692,7 @@ function renderCourtList(courts) {
 
 function describeCourt(court) {
   var match = court.names ? court.names.join('  vs  ') : 'Sin partido configurado';
-  return court.controllerConnected ? match + ' · ⚠ ya tiene un teléfono conectado' : match;
+  return court.controllerConnected ? match + ' · ya tiene un teléfono conectado' : match;
 }
 
 /** Paso 2: introducir el PIN de la pista elegida */
@@ -872,6 +887,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('btn-point-b').addEventListener('click', handlePointB);
   document.getElementById('btn-undo').addEventListener('click', handleUndo);
   document.getElementById('btn-change-server').addEventListener('click', handleChangeServer);
+  document.getElementById('btn-pause').addEventListener('click', handlePause);
   document.getElementById('btn-reset').addEventListener('click', handleResetConfirm);
   document.getElementById('btn-finish').addEventListener('click', handleFinishConfirm);
 
@@ -900,6 +916,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Con token guardado, el servidor devolverá la pista y su marcador;
   // sin token, 'connect' muestra la vinculación.
   showScreen('pair');
+  applyLogo();
   connectToServer();
 
 });

@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <!--
-    station.html — Estación operadora (solo en el portátil: http://localhost:3000)
+    station.html — Estación operadora (solo en el portátil)
 
-    Desde aquí la persona encargada del sistema ve y controla:
-      - Los DOS partidos (pistas): estado, marcador, PIN y teléfono del árbitro
-      - Las DOS pantallas: conexión, resolución, partido asignado, modo,
-        publicidad y si el marcador que muestran está al día
+    Desde aquí el moderador controla:
+      - Los DOS partidos: marcador, pausa, finalizar, reiniciar, PIN/QR y
+        teléfono del árbitro, y puntuación de respaldo
+      - Las DOS pantallas: qué muestran (marcador o publicidad y vídeos),
+        reproductor, cinta publicitaria, lista de reproducción, publicidad al
+        terminar el partido, monitor y formato de salida (LED 832×416 / 416×208)
 
     Relación con otros archivos:
       → css/shared.css · css/station.css
-      → js/score-format.js (textos del marcador) · js/brand.js (logo)
-      → js/station.js (conexión y dibujo)
+      → js/station/main.js (módulos ES) · img/icons.svg
       ← server/realtime/socketServer.js ('stationState' y eventos station:*)
   -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -31,11 +32,15 @@
     </div>
     <div id="st-network" class="st-network"></div>
     <div class="st-top-actions">
-      <button id="st-open-ads" class="st-btn st-btn-ghost hidden">📁 Carpeta de publicidad</button>
-      <button id="st-help" class="st-btn st-btn-ghost">❔ Ayuda</button>
+      <button id="st-open-ads" class="btn btn-ghost hidden" type="button">
+        <svg class="icon"><use href="img/icons.svg#folder"></use></svg>Carpeta de publicidad
+      </button>
+      <button id="st-help" class="btn btn-ghost" type="button">
+        <svg class="icon"><use href="img/icons.svg#help"></use></svg>Ayuda
+      </button>
     </div>
-    <div class="st-conn">
-      <span id="st-conn-dot" class="st-dot"></span>
+    <div class="st-conn" role="status">
+      <span id="st-conn-dot" class="dot"></span>
       <span id="st-conn-text">Conectando…</span>
     </div>
   </header>
@@ -44,22 +49,21 @@
   <div id="st-blocked" class="st-blocked hidden"></div>
 
   <main class="st-main">
-    <section>
-      <h2 class="st-section-title">Partidos</h2>
+    <section class="st-section">
+      <div class="st-section-head">
+        <h2 class="st-section-title">Partidos</h2>
+      </div>
       <div id="st-matches" class="st-grid"></div>
     </section>
 
-    <section>
+    <section class="st-section">
       <div class="st-section-head">
         <h2 class="st-section-title">Pantallas</h2>
-        <button id="st-refresh-ads" class="st-btn st-btn-ghost">↻ Actualizar publicidad</button>
+        <button id="st-refresh-ads" class="btn btn-ghost btn-sm" type="button">
+          <svg class="icon"><use href="img/icons.svg#refresh"></use></svg>Actualizar publicidad
+        </button>
       </div>
       <div id="st-screens" class="st-grid"></div>
-      <p class="st-help">
-        Publicidad: imágenes <strong>PNG</strong> en la carpeta de publicidad, dentro de <code>banner</code>
-        (franja bajo el marcador, 1920×200) o <code>pantalla-completa</code> (1920×1080).
-        Después pulsa «Actualizar publicidad».
-      </p>
     </section>
   </main>
 
@@ -114,11 +118,13 @@
         </label>
       </div>
 
-      <div id="dlg-setup-error" class="st-error hidden"></div>
+      <div id="dlg-setup-error" class="st-error hidden" role="alert"></div>
 
       <div class="st-dialog-actions">
-        <button type="button" id="dlg-setup-cancel" class="st-btn st-btn-ghost">Cancelar</button>
-        <button type="submit" class="st-btn st-btn-primary">Iniciar partido</button>
+        <button type="button" id="dlg-setup-cancel" class="btn btn-ghost">Cancelar</button>
+        <button type="submit" class="btn btn-primary">
+          <svg class="icon"><use href="img/icons.svg#play"></use></svg>Iniciar partido
+        </button>
       </div>
     </form>
   </dialog>
@@ -128,16 +134,14 @@
     <h3 id="dlg-confirm-title" class="st-dialog-title"></h3>
     <p id="dlg-confirm-message" class="st-dialog-message"></p>
     <div class="st-dialog-actions">
-      <button type="button" id="dlg-confirm-cancel" class="st-btn st-btn-ghost">Cancelar</button>
-      <button type="button" id="dlg-confirm-ok" class="st-btn st-btn-danger">Confirmar</button>
+      <button type="button" id="dlg-confirm-cancel" class="btn btn-ghost">Cancelar</button>
+      <button type="button" id="dlg-confirm-ok" class="btn btn-danger">Confirmar</button>
     </div>
   </dialog>
 
   <div id="st-toast" class="st-toast hidden" role="status" aria-live="polite"></div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="js/score-format.js"></script>
-  <script src="js/brand.js"></script>
-  <script src="js/station.js"></script>
+  <script type="module" src="js/station/main.js"></script>
 </body>
 </html>

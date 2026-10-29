@@ -175,6 +175,10 @@
    ───────────────────────────────────────────────────────────────── */
 
 .btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
   width: 100%;
   height: 60px;
   background: var(--accent-bright);
@@ -263,7 +267,8 @@
 }
 
 .server-icon {
-  font-size: 0.85rem;
+  width: 16px;
+  height: 16px;
   opacity: 0;
   transition: opacity var(--transition-fast);
   flex-shrink: 0;
@@ -441,11 +446,75 @@
   animation: pulse 0.8s ease infinite;
 }
 
-/* Fila de 2 botones */
+/* Fila de 2 o 3 botones */
 .btn-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-sm);
+}
+
+.btn-row-3 { grid-template-columns: repeat(3, 1fr); }
+
+/* Pausar ↔ Reanudar: en pausa el botón destaca en ámbar */
+#btn-pause.is-resume {
+  background: var(--warning);
+  border-color: var(--warning);
+  color: #1F1300;
+}
+
+.btn-wide {
+  width: 100%;
+  height: 52px;
+  font-size: 0.85rem;
+}
+
+/* Iconos SVG dentro de los botones */
+.btn-primary .icon,
+.btn-undo .icon,
+.btn-server .icon,
+.btn-secondary .icon { width: 18px; height: 18px; }
+.pin-key .icon { width: 28px; height: 28px; }
+
+/* ── Partido en pausa ───────────────────────────────────────────── */
+.paused-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding: 10px var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 152, 0, 0.16);
+  border: 1px solid var(--warning);
+  color: #FFD08A;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.paused-banner .icon { width: 16px; height: 16px; }
+
+.btn-point:disabled,
+.btn-server:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Títulos de columna del mini marcador (PTS · GAMES · SETS) */
+.score-heads {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-bottom: 4px;
+}
+
+.score-heads span {
+  width: 44px;
+  text-align: center;
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .btn-secondary {
@@ -599,7 +668,8 @@ body.is-offline .btn-secondary {
 }
 
 .winner-star {
-  font-size: 3.5rem;
+  width: 64px;
+  height: 64px;
   animation: starPulse 2s ease infinite;
 }
 

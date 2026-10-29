@@ -71,12 +71,12 @@
       <button class="pin-key" data-key="7">7</button>
       <button class="pin-key" data-key="8">8</button>
       <button class="pin-key" data-key="9">9</button>
-      <button class="pin-key pin-key-muted" data-key="back">⌫</button>
+      <button class="pin-key pin-key-muted" data-key="back" aria-label="Borrar"><svg class="icon"><use href="img/icons.svg#backspace"></use></svg></button>
       <button class="pin-key" data-key="0">0</button>
       <button class="pin-key pin-key-muted" data-key="clear">C</button>
     </div>
 
-    <button class="btn-secondary pair-back" id="btn-pair-back">← Elegir otra pista</button>
+    <button class="btn-secondary pair-back" id="btn-pair-back"><svg class="icon"><use href="img/icons.svg#back"></use></svg>Elegir otra pista</button>
   </div>
 
   <div class="status-bar">
@@ -178,7 +178,7 @@
 
   <!-- Botón Iniciar -->
   <div class="section-spacer"></div>
-  <button id="btn-start-match" class="btn-primary">▶ INICIAR PARTIDO</button>
+  <button id="btn-start-match" class="btn-primary"><svg class="icon"><use href="img/icons.svg#play"></use></svg>INICIAR PARTIDO</button>
   <div class="section-spacer"></div>
 
 </div><!-- /screen-setup -->
@@ -198,20 +198,12 @@
     </div>
 
     <!-- Encabezados de columnas -->
-    <div style="display:flex; justify-content:flex-end; padding-right:2px; margin-bottom:4px;">
-      <div style="display:flex; gap:0;">
-        <div style="width:44px; text-align:center; font-size:0.55rem; letter-spacing:1px; color:var(--text-muted); text-transform:uppercase;">PTS</div>
-        <div style="width:5px;"></div>
-        <div style="width:44px; text-align:center; font-size:0.55rem; letter-spacing:1px; color:var(--text-muted); text-transform:uppercase;">GAMES</div>
-        <div style="width:5px;"></div>
-        <div style="width:44px; text-align:center; font-size:0.55rem; letter-spacing:1px; color:var(--text-muted); text-transform:uppercase;">SETS</div>
-      </div>
-    </div>
+    <div class="score-heads"><span>PTS</span><span>GAMES</span><span>SETS</span></div>
 
     <!-- Fila Equipo A -->
     <div class="score-row">
       <div class="score-team-name">
-        <span class="server-icon" id="server-icon-a">🎾</span>
+        <svg class="server-icon" id="server-icon-a" aria-label="Saca"><use href="img/icons.svg#ball"></use></svg>
         <span id="team-name-a-match">Equipo A</span>
       </div>
       <div class="score-values">
@@ -232,7 +224,7 @@
     <!-- Fila Equipo B -->
     <div class="score-row">
       <div class="score-team-name">
-        <span class="server-icon" id="server-icon-b">🎾</span>
+        <svg class="server-icon" id="server-icon-b" aria-label="Saca"><use href="img/icons.svg#ball"></use></svg>
         <span id="team-name-b-match">Equipo B</span>
       </div>
       <div class="score-values">
@@ -252,6 +244,9 @@
 
     <!-- Historial de sets -->
     <div class="set-history" id="set-history"></div>
+
+    <!-- Partido en pausa: no se puede puntuar hasta reanudarlo -->
+    <div class="paused-banner hidden" id="paused-banner"><svg class="icon"><use href="img/icons.svg#pause"></use></svg>PARTIDO EN PAUSA · Reanuda para seguir puntuando</div>
   </div>
 
   <!-- ── BOTONES PRINCIPALES DE PUNTO ─────────────────────────── -->
@@ -275,29 +270,20 @@
   <div class="secondary-actions">
 
     <!-- Deshacer (con confirmación de doble toque) -->
-    <button class="btn-undo" id="btn-undo">
-      ↩ DESHACER ÚLTIMA ACCIÓN
-    </button>
-
-    <!-- Reiniciar y Finalizar -->
-    <div class="btn-row">
-      <button class="btn-secondary" id="btn-reset">
-        ⟳ Reiniciar
-      </button>
-      <button class="btn-secondary" id="btn-finish">
-        🏁 Finalizar
-      </button>
-    </div>
+    <button class="btn-undo" id="btn-undo"><svg class="icon"><use href="img/icons.svg#undo"></use></svg>DESHACER ÚLTIMA ACCIÓN</button>
 
     <!-- Cambiar Saque -->
-    <button class="btn-server" id="btn-change-server">
-      🎾 CAMBIAR SAQUE
-    </button>
+    <button class="btn-server" id="btn-change-server"><svg class="icon"><use href="img/icons.svg#swap"></use></svg>CAMBIAR SAQUE</button>
+
+    <!-- Pausar, Reiniciar y Finalizar -->
+    <div class="btn-row btn-row-3">
+      <button class="btn-secondary" id="btn-pause"><svg class="icon"><use href="img/icons.svg#pause"></use></svg>Pausar</button>
+      <button class="btn-secondary" id="btn-reset"><svg class="icon"><use href="img/icons.svg#reset"></use></svg>Reiniciar</button>
+      <button class="btn-secondary" id="btn-finish"><svg class="icon"><use href="img/icons.svg#flag"></use></svg>Finalizar</button>
+    </div>
 
     <!-- Desvincular este teléfono (pide confirmación) -->
-    <button class="btn-secondary btn-change-court" id="btn-change-court">
-      ⇄ Cambiar de pista
-    </button>
+    <button class="btn-secondary btn-change-court" id="btn-change-court"><svg class="icon"><use href="img/icons.svg#unlink"></use></svg>Cambiar de pista</button>
 
   </div>
 
@@ -323,7 +309,7 @@
   </div>
 
   <div class="finished-screen">
-    <div class="winner-star">⭐</div>
+    <svg class="winner-star" aria-hidden="true"><use href="img/icons.svg#star"></use></svg>
     <div>
       <div class="winner-label">Ganador del Partido</div>
       <div class="winner-name" id="winner-name">Equipo A</div>
@@ -332,14 +318,8 @@
   </div>
 
   <div class="finished-actions">
-    <button class="btn-primary" id="btn-new-match"
-      style="background: linear-gradient(135deg, var(--accent-bright), var(--accent-primary));">
-      + NUEVO PARTIDO
-    </button>
-    <button class="btn-secondary" id="btn-back-to-match"
-      style="width:100%; height:52px; font-size:0.85rem;">
-      ← Volver al Marcador
-    </button>
+    <button class="btn-primary" id="btn-new-match"><svg class="icon"><use href="img/icons.svg#plus"></use></svg>NUEVO PARTIDO</button>
+    <button class="btn-secondary btn-wide" id="btn-back-to-match"><svg class="icon"><use href="img/icons.svg#back"></use></svg>Volver al marcador</button>
   </div>
 
 </div><!-- /screen-finished -->
@@ -370,16 +350,11 @@
 <!-- ═══════════════════════════════════════════════════════════════
      SCRIPTS
      /socket.io/socket.io.js lo sirve automáticamente el servidor
-     (define io()). control.js lo usa para comunicarse en tiempo real.
-
-     Desde la Fase 7 el panel ya NO usa engine-browser.js: el único
-     motor que decide el marcador es el del servidor. El archivo se
-     conserva para pruebas (engine.test.js lo compara con engine.js).
+     (define io()). control.js (módulo ES) lo usa para comunicarse en
+     tiempo real. El único motor que decide el marcador es el del servidor.
      ═══════════════════════════════════════════════════════════════ -->
 <script src="/socket.io/socket.io.js"></script>
-<script src="js/score-format.js"></script>
-<script src="js/brand.js"></script>
-<script src="js/control.js"></script>
+<script type="module" src="js/control.js"></script>
 
 </body>
 </html>

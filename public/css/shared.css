@@ -1,7 +1,8 @@
 /*
  * shared.css — Sistema de diseño StageMaster
- * Variables CSS, tipografía, reset y utilidades compartidas
- * entre control.html y score.html
+ * Variables CSS, tipografías, reset, iconos y utilidades compartidas por
+ * las tres interfaces: estación (station.html), teléfono (control.html)
+ * y pantallas (score.html)
  */
 
 /* ─────────────────────────────────────────────────────────────────
@@ -203,6 +204,24 @@ input {
   width: auto;
   max-width: 100%;
   filter: var(--logo-filter);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ICONOS (sprite img/icons.svg)
+   <svg class="icon"><use href="img/icons.svg#play"></use></svg>
+   Toman el color del texto (currentColor) y se ven nítidos a cualquier tamaño.
+   ───────────────────────────────────────────────────────────────── */
+.icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  flex-shrink: 0;
+  vertical-align: middle;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* ─────────────────────────────────────────────────────────────────
