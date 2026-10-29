@@ -414,7 +414,7 @@ function prepareAds() {
   fs.mkdirSync(path.join(TEST_ADS_DIR, 'pantalla-completa'), { recursive: true });
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'b-marca.png'), 'x');
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'notas.txt'), 'x');        // no es publicidad
-  fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'clip.mp4'), 'x');         // la cinta solo usa imágenes
+  fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'clip.mp4'), 'x');         // la cinta también admite vídeos
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'promo grande.png'), 'x');
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'video.mp4'), 'x');
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'clip.webm'), 'x');
@@ -458,25 +458,55 @@ test('Validación de pantalla: partido, vista, tiempos, formato y posición inv�
   assert.strictEqual(screens.get('pantalla-1').view, 'score', 'Nada cambió');
 });
 
-test('Biblioteca: cinta = imágenes; lista = imágenes y vídeos MP4/WEBM (ignora .mov, .txt)', () => {
+test('Biblioteca: cinta y lista = imágenes y vídeos MP4/WEBM (ignora .mov, .txt)', () => {
   prepareAds();
   const { ads } = loadModules();
   const library = ads.listAds();
-  assert.deepStrictEqual(library.banner.map((a) => a.name), ['b-marca.png']);
+  assert.deepStrictEqual(library.banner.map((a) => [a.name, a.kind]), [['b-marca.png', 'image'], ['clip.mp4', 'video']]);
   assert.deepStrictEqual(library.fullscreen.map((a) => [a.name, a.kind]),
     [['clip.webm', 'video'], ['promo grande.png', 'image'], ['video.mp4', 'video']]);
   assert.strictEqual(library.fullscreen[1].url, '/publicidad/pantalla-completa/promo%20grande.png');
 });
 
-test('Solo se puede asignar publicidad que existe; la lista conserva el orden elegido', () => {
+test('Solo se puede asignar publicidad que existe; siempre en orden alfabético (el de la carpeta)', () => {
   prepareAds();
   const { ads } = loadModules();
   const screens = freshScreens();
-  screens.update('pantalla-1', { ribbon: { images: ['b-marca.png'] }, media: { items: ['video.mp4', 'promo grande.png'] } }, ads.listAds());
-  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.images, ['b-marca.png']);
-  assert.deepStrictEqual(screens.get('pantalla-1').media.items, ['video.mp4', 'promo grande.png']);
-  assertCode(() => screens.update('pantalla-1', { ribbon: { images: ['../../secreto.png'] } }, ads.listAds()), 'INVALID_SCREEN_CONFIG');
-  assertCode(() => screens.update('pantalla-1', { ribbon: { images: ['clip.mp4'] } }, ads.listAds()), 'INVALID_SCREEN_CONFIG');
+  screens.update('pantalla-1', { ribbon: { items: ['clip.mp4', 'b-marca.png'] }, media: { items: ['video.mp4', 'promo grande.png', 'video.mp4'] } }, ads.listAds());
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.items, ['b-marca.png', 'clip.mp4'], 'La cinta admite vídeos');
+  assert.deepStrictEqual(screens.get('pantalla-1').media.items, ['promo grande.png', 'video.mp4']);
+  assertCode(() => screens.update('pantalla-1', { ribbon: { items: ['../../secreto.png'] } }, ads.listAds()), 'INVALID_SCREEN_CONFIG');
+  assertCode(() => screens.update('pantalla-1', { media: { items: ['iphone.mov'] } }, ads.listAds()), 'INVALID_SCREEN_CONFIG');
+});
+
+test('Nombres de archivo subidos: seguros, sin carpetas ni caracteres prohibidos; nunca pisan otro', () => {
+  prepareAds();
+  const { ads } = loadModules();
+  const safe = (name, category = 'fullscreen') => ads.safeFileName(category, name);
+  assert.strictEqual(safe('Promo Verano.PNG'), 'Promo Verano.PNG');
+  assert.strictEqual(safe('../../windows/evil.png'), 'evil.png');
+  assert.strictEqual(safe('C:\\Users\\x\\anuncio.mp4'), 'anuncio.mp4');
+  assert.strictEqual(safe('a<b>:c?.webm'), 'abc.webm');
+  assert.strictEqual(safe('.oculto.png'), 'oculto.png');
+  assert.strictEqual(safe('x'.repeat(300) + '.mp4').length, 120);
+  [null, '', 'virus.exe', 'video.mov', '.png', 'sin-extension'].forEach((n) => assert.strictEqual(safe(n), null, String(n)));
+  assert.strictEqual(safe('logo.png', 'otra'), null, 'Categoría desconocida');
+  assert.strictEqual(ads.uniqueFileName('fullscreen', 'promo grande.png'), 'promo grande (2).png');
+  assert.strictEqual(ads.uniqueFileName('fullscreen', 'nuevo.png'), 'nuevo.png');
+  assert.ok(ads.existingFile('banner', 'b-marca.png'));
+  assert.strictEqual(ads.existingFile('banner', '../../core.test.js'), null);
+});
+
+test('Archivo borrado de la carpeta: se quita de la cinta y de la lista de todas las pantallas', () => {
+  prepareAds();
+  const { ads } = loadModules();
+  const screens = freshScreens();
+  screens.update('pantalla-1', { ribbon: { items: ['b-marca.png'] }, media: { items: ['video.mp4'] } }, ads.listAds());
+  screens.update('pantalla-2', { media: { items: ['video.mp4', 'clip.webm'] } }, ads.listAds());
+  assert.deepStrictEqual(screens.forgetAd('fullscreen', 'video.mp4').sort(), ['pantalla-1', 'pantalla-2']);
+  assert.deepStrictEqual(screens.get('pantalla-2').media.items, ['clip.webm']);
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.items, ['b-marca.png'], 'La cinta no cambia');
+  assert.deepStrictEqual(screens.forgetAd('banner', 'b-marca.png'), ['pantalla-1']);
 });
 
 test('Si un archivo asignado se borra, se omite y se informa como "missing"', () => {
@@ -517,10 +547,20 @@ test('Migración desde la versión 2.0 (mode / ads / adInterval)', () => {
   const [p1, p2] = [screens.get('pantalla-1'), screens.get('pantalla-2')];
   assert.strictEqual(p1.matchId, 'pista-2');
   assert.strictEqual(p1.view, 'score');
-  assert.deepStrictEqual([p1.ribbon.enabled, p1.ribbon.images, p1.ribbon.interval], [true, ['b.png'], 12]);
+  assert.deepStrictEqual([p1.ribbon.enabled, p1.ribbon.items, p1.ribbon.interval], [true, ['b.png'], 12]);
   assert.deepStrictEqual(p1.media.items, ['f.png']);
   assert.strictEqual(p2.view, 'media', '"Solo publicidad" pasa a la lista de reproducción');
   assert.strictEqual(p2.media.imageSeconds, 7);
+});
+
+test('Migración desde la versión 2.1 (ribbon.images → ribbon.items)', () => {
+  fs.writeFileSync(path.join(TEST_DATA_DIR, 'screens.json'), JSON.stringify({ screens: [
+    { id: 'pantalla-1', matchId: 'pista-1', view: 'score', ribbon: { enabled: true, images: ['logo.png'], texts: ['Hola'] } },
+  ] }));
+  const p1 = loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'] }).get('pantalla-1');
+  assert.deepStrictEqual(p1.ribbon.items, ['logo.png']);
+  assert.deepStrictEqual(p1.ribbon.texts, ['Hola']);
+  assert.strictEqual('images' in p1.ribbon, false);
 });
 
 test('Reproductor: play reinicia la lista, pause/resume solo si se reproduce, stop vuelve al marcador', () => {

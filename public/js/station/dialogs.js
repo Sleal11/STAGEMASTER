@@ -61,6 +61,7 @@ export function openSetupDialog(match) {
     form.tiebreakType.value  = cfg.tiebreakType;
     form.initialServer.value = cfg.initialServer;
   }
+  showScoringHelp();
   $('dlg-setup').showModal();
   form.a1.focus();
 }
@@ -99,7 +100,13 @@ function requestSetup(matchId, config, force, button) {
   });
 }
 
+/** Explica el sistema de puntuación elegido (Punto de oro ≠ Punto Estrella) */
+function showScoringHelp() {
+  $('scoring-help').textContent = ScoreFormat.SCORING_HELP[$('form-setup').scoringSystem.value];
+}
+
 export function initDialogs() {
   $('form-setup').addEventListener('submit', submitSetup);
+  $('form-setup').scoringSystem.addEventListener('change', showScoringHelp);
   $('dlg-setup-cancel').addEventListener('click', () => $('dlg-setup').close());
 }

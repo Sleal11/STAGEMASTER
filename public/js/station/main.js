@@ -6,7 +6,8 @@
  *      (el servidor lo envía al cambiar algo, como mucho cada 100 ms)
  *   3. Reparte los clics y cambios a cada módulo:
  *        matches.js  partidos        screens.js  pantallas
- *        dialogs.js  diálogos        context.js  estado y envío de órdenes
+ *        dialogs.js  diálogos        uploads.js  subir y borrar publicidad
+ *        context.js  estado y envío de órdenes
  *
  * Los textos que cambian con el tiempo ("hace 12 s", "publicidad en 8 s") se
  * actualizan cada segundo sin redibujar las tarjetas.
@@ -18,6 +19,7 @@ import { ctx, send, toast } from './context.js';
 import { initDialogs } from './dialogs.js';
 import { renderMatches, onMatchClick } from './matches.js';
 import { renderScreens, onScreenClick, onScreenChange, onScreenInput } from './screens.js';
+import { initUploads } from './uploads.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -94,6 +96,7 @@ function setConnection(kind, text) {
 
 applyLogo();
 initDialogs();
+initUploads();
 
 $('st-matches').addEventListener('click', onMatchClick);
 $('st-screens').addEventListener('click', onScreenClick);

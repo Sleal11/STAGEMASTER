@@ -193,8 +193,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 
     handle(socket, 'station:refreshAds', () => {
       requireStation(socket);
-      screens.list().forEach((screen) => pushScreenConfig(screen.id));
-      scheduleStationState();
+      refreshAds();
       return { ads: ads.listAds() };
     });
 
@@ -425,7 +424,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     const config  = screens.get(screenId);
     const match   = registry.get(config.matchId);
     const library = ads.listAds();
-    const ribbon  = ads.resolve('banner', config.ribbon.images, library);
+    const ribbon  = ads.resolve('banner', config.ribbon.items, library);
     const media   = ads.resolve('fullscreen', config.media.items, library);
     const { postMatch, endAds } = config;
     return {
@@ -435,7 +434,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       matchLabel: match.label,
       matchColor: match.color,
       view:       config.view,
-      ribbon:     { ...config.ribbon, images: ribbon.items },
+      ribbon:     { ...config.ribbon, items: ribbon.items },
       media:      { ...config.media, items: media.items, playback: config.playback, playId: config.playId },
       // Tiempo restante (no la hora): así no importa si el reloj de la pantalla va desajustado
       postMatch:  postMatch && { remainingMs: Math.max(0, postMatch.since + endAds.delay * 1000 - Date.now()) },
@@ -445,6 +444,12 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
   }
 
   /** Envía su configuración a una pantalla (y el marcador, si cambió de partido) */
+  /** La carpeta de publicidad cambió: las pantallas y la estación se actualizan */
+  function refreshAds() {
+    screens.list().forEach((screen) => pushScreenConfig(screen.id, false));
+    scheduleStationState();
+  }
+
   function pushScreenConfig(screenId, withMatch = true) {
     const config = screens.get(screenId);
     io.to(`screen:${screenId}`).emit('screenConfig', buildScreenConfig(screenId));
@@ -492,7 +497,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
         return {
           ...config,
           matchLabel: match.label,
-          missingAds: ads.resolve('banner', config.ribbon.images, library).missing
+          missingAds: ads.resolve('banner', config.ribbon.items, library).missing
             .concat(ads.resolve('fullscreen', config.media.items, library).missing),
           displays: screens.presenceOf(config.id).map((display) => ({
             viewport:     display.viewport,
@@ -533,7 +538,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     };
   }
 
-  return { buildStationState };
+  return { buildStationState, refreshAds };
 }
 
 // ─────────────────────────────────────────────────────────────────

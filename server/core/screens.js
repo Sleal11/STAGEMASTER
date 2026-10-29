@@ -166,6 +166,23 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     return changed;
   }
 
+  /**
+   * Un archivo se borró de la carpeta: se quita de la cinta o de la lista de
+   * reproducción de todas las pantallas (en vez de quedar como "falta").
+   * @returns {string[]} Pantallas que cambian
+   */
+  function forgetAd(category, name) {
+    const key = category === 'banner' ? 'ribbon' : 'media';
+    const changed = [];
+    configs.forEach((config, id) => {
+      if (!config[key].items.includes(name)) return;
+      configs.set(id, { ...config, [key]: { ...config[key], items: config[key].items.filter((n) => n !== name) } });
+      changed.push(id);
+    });
+    if (changed.length) persist();
+    return changed;
+  }
+
   // ── Presencia ──────────────────────────────────────────────────
 
   function attach(id, socketId) {
@@ -226,6 +243,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     command,
     matchFinished,
     matchActive,
+    forgetAd,
     attach,
     detach,
     report,

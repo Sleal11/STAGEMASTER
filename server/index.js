@@ -4,7 +4,7 @@
  * index.js — Arranque del servidor de StageMaster
  *
  * Responsabilidad: poner en marcha el sistema y nada más.
- *   1. Servir las páginas (public/) y la publicidad
+ *   1. Servir las páginas (public/) y la publicidad (y recibir la que sube la estación)
  *   2. Crear los partidos (core/matchRegistry.js) y las pantallas (core/screens.js)
  *   3. Conectar la comunicación en tiempo real (realtime/socketServer.js)
  *
@@ -39,6 +39,7 @@ const { adsDir }              = require('./core/ads');
 const { isLocalAddress }      = require('./core/auth');
 const { getLocalAddresses }   = require('./core/network');
 const { attachSocketServer }  = require('./realtime/socketServer');
+const { createAdsRouter }     = require('./http/adsApi');
 
 /** Puertos que se prueban en orden si el anterior está ocupado */
 const DEFAULT_PORTS = [3000, 3001, 3002, 3003, 3004, 3005];
@@ -77,7 +78,7 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
     return { port, addresses, primary: addresses[0] || null };
   };
 
-  attachSocketServer(io, { registry, screens, getNetworkInfo, desktop });
+  const realtime = attachSocketServer(io, { registry, screens, getNetworkInfo, desktop });
 
   // ── HTTP ─────────────────────────────────────────────────────────
 
@@ -101,6 +102,12 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
 
   app.use(express.static(path.join(__dirname, '..', 'public')));
   app.use('/publicidad', express.static(adsDir()));
+
+  // Subir y borrar publicidad desde la estación (solo en el portátil)
+  app.use('/api/publicidad', createAdsRouter({
+    onChange:  () => realtime.refreshAds(),
+    onRemoved: (category, name) => screens.forgetAd(category, name),
+  }));
 
   // Raíz: el portátil va a la estación; los teléfonos, al panel del árbitro
   app.get('/', (req, res) => {

@@ -58,20 +58,35 @@ const adsDir  = process.env.STAGEMASTER_ADS_DIR  || path.join(app.getPath('docum
 process.env.STAGEMASTER_DATA_DIR = dataDir;
 process.env.STAGEMASTER_ADS_DIR  = adsDir;
 
-/** La primera vez crea la carpeta de publicidad con los ejemplos y las instrucciones */
+/**
+ * Prepara la carpeta de publicidad con los ejemplos y las instrucciones.
+ * Una vez por cada juego de ejemplos (marca SAMPLES_MARKER): añade los que
+ * falten, nunca sustituye archivos y no vuelve a poner los que el operador
+ * borre. Así quien actualiza desde una versión anterior recibe los ejemplos
+ * nuevos (como el vídeo de ejemplo).
+ */
+const SAMPLES_MARKER = '.ejemplos-2.2';
+
 function prepareAdsFolder() {
-  if (fs.existsSync(adsDir)) return;
-  const samples = path.join(__dirname, '..', 'publicidad');
-  ['banner', 'pantalla-completa'].forEach((folder) => {
-    fs.mkdirSync(path.join(adsDir, folder), { recursive: true });
-    const source = path.join(samples, folder);
-    if (!fs.existsSync(source)) return;
-    fs.readdirSync(source).forEach((file) => {
-      fs.copyFileSync(path.join(source, file), path.join(adsDir, folder, file));
+  try {
+    const marker = path.join(adsDir, SAMPLES_MARKER);
+    if (fs.existsSync(marker)) return;
+    const samples = path.join(__dirname, '..', 'publicidad');
+    ['banner', 'pantalla-completa'].forEach((folder) => {
+      fs.mkdirSync(path.join(adsDir, folder), { recursive: true });
+      const source = path.join(samples, folder);
+      if (!fs.existsSync(source)) return;
+      fs.readdirSync(source).forEach((file) => {
+        const target = path.join(adsDir, folder, file);
+        if (!fs.existsSync(target)) fs.copyFileSync(path.join(source, file), target);
+      });
     });
-  });
-  const readme = path.join(samples, 'LEEME.txt');
-  if (fs.existsSync(readme)) fs.copyFileSync(readme, path.join(adsDir, 'LEEME.txt'));
+    const readme = path.join(samples, 'LEEME.txt');
+    if (fs.existsSync(readme)) fs.copyFileSync(readme, path.join(adsDir, 'LEEME.txt'));
+    fs.writeFileSync(marker, 'Ejemplos de StageMaster ya copiados. Borra este archivo para volver a copiar los que falten.\n');
+  } catch (err) {
+    console.warn('[Escritorio] No se pudo preparar la carpeta de publicidad:', err.message);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -158,9 +173,11 @@ function openScreenWindow(screenId, target, list) {
   // y siguen a velocidad normal aunque la ventana no tenga el foco
   const webPreferences = { backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' };
 
+  // Las ventanas se muestran cuando su página ya está dibujada: nunca se ve
+  // una ventana vacía (solo el color de fondo) mientras carga
   const win = target === 'window'
     ? new BrowserWindow({
-      width: 960, height: 540, title: `StageMaster · Pantalla ${number} (ventana de prueba)`,
+      width: 960, height: 540, show: false, title: `StageMaster · Pantalla ${number} (ventana de prueba)`,
       backgroundColor: BACKGROUND, autoHideMenuBar: true, icon: ICON,
       webPreferences,
     })
@@ -170,13 +187,28 @@ function openScreenWindow(screenId, target, list) {
       webPreferences,
     });
 
-  if (target !== 'window') {
-    win.once('ready-to-show', () => {
+  let shown = false;
+  const reveal = () => {
+    if (shown || win.isDestroyed()) return;
+    shown = true;
+    if (target === 'window') {
+      win.showInactive();   // no le quita el foco a la estación
+    } else {
       fitToMonitor(win, monitor);
       win.show();
       win.setFullScreen(true);
-    });
-  }
+    }
+  };
+  win.once('ready-to-show', reveal);
+  setTimeout(reveal, 8000);   // por si la página tarda: mejor verla que tenerla oculta
+
+  // Si la página no carga (el servidor tardó en responder), se reintenta sola
+  win.webContents.on('did-fail-load', (event, code, description, failedUrl, isMainFrame) => {
+    if (!isMainFrame || code === -3) return;   // -3 = carga cancelada a propósito
+    console.warn(`[Escritorio] ${screenId}: no cargó (${description}); reintentando…`);
+    setTimeout(() => { if (!win.isDestroyed()) win.loadURL(url); }, 1500);
+  });
+  protectWindow(win);
 
   win.on('closed', () => {
     const record = screenWindows.get(screenId);
@@ -190,6 +222,17 @@ function openScreenWindow(screenId, target, list) {
 
   win.loadURL(url);
   screenWindows.set(screenId, { win, target, closingByApp: false });
+}
+
+/**
+ * Una ventana de StageMaster solo muestra páginas de StageMaster: si se suelta
+ * un archivo encima o algo intenta navegar fuera, no pasa nada.
+ */
+function protectWindow(win) {
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(baseUrl)) event.preventDefault();
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
 function fitToMonitor(win, monitor) {
@@ -223,6 +266,10 @@ function openStationWindow() {
       return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, backgroundColor: BACKGROUND } };
     }
     return { action: 'deny' };
+  });
+
+  stationWindow.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(baseUrl)) event.preventDefault();
   });
 
   // Cerrar la estación cierra StageMaster (con confirmación)

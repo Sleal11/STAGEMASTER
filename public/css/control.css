@@ -972,3 +972,11 @@ body.is-offline .btn-secondary {
   flex-direction: column;
   gap: var(--space-sm);
 }
+
+/* Explicación del sistema de puntuación (Punto de oro ≠ Punto Estrella) */
+.scoring-help {
+  margin-top: var(--space-sm);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}

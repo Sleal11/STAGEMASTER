@@ -202,14 +202,20 @@ function renderMatch() {
   // ── Deshacer: solo si el servidor tiene historial ─────────────
   document.getElementById('btn-undo').disabled = !matchState.canUndo;
 
-  // ── Pausa: sin puntos ni cambio de saque hasta reanudar ───────
+  // ── Pausa (o partido ya terminado): sin puntos ni cambio de saque ──
+  var finished = matchState.status === 'finished';
   ['btn-point-a', 'btn-point-b', 'btn-change-server'].forEach(function (id) {
-    document.getElementById(id).disabled = paused;
+    document.getElementById(id).disabled = paused || finished;
   });
   var pauseBtn = document.getElementById('btn-pause');
   pauseBtn.innerHTML = paused ? icon('play') + 'Reanudar' : icon('pause') + 'Pausar';
   pauseBtn.classList.toggle('is-resume', paused);
+  pauseBtn.disabled = finished;
   document.getElementById('paused-banner').classList.toggle('hidden', !paused);
+
+  // Partido terminado (revisando el marcador): "Finalizar" pasa a "Resultado"
+  // para volver a la pantalla final y desde ahí empezar un partido nuevo
+  document.getElementById('btn-finish').innerHTML = icon('flag') + (finished ? 'Resultado' : 'Finalizar');
 
   // ── Indicador de saque ───────────────────────────────────────
   var iconA = document.getElementById('server-icon-a');
@@ -391,8 +397,13 @@ function handleResetConfirm() {
   );
 }
 
-/** Muestra el modal de confirmación para Finalizar */
+/** Muestra el modal de confirmación para Finalizar (o el resultado, si ya terminó) */
 function handleFinishConfirm() {
+  if (matchState && matchState.status === 'finished') {
+    reviewingFinished = false;
+    routeToScreen();
+    return;
+  }
   showModal(
     'Finalizar Partido',
     'El partido se dará por terminado con el marcador actual. El equipo con más sets ganados será el ganador.',
@@ -852,6 +863,11 @@ function initSelectionGroup(groupId) {
   });
 }
 
+/** Explica el sistema de puntuación elegido */
+function updateScoringHelp() {
+  document.getElementById('scoring-help').textContent = ScoreFormat.SCORING_HELP[getSelectedValue('group-scoring')];
+}
+
 /** Actualiza las etiquetas del grupo de saque con los nombres escritos */
 function updateServerButtonLabels() {
   // Nombre corto: el primer jugador de cada pareja
@@ -874,6 +890,8 @@ document.addEventListener('DOMContentLoaded', function () {
   initSelectionGroup('group-scoring');
   initSelectionGroup('group-tiebreak');
   initSelectionGroup('group-server');
+  document.getElementById('group-scoring').addEventListener('click', updateScoringHelp);
+  updateScoringHelp();
 
   // ── Actualizar etiquetas de saque al escribir nombres ─────────
   document.getElementById('input-name-a').addEventListener('input', updateServerButtonLabels);

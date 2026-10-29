@@ -3,11 +3,15 @@
 # Cuándo se ejecuta:
 #   - Al subir cambios a main o a las ramas de trabajo (claude/...)
 #   - Manualmente: pestaña "Actions" → "StageMaster para Windows" → "Run workflow"
-#   - Al crear una versión con etiqueta (ej. v2.0.0): además publica el .exe
-#     en la sección "Releases" del repositorio
+#   - Al crear una versión con etiqueta (ej. v2.1.0): además publica el .exe
+#     en la sección "Releases" del repositorio (versión para el cliente)
 #
 # Dónde se descarga el .exe:
-#   Actions → la ejecución más reciente → "Artifacts" → StageMaster-Windows
+#   - VERSIÓN DE PRUEBA (cada cambio, sin iniciar sesión, enlace fijo):
+#       https://github.com/Sleal11/STAGEMASTER/releases/download/prueba/StageMaster-prueba.exe
+#     Es una "pre-release": el enlace del cliente (releases/latest) no cambia.
+#   - Actions → la ejecución → "Artifacts" → StageMaster-Windows
+#   - Versión para el cliente: Releases (etiquetas v*)
 #
 # Se compila en Windows real: así el ejecutable lleva su icono y las pruebas
 # se ejecutan también en Windows antes de generarlo.
@@ -22,6 +26,11 @@ on:
 
 permissions:
   contents: write
+
+# Si se suben dos cambios seguidos, solo cuenta el último
+concurrency:
+  group: stagemaster-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -50,6 +59,29 @@ jobs:
           name: StageMaster-Windows
           path: dist/*.exe
           retention-days: 30
+
+      # Versión de prueba: la etiqueta "prueba" se mueve a este commit y su
+      # .exe se sustituye. El enlace de descarga nunca cambia.
+      - name: Publicar la versión de prueba
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          cp dist/StageMaster-*.exe dist/StageMaster-prueba.exe
+          VERSION=$(node -p "require('./package.json').version")
+          FECHA=$(date -u +'%Y-%m-%d %H:%M UTC')
+          git tag -f prueba
+          git push -f origin refs/tags/prueba
+          NOTAS="Versión de PRUEBA $VERSION · rama ${GITHUB_REF_NAME} · commit ${GITHUB_SHA::7} · $FECHA. Se actualiza sola con cada cambio. Para el cliente, usar la última versión de Releases."
+          if gh release view prueba >/dev/null 2>&1; then
+            gh release edit prueba --prerelease --title "StageMaster · versión de prueba ($VERSION)" --notes "$NOTAS"
+            gh release upload prueba dist/StageMaster-prueba.exe --clobber
+          else
+            gh release create prueba dist/StageMaster-prueba.exe --prerelease --latest=false \
+              --title "StageMaster · versión de prueba ($VERSION)" --notes "$NOTAS"
+          fi
 
       - name: Publicar en Releases (solo con etiqueta v*)
         if: startsWith(github.ref, 'refs/tags/v')

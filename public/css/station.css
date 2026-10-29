@@ -511,6 +511,70 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
   accent-color: var(--st-accent);
 }
 
+/* Fila de archivo: casilla + botón de borrar */
+.check-row { display: flex; align-items: center; gap: 4px; }
+.check-row .check { flex: 1; min-width: 0; }
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--st-muted);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.icon-btn .icon { width: 16px; height: 16px; }
+.icon-btn:hover { background: rgba(239, 68, 68, 0.15); color: #FCA5A5; }
+.icon-btn:focus-visible { outline: 2px solid var(--st-accent); }
+
+/* Zona para soltar archivos (arrastrar desde el Explorador de Windows) */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 6px;
+  border-radius: 10px;
+  border: 2px dashed transparent;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.dropzone.is-over { border-color: var(--st-accent); background: rgba(143, 211, 255, 0.08); }
+.upload-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 0.82rem; }
+
+/* Progreso de subida */
+.st-upload {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 100;
+  width: min(420px, 90vw);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--st-accent);
+  background: var(--st-surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.st-upload-text { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 0.86rem; }
+.st-upload-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-upload-track { height: 8px; border-radius: 999px; background: var(--st-inset); overflow: hidden; }
+.st-upload-bar { height: 100%; width: 0; border-radius: 999px; background: var(--st-accent); transition: width 150ms linear; }
+
+/* Explicación del sistema de puntuación en el diálogo de partido */
+.st-scoring-help {
+  margin: -2px 0 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--st-inset);
+  border-left: 3px solid var(--st-accent);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--st-soft);
+}
+
 /* Control segmentado */
 .segmented {
   display: inline-flex;

@@ -15,6 +15,7 @@
 import { esc, icon, fileNameOf } from '../common/ui.js';
 import { ctx, send, toast, findMatch, findScreen, serverNow, patch } from './context.js';
 import { confirmDialog } from './dialogs.js';
+import { pickFiles, deleteAd } from './uploads.js';
 
 const TABS = [
   { id: 'content', label: 'Contenido',             icon: 'sliders' },
@@ -101,10 +102,18 @@ function statusHtml(screen) {
     </div>`;
 }
 
+/** Archivos de la lista que se pueden reproducir (están en la carpeta y no fallaron) */
+function playableCount(screen) {
+  const failed = [].concat(...screen.displays.map((d) => d.adErrors)).map(fileNameOf);
+  return screen.media.items.filter((name) =>
+    !screen.missingAds.includes('pantalla-completa/' + name) && !failed.includes(name)).length;
+}
+
 function liveHtml(screen) {
   const media     = screen.view === 'media';
   const postMatch = screen.postMatch;
   const playing   = screen.displays[0] && screen.displays[0].playing;
+  const hasList   = playableCount(screen) > 0;
   const showsAt   = postMatch ? postMatch.since + screen.endAds.delay * 1000 : 0;
   const mediaOn   = media || (postMatch && serverNow() >= showsAt);
   const segment = (view, iconName, text) =>
@@ -114,15 +123,20 @@ function liveHtml(screen) {
 
   let transport = '';
   if (media || postMatch) {
+    const pause = !hasList ? '' : screen.playback === 'paused'
+      ? btn('resume', 'play', 'Reanudar', 'btn-warn') : btn('pause', 'pause', 'Pausar', 'btn-secondary');
     transport = `<div class="st-transport">
-        ${screen.playback === 'paused' ? btn('resume', 'play', 'Reanudar', 'btn-warn') : btn('pause', 'pause', 'Pausar', 'btn-secondary')}
-        ${btn('stop', 'stop', postMatch ? 'Volver al marcador' : 'Detener', 'btn-secondary')}
-        <span class="st-now">${nowPlaying(screen, playing)}</span>
+        ${pause}${btn('stop', 'stop', postMatch && !media ? 'Volver al marcador' : 'Detener', 'btn-secondary')}
+        <span class="st-now">${nowPlaying(screen, playing, hasList, postMatch && !media)}</span>
       </div>`;
   }
-  const banner = postMatch ? `<div class="st-banner">${icon('clock')}<span>Fin del partido: ` +
-    (mediaOn ? 'mostrando la publicidad.' : `publicidad en <strong data-tick-until="${showsAt}"></strong>.`) +
-    ' Vuelve al marcador al empezar otro partido o al deshacer el último punto.</span></div>' : '';
+  let banner = '';
+  if (postMatch && !media) {
+    const what = !hasList ? 'la lista de reproducción está vacía, se sigue viendo el resultado.'
+      : mediaOn ? 'mostrando la publicidad.' : `publicidad en <strong data-tick-until="${showsAt}"></strong>.`;
+    banner = `<div class="st-banner">${icon('clock')}<span>Fin del partido: ${what}` +
+      ' Vuelve al marcador al empezar otro partido o al deshacer el último punto.</span></div>';
+  }
 
   return `<div class="st-live">
       <div class="segmented segmented-lg" role="group" aria-label="Qué se ve en la pantalla">
@@ -132,8 +146,10 @@ function liveHtml(screen) {
     </div>`;
 }
 
-function nowPlaying(screen, playing) {
-  if (!screen.media.items.length) return `${icon('alert')}Lista vacía: se ve el logo`;
+function nowPlaying(screen, playing, hasList, afterMatch) {
+  if (!hasList) {
+    return `${icon('alert')}${afterMatch ? 'Lista vacía' : 'Lista vacía: se ve el logo'} · añade imágenes o vídeos en «Lista de reproducción»`;
+  }
   if (!playing) return 'Preparando…';
   const what = `${playing.index}/${playing.total} · ${esc(playing.name)}`;
   return `${icon(playing.kind === 'video' ? 'video' : 'image')}${playing.paused ? 'En pausa · ' : ''}${what}`;
@@ -155,7 +171,7 @@ function warningsHtml(screen) {
   if (displays.some((d) => d.soundBlocked)) {
     warnings.push('El navegador bloqueó el sonido de los vídeos: se reproducen sin sonido.');
   }
-  if (screen.endAds.enabled && !screen.media.items.length) {
+  if (screen.endAds.enabled && playableCount(screen) === 0) {
     warnings.push('Publicidad al terminar activada, pero la lista de reproducción está vacía: al terminar se seguirá viendo el resultado.');
   }
   return warnings.map((w) => `<div class="st-warning">${icon('alert')}<span>${w}</span></div>`).join('');
@@ -193,18 +209,31 @@ function contentPanel(screen, state) {
       number('endDelay', screen.id, screen.endAds.delay, state.limits.delay, 'segundos con el resultado antes de la publicidad')) : '');
 }
 
+/** Lista de archivos con casillas, botón "Subir archivos…" y zona para arrastrar */
+function libraryHtml(category, action, screen, selected, emptyText, tall = false) {
+  const library = ctx.state.ads[category];
+  const items = library.length
+    ? library.map((ad) => checkItem(action, screen.id, ad, selected.includes(ad.name), category)).join('')
+    : `<span class="muted">${emptyText}</span>`;
+  return `<div class="dropzone" data-category="${category}" data-screen="${screen.id}">
+      <div class="checklist${tall ? ' checklist-tall' : ''}">${items}</div>
+      <div class="upload-row">
+        <button type="button" class="btn btn-secondary btn-sm" data-action="upload" data-category="${category}" data-screen="${screen.id}">${icon('upload')}Subir archivos…</button>
+        <span class="muted">o arrástralos aquí · se marcan solos en esta pantalla</span>
+      </div>
+    </div>`;
+}
+
 function ribbonPanel(screen, state) {
   const { ribbon } = screen;
-  const library = state.ads.banner;
-  const images = library.length ? library.map((ad) => checkItem('ribbonImage', screen.id, ad, ribbon.images.includes(ad.name))).join('')
-    : '<span class="muted">La carpeta <strong>banner</strong> está vacía.</span>';
   const motion = (value, text) =>
     `<button type="button" class="${ribbon.motion === value ? 'is-active' : ''}" data-action="motion" data-motion="${value}" data-screen="${screen.id}">${text}</button>`;
   const speeds = Object.entries(SPEED_LABELS).map(([value, text]) =>
     `<button type="button" class="${ribbon.speed === value ? 'is-active' : ''}" data-action="speed" data-speed="${value}" data-screen="${screen.id}">${text}</button>`).join('');
 
   return field('Cinta', toggle('ribbonEnabled', screen.id, ribbon.enabled, 'Mostrar la cinta debajo del marcador')) +
-    field('Imágenes y logos', `<div class="checklist">${images}</div>`, 'PNG de la carpeta banner (recomendado 1920 × 200).') +
+    field('Imágenes, logos y vídeos', libraryHtml('banner', 'ribbonItem', screen, ribbon.items, 'Aún no hay archivos para la cinta.'),
+      'Imágenes PNG/JPG (recomendado 1920 × 200, logos con fondo transparente) y vídeos cortos MP4 o WEBM (sin sonido).') +
     field('Mensajes', `<textarea class="input" rows="3" maxlength="1300" data-action="texts" data-screen="${screen.id}" placeholder="Un mensaje por línea (ej. Gracias a Bar Central)">${esc(ribbon.texts.join('\n'))}</textarea>` +
       `<button type="button" class="btn btn-secondary btn-sm" data-action="applyTexts" data-screen="${screen.id}" disabled>${icon('check')}Aplicar mensajes</button>`,
       `Hasta ${state.limits.texts} mensajes de ${state.limits.textLength} caracteres.`) +
@@ -216,11 +245,9 @@ function ribbonPanel(screen, state) {
 
 function mediaPanel(screen, state) {
   const { media } = screen;
-  const library = state.ads.fullscreen;
-  const items = library.length ? library.map((ad) => checkItem('mediaItem', screen.id, ad, media.items.includes(ad.name))).join('')
-    : '<span class="muted">La carpeta <strong>pantalla-completa</strong> está vacía.</span>';
-  return field('Imágenes y vídeos', `<div class="checklist checklist-tall">${items}</div>`,
-    'Se reproducen en bucle, en orden alfabético (para ordenarlos, empieza los nombres por 01-, 02-…). Vídeo: MP4 (H.264) o WEBM.') +
+  return field('Imágenes y vídeos', libraryHtml('fullscreen', 'mediaItem', screen, media.items, 'Aún no hay imágenes ni vídeos.', true),
+    'Se reproducen en bucle y en orden alfabético (para ordenarlos, empieza los nombres por 01-, 02-…). ' +
+    'Imágenes PNG/JPG y vídeos MP4 (H.264) o WEBM. Para LED, mejor en 2:1 (ej. 1664 × 832).') +
     field('Cada imagen', number('imageSeconds', screen.id, media.imageSeconds, state.limits.imageSeconds, 'segundos (los vídeos duran lo que duran)')) +
     field('Sonido', toggle('sound', screen.id, media.sound, 'Vídeos con sonido'));
 }
@@ -249,9 +276,11 @@ function outputPanel(screen, state) {
     'Píxel del monitor donde empieza la pantalla LED (normalmente 0, 0).') : '');
 }
 
-function checkItem(action, screenId, ad, checked) {
-  return `<label class="check"><input type="checkbox" data-action="${action}" data-screen="${screenId}" value="${esc(ad.name)}"${checked ? ' checked' : ''}>` +
-    `${icon(ad.kind === 'video' ? 'video' : 'image')}<span>${esc(ad.name)}</span></label>`;
+function checkItem(action, screenId, ad, checked, category) {
+  return `<div class="check-row"><label class="check"><input type="checkbox" data-action="${action}" data-screen="${screenId}" value="${esc(ad.name)}"${checked ? ' checked' : ''}>` +
+    `${icon(ad.kind === 'video' ? 'video' : 'image')}<span>${esc(ad.name)}</span></label>` +
+    `<button type="button" class="icon-btn" data-action="deleteAd" data-category="${category}" data-name="${esc(ad.name)}" data-screen="${screenId}" ` +
+    `title="Borrar de la carpeta" aria-label="Borrar ${esc(ad.name)}">${icon('trash')}</button></div>`;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -313,6 +342,12 @@ export function onScreenClick(event) {
     case 'speed':
       update(screenId, { ribbon: { speed: el.dataset.speed } });
       break;
+    case 'upload':
+      pickFiles(el.dataset.category, screenId);
+      break;
+    case 'deleteAd':
+      deleteAd(el.dataset.category, el.dataset.name);
+      break;
     case 'applyTexts': {
       const textarea = el.parentElement.querySelector('textarea');
       update(screenId, { ribbon: { texts: textarea.value.split('\n') } }).then((res) => {
@@ -357,7 +392,7 @@ export function onScreenChange(event) {
     case 'endDelay':       update(screenId, { endAds: { delay: value } }); break;
     case 'ribbonEnabled':  update(screenId, { ribbon: { enabled: el.checked } }); break;
     case 'ribbonInterval': update(screenId, { ribbon: { interval: value } }); break;
-    case 'ribbonImage':    update(screenId, { ribbon: { images: checkedValues(screenId, 'ribbonImage') } }); break;
+    case 'ribbonItem':     update(screenId, { ribbon: { items: checkedValues(screenId, 'ribbonItem') } }); break;
     case 'mediaItem':      update(screenId, { media: { items: checkedValues(screenId, 'mediaItem') } }); break;
     case 'imageSeconds':   update(screenId, { media: { imageSeconds: value } }); break;
     case 'sound':          update(screenId, { media: { sound: el.checked } }); break;

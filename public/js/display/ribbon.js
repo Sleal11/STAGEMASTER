@@ -3,10 +3,12 @@
  *
  * Una franja en la parte de abajo del marcador (nunca tapa nombres ni
  * números: el marcador se reparte el espacio que queda). Contenido:
- * imágenes/logos de la carpeta banner/ y mensajes de texto, intercalados.
+ * imágenes, logos y vídeos (siempre sin sonido) de la carpeta banner/ y
+ * mensajes de texto, intercalados.
  *
  * Dos movimientos:
- *   'rotate'  Un elemento cada vez, con fundido, cada `interval` segundos.
+ *   'rotate'  Un elemento cada vez, con fundido, cada `interval` segundos
+ *             (un vídeo se ve entero antes de pasar al siguiente).
  *             Un mensaje que no cabe se reduce un poco y, si aún no cabe,
  *             cruza la cinta una vez a velocidad de lectura.
  *   'scroll'  Desplazamiento continuo de todos los elementos, sin saltos
@@ -38,24 +40,24 @@ export function createRibbon(container, { onChange }) {
   let build     = 0;   // invalida cargas de una configuración anterior
   const failed  = new Set();
 
-  /** Imágenes y mensajes intercalados: img, texto, img, texto… */
+  /** Archivos (imágenes y vídeos) y mensajes intercalados: archivo, texto, archivo, texto… */
   function items() {
     if (!config) return [];
-    const images = config.images.filter((img) => !failed.has(img.url)).map((img) => ({ type: 'image', ...img }));
-    const texts  = config.texts.map((text) => ({ type: 'text', text }));
+    const media = config.items.filter((item) => !failed.has(item.url)).map((item) => ({ type: item.kind, ...item }));
+    const texts = config.texts.map((text) => ({ type: 'text', text }));
     const list = [];
-    for (let i = 0; i < Math.max(images.length, texts.length); i++) {
-      if (images[i]) list.push(images[i]);
+    for (let i = 0; i < Math.max(media.length, texts.length); i++) {
+      if (media[i]) list.push(media[i]);
       if (texts[i]) list.push(texts[i]);
     }
     return list;
   }
 
   function configure(ribbon) {
-    const next = JSON.stringify([ribbon.enabled, ribbon.images.map((i) => i.url), ribbon.texts,
+    const next = JSON.stringify([ribbon.enabled, ribbon.items.map((i) => i.url), ribbon.texts,
       ribbon.motion, ribbon.interval, ribbon.speed]);
     if (next === signature) return;
-    if (!config || JSON.stringify(config.images) !== JSON.stringify(ribbon.images)) failed.clear();
+    if (!config || JSON.stringify(config.items) !== JSON.stringify(ribbon.items)) failed.clear();
     signature = next;
     config = ribbon;
     rebuild();
@@ -80,6 +82,7 @@ export function createRibbon(container, { onChange }) {
   function stop() {
     clearTimeout(timer);
     if (animation) animation.cancel();
+    container.querySelectorAll('video').forEach(releaseVideo);
     animation = null;
     current = null;
     index = -1;
@@ -89,7 +92,13 @@ export function createRibbon(container, { onChange }) {
     return !!config && config.enabled && items().length > 0;
   }
 
-  function imageFailed(url) {
+  function releaseVideo(video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+  }
+
+  function mediaFailed(url) {
     if (failed.has(url)) return;
     failed.add(url);
     console.warn('[Cinta] No se puede mostrar:', url);
@@ -99,13 +108,24 @@ export function createRibbon(container, { onChange }) {
 
   // ── Elementos ───────────────────────────────────────────────────
 
-  function createItem(item) {
+  /** @param {boolean} loop - Vídeo en bucle (desplazamiento o único elemento) */
+  function createItem(item, loop) {
     if (item.type === 'image') {
       const img = document.createElement('img');
       img.className = 'ribbon-item ribbon-image';
       img.alt = '';
       img.src = item.url;
       return img;
+    }
+    if (item.type === 'video') {
+      // Atributos (no propiedades): así las copias de la cinta también son mudas y arrancan solas
+      const video = document.createElement('video');
+      video.className = 'ribbon-item ribbon-image';
+      ['muted', 'autoplay', 'playsinline'].concat(loop ? ['loop'] : []).forEach((a) => video.setAttribute(a, ''));
+      video.muted = true;
+      video.preload = 'auto';
+      video.src = item.url;
+      return video;
     }
     const div = document.createElement('div');
     div.className = 'ribbon-item ribbon-text';
@@ -125,24 +145,38 @@ export function createRibbon(container, { onChange }) {
 
     index = (index + 1) % list.length;
     const item = list[index];
-    const el = createItem(item);
+    const el = createItem(item, list.length === 1);
     el.classList.add('ribbon-slide');
     container.appendChild(el);
     const myBuild = build;
 
     const show = () => {
-      if (myBuild !== build) return;
+      if (myBuild !== build || el.classList.contains('is-visible')) return;
       const previous = current;
       current = el;
       el.classList.add('is-visible');
-      if (previous) setTimeout(() => previous.remove(), FADE_MS + 50);
-      const extraMs = item.type === 'text' ? fitText(el, list.length === 1) : 0;
-      if (list.length > 1) timer = setTimeout(rotateNext, Math.max(config.interval * 1000, extraMs));
+      if (previous) setTimeout(() => { if (previous.tagName === 'VIDEO') releaseVideo(previous); previous.remove(); }, FADE_MS + 50);
+      if (list.length === 1) {
+        if (item.type === 'text') fitText(el, true);
+        return;
+      }
+      if (item.type === 'video') {
+        // El vídeo se ve entero; por si no avisa al terminar, un tope de seguridad
+        el.onended = () => { if (myBuild === build) rotateNext(); };
+        const seconds = Number.isFinite(el.duration) ? el.duration : config.interval * 3;
+        timer = setTimeout(rotateNext, (seconds + 2) * 1000);
+        return;
+      }
+      const extraMs = item.type === 'text' ? fitText(el, false) : 0;
+      timer = setTimeout(rotateNext, Math.max(config.interval * 1000, extraMs));
     };
 
     if (item.type === 'image') {
       el.onload  = show;
-      el.onerror = () => { el.remove(); imageFailed(item.url); };
+      el.onerror = () => { el.remove(); mediaFailed(item.url); };
+    } else if (item.type === 'video') {
+      el.onloadeddata = show;
+      el.onerror = () => { releaseVideo(el); el.remove(); mediaFailed(item.url); };
     } else {
       requestAnimationFrame(show);
     }
@@ -183,16 +217,17 @@ export function createRibbon(container, { onChange }) {
     group.className = 'ribbon-group';
 
     const loads = list.map((item) => {
-      const el = createItem(item);
+      const el = createItem(item, true);
       group.appendChild(el);
       const sep = document.createElement('span');
       sep.className = 'ribbon-sep';
       group.appendChild(sep);
-      if (item.type !== 'image') return Promise.resolve(true);
+      if (item.type === 'text') return Promise.resolve(true);
+      // Hay que conocer el tamaño de imágenes y vídeos antes de medir la cinta
       return new Promise((resolve) => {
-        if (el.complete && el.naturalWidth) resolve(true);
-        el.onload  = () => resolve(true);
-        el.onerror = () => resolve(item.url);
+        if (item.type === 'image' && el.complete && el.naturalWidth) resolve(true);
+        el.addEventListener(item.type === 'image' ? 'load' : 'loadedmetadata', () => resolve(true), { once: true });
+        el.addEventListener('error', () => resolve(item.url), { once: true });
       });
     });
     track.appendChild(group);
@@ -201,7 +236,7 @@ export function createRibbon(container, { onChange }) {
     Promise.all(loads).then((results) => {
       if (myBuild !== build) return;
       const broken = results.find((r) => typeof r === 'string');
-      if (broken) { imageFailed(broken); return; }
+      if (broken) { mediaFailed(broken); return; }
 
       const groupWidth = group.getBoundingClientRect().width;
       if (!groupWidth) return;

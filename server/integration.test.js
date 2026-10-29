@@ -404,12 +404,12 @@ test('Cinta publicitaria: imágenes y mensajes se aplican en vivo a la pantalla'
   assert.deepStrictEqual(estacion.stationState.ads.banner.map((a) => a.name), ['patrocinador.png']);
   const res = await send(estacion, 'station:updateScreen', {
     screenId: 'pantalla-1',
-    changes: { ribbon: { enabled: true, images: ['patrocinador.png'], texts: ['  Gracias a   Bar Central ', ''], motion: 'scroll', interval: 8 } },
+    changes: { ribbon: { enabled: true, items: ['patrocinador.png'], texts: ['  Gracias a   Bar Central ', ''], motion: 'scroll', interval: 8 } },
   });
   assert.ok(res.ok, res.message);
-  await waitFor(() => pantalla1.screenConfig.ribbon.images.length === 1, 'cinta en la pantalla 1');
+  await waitFor(() => pantalla1.screenConfig.ribbon.items.length === 1, 'cinta en la pantalla 1');
   const { ribbon } = pantalla1.screenConfig;
-  assert.strictEqual(ribbon.images[0].url, '/publicidad/banner/patrocinador.png');
+  assert.strictEqual(ribbon.items[0].url, '/publicidad/banner/patrocinador.png');
   assert.deepStrictEqual(ribbon.texts, ['Gracias a Bar Central'], 'Mensajes limpios (espacios y vacíos)');
   assert.strictEqual(ribbon.motion, 'scroll');
   assert.strictEqual(ribbon.interval, 8);
@@ -418,7 +418,7 @@ test('Cinta publicitaria: imágenes y mensajes se aplican en vivo a la pantalla'
   assert.strictEqual(http.status, 200, 'El servidor sirve el archivo de publicidad');
 });
 
-test('Lista de reproducción con vídeo: la pantalla recibe imágenes y vídeos en orden; el vídeo se sirve por partes', async () => {
+test('Lista de reproducción con vídeo: la pantalla recibe imágenes y vídeos en orden alfabético; el vídeo se sirve por partes', async () => {
   const library = estacion.stationState.ads.fullscreen;
   assert.deepStrictEqual(library.map((a) => [a.name, a.kind]), [['anuncio.mp4', 'video'], ['promo.jpg', 'image']]);
   const res = await send(estacion, 'station:updateScreen', {
@@ -426,7 +426,7 @@ test('Lista de reproducción con vídeo: la pantalla recibe imágenes y vídeos 
   });
   assert.ok(res.ok, res.message);
   await waitFor(() => pantalla1.screenConfig.media.items.length === 2, 'lista en la pantalla 1');
-  assert.deepStrictEqual(pantalla1.screenConfig.media.items.map((i) => i.kind), ['image', 'video']);
+  assert.deepStrictEqual(pantalla1.screenConfig.media.items.map((i) => i.name), ['anuncio.mp4', 'promo.jpg']);
   assert.strictEqual(pantalla1.screenConfig.media.sound, true);
 
   // Los vídeos se piden por rangos (así se reproducen sin descargarlos enteros)
@@ -454,9 +454,60 @@ test('Reproductor: reproducir, pausar, reanudar y detener (vuelve al marcador)',
   assert.strictEqual(pantalla2.screenConfig.view, 'score', 'La otra pantalla no cambia');
 });
 
+test('Subir publicidad desde la estación: se guarda, aparece en la biblioteca y en las pantallas', async () => {
+  const upload = (category, name, body) => fetch(`http://localhost:${PORT}/api/publicidad/${category}`, {
+    method: 'POST', headers: { 'X-File-Name': encodeURIComponent(name), 'Content-Type': 'application/octet-stream' }, body,
+  }).then(async (r) => ({ status: r.status, ...(await r.json()) }));
+
+  let res = await upload('banner', 'Logo Bar Central.png', Buffer.alloc(2048, 1));
+  assert.deepStrictEqual([res.status, res.name, res.kind], [200, 'Logo Bar Central.png', 'image']);
+  assert.strictEqual(fs.readFileSync(path.join(ADS_DIR, 'banner', 'Logo Bar Central.png')).length, 2048);
+  await waitFor(() => estacion.stationState.ads.banner.some((a) => a.name === 'Logo Bar Central.png'), 'biblioteca actualizada');
+
+  res = await upload('banner', 'Logo Bar Central.png', Buffer.alloc(10, 2));
+  assert.strictEqual(res.name, 'Logo Bar Central (2).png', 'No pisa el archivo existente');
+  res = await upload('banner', 'clip cinta.mp4', Buffer.alloc(4096, 3));
+  assert.deepStrictEqual([res.status, res.kind], [200, 'video'], 'La cinta admite vídeos');
+  res = await upload('fullscreen', '../../../fuera.png', Buffer.alloc(10, 4));
+  assert.strictEqual(res.name, 'fuera.png', 'Nunca sale de la carpeta');
+  assert.ok(fs.existsSync(path.join(ADS_DIR, 'pantalla-completa', 'fuera.png')));
+
+  res = await upload('fullscreen', 'virus.exe', Buffer.alloc(10));
+  assert.strictEqual(res.status, 415, 'Formato no admitido');
+  res = await upload('otra', 'x.png', Buffer.alloc(10));
+  assert.strictEqual(res.status, 404);
+  res = await upload('fullscreen', 'vacio.png', Buffer.alloc(0));
+  assert.strictEqual(res.status, 400, 'Archivo vacío');
+  assert.ok(!fs.readdirSync(path.join(ADS_DIR, 'pantalla-completa')).some((f) => f.includes('subiendo') || f === 'vacio.png'),
+    'No quedan archivos a medias');
+
+  // Seleccionado en la cinta y después borrado: desaparece de la pantalla
+  await send(estacion, 'station:updateScreen', { screenId: 'pantalla-1', changes: { ribbon: { items: ['patrocinador.png', 'clip cinta.mp4'] } } });
+  await waitFor(() => pantalla1.screenConfig.ribbon.items.length === 2, 'cinta con vídeo');
+  assert.strictEqual(pantalla1.screenConfig.ribbon.items[0].kind, 'video');
+  const del = await fetch(`http://localhost:${PORT}/api/publicidad/banner/${encodeURIComponent('clip cinta.mp4')}`, { method: 'DELETE' });
+  assert.strictEqual(del.status, 200);
+  await waitFor(() => pantalla1.screenConfig.ribbon.items.length === 1, 'quitado de la pantalla');
+  assert.ok(!fs.existsSync(path.join(ADS_DIR, 'banner', 'clip cinta.mp4')));
+  const missing = await fetch(`http://localhost:${PORT}/api/publicidad/banner/no-existe.png`, { method: 'DELETE' });
+  assert.strictEqual(missing.status, 404);
+});
+
+test('Subir o borrar publicidad desde un teléfono de la red → 403', async () => {
+  const lanIp = Object.values(os.networkInterfaces()).flat().find((n) => n && n.family === 'IPv4' && !n.internal);
+  if (!lanIp) return { skip: 'este equipo no tiene una IP de red local para simular un teléfono' };
+  const up = await fetch(`http://${lanIp.address}:${PORT}/api/publicidad/banner`, {
+    method: 'POST', headers: { 'X-File-Name': 'hack.png' }, body: Buffer.alloc(10),
+  });
+  const del = await fetch(`http://${lanIp.address}:${PORT}/api/publicidad/banner/patrocinador.png`, { method: 'DELETE' });
+  assert.deepStrictEqual([up.status, del.status], [403, 403]);
+  assert.ok(!fs.existsSync(path.join(ADS_DIR, 'banner', 'hack.png')));
+  return `rechazado desde ${lanIp.address}`;
+});
+
 test('Configuración inválida de pantalla → INVALID_SCREEN_CONFIG (nada cambia)', async () => {
   const invalid = [
-    { ribbon: { images: ['no-existe.png'] } },
+    { ribbon: { items: ['no-existe.png'] } },
     { media: { items: ['../../secreto.mp4'] } },
     { view: 'karaoke' },
     { output: { format: 'led-gigante' } },
@@ -534,7 +585,7 @@ test('REINICIO DEL SERVIDOR: partidos, PIN, teléfonos y pantallas se recuperan 
   assert.deepStrictEqual(pantalla1.states['pista-1'], antes.p1);
   assert.deepStrictEqual(pantalla2.states['pista-2'], antes.p2);
   assert.strictEqual(pinOf(estacion, 'pista-1'), antes.pin1);
-  assert.strictEqual(pantalla1.screenConfig.ribbon.images.length, 1, 'La cinta asignada se conserva');
+  assert.strictEqual(pantalla1.screenConfig.ribbon.items.length, 1, 'La cinta asignada se conserva');
   assert.strictEqual(pantalla1.screenConfig.media.items.length, 2, 'La lista de reproducción se conserva');
 
   const res = await action(telefono2, 'pista-2', 'undo');

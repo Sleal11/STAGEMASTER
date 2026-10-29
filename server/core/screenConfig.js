@@ -9,7 +9,7 @@
  *   view      'score'  marcador (con cinta publicitaria si está activa)
  *             'media'  lista de reproducción a pantalla completa (imágenes y vídeos)
  *   ribbon    Cinta publicitaria del marcador:
- *               enabled · images (de banner/) · texts (mensajes) ·
+ *               enabled · items (imágenes y vídeos de banner/) · texts (mensajes) ·
  *               motion ('rotate' cambia cada `interval` s | 'scroll' desplazamiento) · speed
  *   media     Lista de reproducción: items (de pantalla-completa/, en orden) ·
  *             imageSeconds (tiempo de cada imagen) · sound (vídeos con sonido)
@@ -57,7 +57,7 @@ function defaultConfig({ id, label, matchId }) {
     label,
     matchId,
     view:   'score',
-    ribbon: { enabled: true, images: [], texts: [], motion: 'rotate', interval: 10, speed: 'normal' },
+    ribbon: { enabled: true, items: [], texts: [], motion: 'rotate', interval: 10, speed: 'normal' },
     media:  { items: [], imageSeconds: 10, sound: false },
     endAds: { enabled: false, delay: 15 },
     output: { format: 'fill', x: 0, y: 0 },
@@ -70,7 +70,9 @@ function defaultConfig({ id, label, matchId }) {
 
 /**
  * Completa lo guardado en disco con los valores por defecto. Acepta también
- * el formato de la versión 2.0 (mode / ads / adInterval) y lo convierte.
+ * los formatos anteriores y los convierte:
+ *   2.0  mode / ads / adInterval
+ *   2.1  ribbon.images (ahora ribbon.items, porque admite vídeos)
  * Cualquier valor dañado se sustituye por el valor por defecto.
  */
 function normalizeSaved(saved, base) {
@@ -83,7 +85,7 @@ function normalizeSaved(saved, base) {
     saved = {
       matchId: saved.matchId,
       view:    saved.mode === 'ads' ? 'media' : 'score',
-      ribbon:  { enabled: saved.mode !== 'score', images: saved.ads?.banner, interval },
+      ribbon:  { enabled: saved.mode !== 'score', items: saved.ads?.banner, interval },
       media:   { items: saved.ads?.fullscreen, imageSeconds: interval },
     };
   }
@@ -99,7 +101,7 @@ function normalizeSaved(saved, base) {
   config.view    = pick(saved.view, oneOf(VIEWS), config.view);
   config.ribbon  = {
     enabled:  pick(r.enabled, bool, config.ribbon.enabled),
-    images:   pick(r.images, names, []),
+    items:    pick(r.items !== undefined ? r.items : r.images, names, []),
     texts:    pick(r.texts, names, []).slice(0, LIMITS.texts),
     motion:   pick(r.motion, oneOf(RIBBON_MOTIONS), 'rotate'),
     interval: pick(r.interval, inRange(LIMITS.interval), 10),
@@ -168,12 +170,13 @@ function applyChanges(config, changes, { matchIds, library }) {
     if (!list.includes(value)) fail(`${what} inválido: ${value}`);
     return value;
   };
+  // Siempre en el orden de la carpeta (alfabético): así se reproduce y así se ve en la estación
   const files = (value, category) => {
     if (!Array.isArray(value)) fail('Selección de publicidad inválida');
     const available = library[category].map((ad) => ad.name);
     const unknown = value.filter((name) => !available.includes(name));
     if (unknown.length) fail(`Publicidad inexistente: ${unknown.join(', ')}`);
-    return [...new Set(value)];
+    return available.filter((name) => value.includes(name));
   };
 
   if (changes.matchId !== undefined) next.matchId = oneOf(changes.matchId, matchIds, 'Partido');
@@ -182,7 +185,7 @@ function applyChanges(config, changes, { matchIds, library }) {
   const ribbon = section('ribbon');
   if (ribbon) {
     if (ribbon.enabled  !== undefined) next.ribbon.enabled  = boolean(ribbon.enabled, 'Cinta');
-    if (ribbon.images   !== undefined) next.ribbon.images   = files(ribbon.images, 'banner');
+    if (ribbon.items    !== undefined) next.ribbon.items    = files(ribbon.items, 'banner');
     if (ribbon.motion   !== undefined) next.ribbon.motion   = oneOf(ribbon.motion, RIBBON_MOTIONS, 'Movimiento');
     if (ribbon.speed    !== undefined) next.ribbon.speed    = oneOf(ribbon.speed, SCROLL_SPEEDS, 'Velocidad');
     if (ribbon.interval !== undefined) next.ribbon.interval = integer(ribbon.interval, LIMITS.interval, 'Tiempo de cada elemento');

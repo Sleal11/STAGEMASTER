@@ -1,12 +1,16 @@
 PUBLICIDAD DE STAGEMASTER
 =========================
 
-Copia aquí los anuncios. No hace falta Internet ni reiniciar nada:
-después de copiar un archivo, pulsa "Actualizar publicidad" en la
-estación y márcalo en la pantalla donde quieras verlo.
+Lo más fácil: en la estación, pestaña "Cinta" o "Lista de reproducción"
+de cada pantalla, pulsa "Subir archivos..." o arrastra los archivos.
 
-  banner/              CINTA PUBLICITARIA del marcador: imágenes y logos
-                       (PNG, mejor con fondo transparente).
+También puedes copiarlos aquí a mano (no hace falta Internet ni
+reiniciar): después pulsa "Actualizar publicidad" en la estación y
+márcalos en la pantalla donde quieras verlos.
+
+  banner/              CINTA PUBLICITARIA del marcador: imágenes, logos
+                       (PNG, mejor con fondo transparente) y vídeos cortos
+                       MP4 o WEBM (en la cinta siempre sin sonido).
                        Tamaño recomendado: 1920 × 200 px.
 
   pantalla-completa/   LISTA DE REPRODUCCIÓN a pantalla completa:

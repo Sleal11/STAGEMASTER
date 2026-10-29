@@ -28,6 +28,18 @@ const DECISIVE_POINT_LABELS = {
 };
 
 /**
+ * Explicación de cada sistema de puntuación (reglamento FIP), para que el
+ * moderador y el árbitro sepan qué eligen. Punto de oro y Punto Estrella NO son
+ * lo mismo: cambian en qué 40-40 se juega el punto decisivo.
+ */
+const SCORING_HELP = {
+  advantage:   'Ventaja: en cada 40-40 se juega ventaja; hay que ganar el game por 2 puntos.',
+  goldenPoint: 'Punto de oro: en el PRIMER 40-40, el siguiente punto gana el game (no hay ventaja).',
+  starPoint:   'Punto Estrella (FIP 2026): ventaja en el 1.er y el 2.º 40-40; en el TERCER 40-40, ' +
+               'el siguiente punto gana el game. La pantalla lo anuncia como PUNTO DE ORO.',
+};
+
+/**
  * Texto de un set terminado:
  *   normal → "6-3" | con tie break → "7-6 (8-6)" | súper TB decisivo → "STB 10-8"
  */
@@ -86,6 +98,6 @@ function compactScore(state) {
 }
 
 export {
-  PHASE_LABELS, DECISIVE_POINT_LABELS, formatSetScore, isDecidingSuperTiebreak,
+  PHASE_LABELS, DECISIVE_POINT_LABELS, SCORING_HELP, formatSetScore, isDecidingSuperTiebreak,
   badgeFor, splitTeamName, abbreviateName, compactScore,
 };

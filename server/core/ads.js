@@ -3,18 +3,18 @@
 /**
  * ads.js — Biblioteca de publicidad (imágenes y vídeos)
  *
- * La publicidad son archivos que el operador copia en la carpeta de
- * publicidad (no hace falta Internet ni subir nada):
+ * La publicidad son archivos de la carpeta de publicidad. Se añaden desde la
+ * estación ("Subir archivos", ver server/http/adsApi.js) o copiándolos a mano
+ * (botón "Carpeta de publicidad"); no hace falta Internet.
  *
- *   banner/             Cinta publicitaria del marcador: imágenes o logos
- *                       (recomendado 1920×200 px, PNG)
+ *   banner/             Cinta publicitaria del marcador: imágenes, logos y
+ *                       vídeos cortos (sin sonido)
  *   pantalla-completa/  Lista de reproducción a pantalla completa: imágenes
- *                       y VÍDEOS (MP4 H.264 recomendado; también WEBM)
+ *                       y vídeos (MP4 H.264 recomendado; también WEBM)
  *
- * Este módulo solo LISTA los archivos y construye sus URL; los sirve Express
- * en /publicidad (ver index.js), con soporte de rangos para que los vídeos
- * grandes se reproduzcan sin cargarlos enteros. Se lee la carpeta en cada
- * consulta: basta con copiar un archivo y pulsar "Actualizar" en la estación.
+ * Este módulo lista los archivos, construye sus URL (los sirve Express en
+ * /publicidad, con soporte de rangos para los vídeos) y decide qué nombres de
+ * archivo son válidos. Se lee la carpeta en cada consulta.
  */
 
 const fs   = require('fs');
@@ -30,9 +30,11 @@ const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.webm'];
 
 /** Categoría → subcarpeta y tipos de archivo que admite */
 const CATEGORIES = {
-  banner:     { folder: 'banner',            kinds: ['image'] },
+  banner:     { folder: 'banner',            kinds: ['image', 'video'] },
   fullscreen: { folder: 'pantalla-completa', kinds: ['image', 'video'] },
 };
+
+const MAX_NAME_LENGTH = 120;
 
 function kindOf(name) {
   const ext = path.extname(name).toLowerCase();
@@ -41,12 +43,16 @@ function kindOf(name) {
   return null;
 }
 
+function folderOf(category) {
+  return path.join(adsDir(), CATEGORIES[category].folder);
+}
+
 /** Lista los archivos válidos de una categoría, ordenados por nombre */
 function listCategory(category) {
   const { folder, kinds } = CATEGORIES[category];
   let names = [];
   try {
-    names = fs.readdirSync(path.join(adsDir(), folder), { withFileTypes: true })
+    names = fs.readdirSync(folderOf(category), { withFileTypes: true })
       .filter((entry) => entry.isFile() && !entry.name.startsWith('.'))
       .map((entry) => entry.name);
   } catch (_) {
@@ -82,4 +88,49 @@ function resolve(category, names, library = listAds()) {
   return result;
 }
 
-module.exports = { listAds, resolve, adsDir, CATEGORIES, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS };
+// ─────────────────────────────────────────────────────────────────
+// ARCHIVOS SUBIDOS DESDE LA ESTACIÓN
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Nombre de archivo seguro a partir del que envía el navegador:
+ * sin carpetas (nada de "../"), sin caracteres prohibidos en Windows, sin
+ * empezar por punto y con una extensión admitida en esa categoría.
+ * @returns {string|null} null si el archivo no es válido
+ */
+function safeFileName(category, rawName) {
+  if (!CATEGORIES[category] || typeof rawName !== 'string') return null;
+  let name = path.basename(rawName.replace(/\\/g, '/'))
+    .replace(/[\u0000-\u001f<>:"/\\|?*]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[.\s]+/, '')
+    .trim();
+  const ext = path.extname(name);
+  if (!ext || !CATEGORIES[category].kinds.includes(kindOf(name))) return null;
+  // Nombre demasiado largo: se acorta conservando la extensión
+  if (name.length > MAX_NAME_LENGTH) name = name.slice(0, MAX_NAME_LENGTH - ext.length).trim() + ext;
+  const base = name.slice(0, -ext.length);
+  return base ? base + ext : null;
+}
+
+/** "promo.png" → "promo (2).png" si ya existe (nunca se pisa un archivo) */
+function uniqueFileName(category, name) {
+  const folder = folderOf(category);
+  const ext = path.extname(name);
+  const base = name.slice(0, -ext.length);
+  let candidate = name;
+  for (let n = 2; fs.existsSync(path.join(folder, candidate)); n++) candidate = `${base} (${n})${ext}`;
+  return candidate;
+}
+
+/** Ruta en disco de un archivo de la biblioteca (o null si no existe en ella) */
+function existingFile(category, name) {
+  if (!CATEGORIES[category]) return null;
+  const item = listCategory(category).find((ad) => ad.name === name);
+  return item ? path.join(folderOf(category), item.name) : null;
+}
+
+module.exports = {
+  listAds, resolve, adsDir, folderOf, kindOf, safeFileName, uniqueFileName, existingFile,
+  CATEGORIES, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS,
+};

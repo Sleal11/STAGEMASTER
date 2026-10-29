@@ -4,8 +4,8 @@
 
 - [ ] `StageMaster.exe` copiado en el portátil del evento (y una copia en un USB).
 - [ ] Abierto al menos una vez en ese portátil (aviso de Windows y Firewall ya aceptados).
-- [ ] Publicidad copiada con **Carpeta de publicidad**:
-      `banner` (cinta: PNG/logos) y `pantalla-completa` (imágenes y vídeos MP4 H.264 en 2:1, ej. 1664 × 832).
+- [ ] Publicidad subida con **Subir archivos…** (pestañas *Cinta* y *Lista de reproducción*):
+      cinta (PNG/logos y vídeos cortos) y pantalla completa (imágenes y vídeos MP4 H.264 en 2:1, ej. 1664 × 832).
 - [ ] Vídeos probados en StageMaster (si alguno no se reproduce, la estación lo avisa).
 - [ ] Jugadores y formato de cada partido preparados.
 - [ ] Comprobado que el portátil admite **dos salidas de vídeo** a la vez (HDMI + USB-C/DisplayPort o dock).

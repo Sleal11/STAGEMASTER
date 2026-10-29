@@ -39,8 +39,9 @@ publicitaria y vídeos, y un **teléfono de árbitro** por partido. Funciona
 | Configurar, **pausar/reanudar**, finalizar y reiniciar cada partido; puntuar como respaldo | Tarjeta de cada pista |
 | QR + PIN para el teléfono del árbitro; desvincular | Tarjeta de cada pista |
 | **Marcador** o **Publicidad y vídeos** (reproductor: pausar, reanudar, detener) | Tarjeta de cada pantalla |
-| **Cinta publicitaria**: imágenes/logos y mensajes, fundido o desplazamiento continuo | Pestaña *Cinta* |
+| **Cinta publicitaria**: imágenes, logos, vídeos cortos y mensajes, fundido o desplazamiento continuo | Pestaña *Cinta* |
 | **Lista de reproducción**: imágenes y vídeos MP4/WEBM en bucle, con o sin sonido | Pestaña *Lista de reproducción* |
+| **Subir fotos y vídeos** (botón o arrastrar desde el Explorador) y borrarlos | Pestañas *Cinta* y *Lista de reproducción* |
 | **Publicidad al terminar el partido** (activable, tras X s de resultado) | Pestaña *Contenido* |
 | **Formato de salida**: monitor completo, LED XL 832×416 o LED pequeño 416×208 (píxeles exactos, con posición) | Pestaña *Salida* |
 
@@ -58,9 +59,11 @@ npm run simulate -- --match pista-1   # operador virtual que juega un partido
 ```
 
 **Obtener el `.exe` sin compilar nada:** GitHub lo compila en Windows con cada
-cambio (`.github/workflows/stagemaster-windows.yml`). Pestaña **Actions** →
-última ejecución de *"StageMaster para Windows"* → **Artifacts** →
-`StageMaster-Windows`.
+cambio (`.github/workflows/stagemaster-windows.yml`) y lo publica como
+**versión de prueba**, siempre en el mismo enlace (sin iniciar sesión):
+**https://github.com/Sleal11/STAGEMASTER/releases/download/prueba/StageMaster-prueba.exe**.
+Es una *pre-release*: el enlace del cliente (`releases/latest`) no cambia.
+También queda en **Actions** → la ejecución → **Artifacts** → `StageMaster-Windows`.
 
 **Publicar una versión nueva para el cliente:** subir `version` en
 `package.json`, fusionar en `main` y crear la etiqueta `v<versión>` (ej.
@@ -74,7 +77,7 @@ cambio (`.github/workflows/stagemaster-windows.yml`). Pestaña **Actions** →
 | `npm run test:engine` | Reglas del pádel (motor puro) y 4000 acciones aleatorias |
 | `npm run test:server` | Partidos, versiones, pausa, PIN/tokens, pantallas, cinta, lista de reproducción, publicidad al terminar, formatos LED, migración |
 | `npm run test:desktop` | Qué pantalla va en qué monitor (conectar/desconectar monitores) |
-| `npm run test:integration` | Servidor real + estación + 2 teléfonos + 2 pantallas virtuales: reproductor, publicidad final (una sola vez), vídeo por rangos, QR, escritorio |
+| `npm run test:integration` | Servidor real + estación + 2 teléfonos + 2 pantallas virtuales: reproductor, publicidad final (una sola vez), subir/borrar publicidad, vídeo por rangos, QR, escritorio |
 
 ---
 
@@ -110,15 +113,16 @@ server/
 │   ├── matchRegistry.js Las pistas (instancias de Match)
 │   ├── screenConfig.js  Configuración de una pantalla: valores, límites, validación, migración
 │   ├── screens.js       Pantallas: guardado, reproductor, publicidad al terminar, presencia
-│   ├── ads.js           Biblioteca de publicidad (imágenes y vídeos)
+│   ├── ads.js           Biblioteca de publicidad (imágenes y vídeos, nombres seguros)
 │   ├── auth.js          PIN, tokens, límite de intentos, solo-localhost
 │   ├── network.js       Dirección para los teléfonos y códigos QR
 │   ├── storage.js       Archivos JSON con escritura atómica
 │   └── errors.js        Errores con código
+├── http/adsApi.js     Subir y borrar publicidad (solo desde el portátil)
 ├── realtime/socketServer.js   Roles, permisos, salas por partido, difusión
 └── sports/padel/              engine.js (motor) · config.js (validación)
 public/
-├── station.html · js/station/   Estación: main, context, dialogs, matches, screens
+├── station.html · js/station/   Estación: main, context, dialogs, matches, screens, uploads
 ├── score.html   · js/display/   Pantalla: main (capas y salida LED), scoreboard,
 │                                ribbon (cinta), media-player (imágenes y vídeos)
 ├── control.html · js/control.js Teléfono del árbitro

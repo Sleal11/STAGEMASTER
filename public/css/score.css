@@ -402,7 +402,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   border-top: var(--line) solid var(--d-light);
 }
 
-/* Elementos (imágenes y mensajes) */
+/* Elementos (imágenes, vídeos y mensajes) */
 .ribbon-item { flex-shrink: 0; }
 
 .ribbon-text {
@@ -435,7 +435,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 
 .ribbon-slide.is-visible { opacity: 1; }
 .ribbon-slide.is-marquee { justify-content: flex-start; }
-img.ribbon-slide { object-fit: contain; padding: calc(var(--ribbon-h) * 0.06) var(--safe-x); }
+.ribbon-slide.ribbon-image { object-fit: contain; padding: calc(var(--ribbon-h) * 0.06) var(--safe-x); }
 
 /* Movimiento "desplazamiento continuo" */
 .ribbon-track {
