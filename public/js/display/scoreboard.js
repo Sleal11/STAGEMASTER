@@ -46,8 +46,8 @@ export function createScoreboard(root) {
     const finished = state.status === 'finished';
     renderTeam(state, 'A', finished);
     renderTeam(state, 'B', finished);
-    renderBadge(state);
-    dom.dividerLabel.textContent = finished ? (state.winner ? 'GANADOR' : 'PARTIDO FINALIZADO') : '';
+    renderBadge(state, finished);
+    dom.dividerLabel.textContent = finished && state.winner ? 'GANADOR' : '';
     root.classList.toggle('is-paused', !!state.paused && !finished);
     renderHistory(state, finished);
     animateChanges(previous, state);
@@ -74,8 +74,9 @@ export function createScoreboard(root) {
     el.row.classList.toggle('is-loser',   finished && state.winner !== null && state.winner !== side);
   }
 
-  function renderBadge(state) {
-    const badge = ScoreFormat.badgeFor(state);
+  /** Badge de la cabecera; al terminar, "PARTIDO FINALIZADO" (legible también en 416×208) */
+  function renderBadge(state, finished) {
+    const badge = finished ? { text: 'PARTIDO FINALIZADO', gold: true } : ScoreFormat.badgeFor(state);
     dom.badge.classList.toggle('hidden', !badge);
     if (!badge) return;
     dom.badge.textContent = badge.text;

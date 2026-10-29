@@ -47,9 +47,10 @@ export function renderScreens(state) {
       b.classList.toggle('is-active', b.dataset.tab === tab);
       b.setAttribute('aria-selected', b.dataset.tab === tab);
     });
-    // Panel: no se toca mientras el moderador escribe en él
+    // Panel: no se toca mientras el moderador escribe en él (un botón con el foco no cuenta)
     const panel = card.querySelector('[data-part="panel"]');
-    if (!panel.contains(document.activeElement)) patch(panel, panelHtml(tab, screen, state));
+    const editing = panel.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
+    if (!editing) patch(panel, panelHtml(tab, screen, state));
   });
 }
 

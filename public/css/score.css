@@ -331,7 +331,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .d-divider-label {
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: min(5cqh, 3cqw);
+  font-size: min(6cqh, 3cqw);
   line-height: 1;
   padding: 0.2em 0.8em;
   border-radius: 0.3em;
@@ -375,9 +375,9 @@ html { width: 100%; height: 100%; overflow: hidden; }
 @container out (max-height: 300px) {
   .d-board   {
     --col-icon:  min(11cqh, 4cqw);
-    --col-sets:  min(30cqh, 9cqw);
-    --col-games: min(30cqh, 9cqw);
-    --col-pts:   min(48cqh, 14cqw);
+    --col-sets:  min(30cqh, 10cqw);
+    --col-games: min(30cqh, 10cqw);
+    --col-pts:   min(48cqh, 16cqw);
     --gap:       1.6cqw;
     grid-template-rows: 1fr 6cqh 1fr;
   }
@@ -385,11 +385,11 @@ html { width: 100%; height: 100%; overflow: hidden; }
   .d-history { display: none; }
   .d-name-line { font-size: min(17cqh, 8.5cqw); }
   .d-names.is-single .d-name-line { font-size: min(22cqh, 10cqw); }
-  .d-sets    { font-size: min(27cqh, 13cqw); }
-  .d-games   { font-size: min(32cqh, 16cqw); }
-  .d-pts     { font-size: min(34cqh, 18cqw); }
+  .d-sets    { font-size: min(27cqh, 8cqw); }
+  .d-games   { font-size: min(32cqh, 9cqw); }
+  .d-pts     { font-size: min(34cqh, 11cqw); }
   .d-cell    { height: 86%; }
-  .d-divider-label { font-size: min(8cqh, 4cqw); }
+  .d-divider-label { display: none; }   /* el badge de la cabecera ya lo indica */
 }
 
 /* ─────────────────────────────────────────────────────────────────

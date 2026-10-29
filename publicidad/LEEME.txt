@@ -1,18 +1,26 @@
 PUBLICIDAD DE STAGEMASTER
 =========================
 
-Copia aquí los anuncios en formato PNG. No hace falta Internet ni
-reiniciar nada: después de copiar un archivo, pulsa "Actualizar
-publicidad" en la estación y márcalo en la pantalla donde quieras verlo.
+Copia aquí los anuncios. No hace falta Internet ni reiniciar nada:
+después de copiar un archivo, pulsa "Actualizar publicidad" en la
+estación y márcalo en la pantalla donde quieras verlo.
 
-  banner/              Franja inferior, debajo del marcador.
+  banner/              CINTA PUBLICITARIA del marcador: imágenes y logos
+                       (PNG, mejor con fondo transparente).
                        Tamaño recomendado: 1920 × 200 px.
 
-  pantalla-completa/   Pantalla completa: entre partidos o en el modo
-                       "Solo publicidad".
-                       Tamaño recomendado: 1920 × 1080 px.
+  pantalla-completa/   LISTA DE REPRODUCCIÓN a pantalla completa:
+                       imágenes (PNG, JPG) y VÍDEOS (MP4 con H.264, o WEBM).
+                       Se ve en "Publicidad y vídeos", al terminar un
+                       partido (si se activa) y cuando no hay partido.
+                       Se reproduce en bucle y en orden alfabético: para
+                       ordenar, empieza los nombres por 01-, 02-, 03-...
 
-Las imágenes nunca se recortan ni se deforman: si la proporción no
-coincide con la zona, se centran con bordes oscuros.
+Pantallas LED (832 × 416 y 416 × 208 son 2:1): prepara las imágenes y los
+vídeos de pantalla completa en 2:1 (ej. 1664 × 832 o 832 × 416) para que
+ocupen toda la pantalla. Con otra proporción se ven completos, centrados y
+con bordes negros: nunca se recortan ni se deforman.
 
-Los archivos "ejemplo-*.png" son de demostración y se pueden borrar.
+Vídeos de iPhone (.mov, HEVC): conviértelos antes a MP4 (H.264).
+
+Los archivos "ejemplo-*" son de demostración y se pueden borrar.
