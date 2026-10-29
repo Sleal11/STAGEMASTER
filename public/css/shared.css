@@ -69,14 +69,12 @@
   --bg-primary:       #0A1628;   /* Azul muy oscuro — fondo principal */
   --bg-secondary:     #0D2347;   /* Azul marino — fondo secundario    */
   --bg-card:          #112D5E;   /* Azul medio — tarjetas y paneles   */
-  --bg-card-hover:    #1A3A6E;   /* Hover de tarjetas                 */
   --bg-input:         #0D2040;   /* Fondo de inputs                   */
 
   /* Colores de marca */
   --accent-primary:   #1565C0;   /* Azul corporativo                  */
   --accent-bright:    #1E90FF;   /* Azul eléctrico — botones activos  */
   --accent-cyan:      #00D4FF;   /* Cian — detalles tecnológicos      */
-  --accent-dim:       #1A4A8A;   /* Azul apagado — botones inactivos  */
 
   /* Texto */
   --text-primary:     #FFFFFF;   /* Blanco puro                       */
@@ -101,8 +99,6 @@
   --space-md:   16px;
   --space-lg:   24px;
   --space-xl:   32px;
-  --space-2xl:  48px;
-  --space-3xl:  64px;
 
   /* Tamaños táctiles (iPhone) */
   --touch-action: 60px;   /* Botones de acción durante el partido y modales */
@@ -123,7 +119,6 @@
   --shadow-card:   0 4px 24px rgba(0, 0, 0, 0.50);
   --shadow-btn:    0 4px 20px rgba(30, 144, 255, 0.35);
   --shadow-danger: 0 4px 20px rgba(229, 57, 53, 0.30);
-  --glow-accent:   0 0 24px rgba(30, 144, 255, 0.40);
   --glow-gold:     0 0 24px rgba(255, 215, 0, 0.50);
 
   /* Transiciones */
@@ -182,7 +177,7 @@ input {
 /* ─────────────────────────────────────────────────────────────────
    LOGO (brand.js)
    img/logo-stagemaster.png es la versión para FONDO OSCURO generada a
-   partir del logo original (img/logo-stagemaster-original.jpg):
+   partir del logo original (build/logo-stagemaster-original.jpg):
    fondo transparente, letras en blanco y franjas en celeste de marca.
 
    Cada interfaz fija el tamaño con --logo-height.
@@ -232,17 +227,6 @@ input {
 .hidden {
   display: none !important;
 }
-
-/* Texto secundario */
-.text-secondary { color: var(--text-secondary); }
-.text-muted     { color: var(--text-muted);     }
-.text-danger    { color: var(--danger);          }
-.text-gold      { color: var(--winner-gold);     }
-.text-success   { color: var(--success);         }
-
-/* Alineación de texto */
-.text-center { text-align: center; }
-.text-left   { text-align: left;   }
 
 /* ─────────────────────────────────────────────────────────────────
    ANIMACIONES GLOBALES

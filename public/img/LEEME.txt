@@ -12,7 +12,7 @@ Requisitos:
 Se muestra automáticamente en el panel del iPhone y en la pantalla LED
 (js/brand.js). Si el archivo no existe, se muestra el texto "STAGEMASTER".
 
-El archivo actual se generó a partir de logo-stagemaster-original.jpg
+El archivo actual se generó a partir de build/logo-stagemaster-original.jpg
 (fondo transparente, letras en blanco y franjas en celeste de marca).
 Si se reemplaza por otro logo con letras oscuras, en css/shared.css se
 puede forzar a blanco cambiando:

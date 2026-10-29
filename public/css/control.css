@@ -300,14 +300,6 @@
   display: block;
 }
 
-.score-col .score-label {
-  font-size: 0.55rem;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  display: block;
-}
 
 .score-divider {
   width: 1px;
@@ -590,9 +582,6 @@
   animation: pulse 2s ease infinite;
 }
 
-.status-dot.local {
-  background: var(--warning);
-}
 
 .status-dot.offline {
   background: var(--danger);
@@ -784,10 +773,6 @@ body.is-offline .btn-secondary {
 }
 
 /* Modal de confirmación positiva (para nuevo partido) */
-.modal-confirm.positive {
-  background: var(--accent-bright);
-  box-shadow: var(--shadow-btn);
-}
 
 /* ─────────────────────────────────────────────────────────────────
    MENSAJE DE ERROR inline
