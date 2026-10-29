@@ -154,17 +154,20 @@ function openScreenWindow(screenId, target, list) {
   const number = screenId.replace('pantalla-', '');
   const url    = `${baseUrl}/score.html?pantalla=${number}`;
   const monitor = list.find((m) => m.key === target);
+  // Vídeos de la lista de reproducción: arrancan solos (también con sonido)
+  // y siguen a velocidad normal aunque la ventana no tenga el foco
+  const webPreferences = { backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' };
 
   const win = target === 'window'
     ? new BrowserWindow({
       width: 960, height: 540, title: `StageMaster · Pantalla ${number} (ventana de prueba)`,
       backgroundColor: BACKGROUND, autoHideMenuBar: true, icon: ICON,
-      webPreferences: { backgroundThrottling: false },
+      webPreferences,
     })
     : new BrowserWindow({
       ...monitor.bounds, frame: false, show: false, title: `StageMaster · Pantalla ${number}`,
       backgroundColor: BACKGROUND, autoHideMenuBar: true, skipTaskbar: true,
-      webPreferences: { backgroundThrottling: false },
+      webPreferences,
     });
 
   if (target !== 'window') {

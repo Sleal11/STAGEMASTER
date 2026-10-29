@@ -13,7 +13,8 @@
  *   - Puente con el motor de reglas (sports/padel/engine.js)
  *   - Protecciones: configuración válida, versión del marcador, no pisar
  *     un partido en curso sin confirmación
- *   - Estado PÚBLICO (sin historial) con version y canUndo
+ *   - Estado PÚBLICO (sin historial) con version, canUndo y paused
+ *   - Pausa del partido (no admite puntos hasta reanudarlo)
  *
  * Y además (nuevo):
  *   - PIN de vinculación y teléfono árbitro asociado
@@ -30,7 +31,10 @@ const { appError }                 = require('./errors');
 const auth                         = require('./auth');
 
 /** Acciones de partido permitidas (lista blanca) */
-const MATCH_ACTIONS = ['pointA', 'pointB', 'undo', 'changeServer', 'finishMatch'];
+const MATCH_ACTIONS = ['pointA', 'pointB', 'undo', 'changeServer', 'finishMatch', 'pause', 'resume'];
+
+/** Acciones que no se aceptan con el partido en pausa (deshacer y finalizar sí) */
+const BLOCKED_WHILE_PAUSED = ['pointA', 'pointB', 'changeServer'];
 
 class Match {
   /**
@@ -48,6 +52,7 @@ class Match {
 
     this.state      = null;   // Estado completo (con historial). null = sin partido
     this.version    = 0;
+    this.paused     = false;  // Pausa (lesión, lluvia…): el marcador no admite puntos
     this.pin        = null;
     this.controller = null;   // { tokenHash, deviceName, pairedAt } | null
     this.changedAt  = Date.now();
@@ -76,6 +81,7 @@ class Match {
     }
 
     const config = validateConfig(rawConfig);
+    this.paused = false;
     this.commit(createMatch(config));
     console.log(`[${this.label}] Partido creado: ${config.nameA} vs ${config.nameB} (v${this.version})`);
     return this.getPublicState();
@@ -93,9 +99,30 @@ class Match {
     this.requireMatch();
     this.requireVersion(expectedVersion);
 
+    if (actionName === 'pause' || actionName === 'resume') return this.setPaused(actionName === 'pause');
+    if (this.paused && BLOCKED_WHILE_PAUSED.includes(actionName)) {
+      throw appError('MATCH_PAUSED', `El partido de ${this.label} está en pausa. Reanúdalo para seguir.`);
+    }
+
     const nextState = applyAction(this.state, actionName);
     // El motor devuelve el MISMO objeto si la acción no cambió nada (ej. undo sin historial)
-    if (nextState !== this.state) this.commit(nextState);
+    if (nextState !== this.state) {
+      if (nextState.status === 'finished') this.paused = false;
+      this.commit(nextState);
+    }
+    return this.getPublicState();
+  }
+
+  /** Pausa o reanuda (fuera del motor: no es una regla del pádel ni se deshace) */
+  setPaused(paused) {
+    if (this.state.status !== 'playing') {
+      throw appError('INVALID_ACTION', 'Solo se puede pausar un partido en juego');
+    }
+    if (this.paused !== paused) {
+      this.paused = paused;
+      this.commit(this.state);   // Nueva versión: pantallas y teléfono se actualizan
+      console.log(`[${this.label}] Partido ${paused ? 'en pausa' : 'reanudado'} (v${this.version})`);
+    }
     return this.getPublicState();
   }
 
@@ -104,6 +131,7 @@ class Match {
     this.requireMatch();
     this.requireVersion(expectedVersion);
 
+    this.paused = false;
     this.commit(createMatch({
       ...this.state.config,
       nameA: this.state.players.A.name,
@@ -117,7 +145,7 @@ class Match {
   getPublicState() {
     if (!this.state) return null;
     const { history, ...publicState } = this.state;
-    return { ...publicState, version: this.version, canUndo: history.length > 0 };
+    return { ...publicState, version: this.version, canUndo: history.length > 0, paused: this.paused };
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -179,7 +207,9 @@ class Match {
   }
 
   persist() {
-    this.store.save({ version: this.version, state: this.state, pin: this.pin, controller: this.controller });
+    this.store.save({
+      version: this.version, state: this.state, paused: this.paused, pin: this.pin, controller: this.controller,
+    });
   }
 
   /** Recupera lo guardado en disco (el servidor se reinició) */
@@ -188,6 +218,7 @@ class Match {
     if (!saved) return;
     this.state      = saved.state || null;
     this.version    = saved.version;
+    this.paused     = saved.paused === true && !!this.state && this.state.status === 'playing';
     this.pin        = saved.pin || null;
     this.controller = saved.controller || null;
     if (this.state) {

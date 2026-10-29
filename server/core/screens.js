@@ -3,62 +3,50 @@
 /**
  * screens.js — Pantallas de score y publicidad
  *
- * Una PANTALLA es una ventana de navegador abierta en un monitor externo
+ * Una PANTALLA es una ventana abierta en un monitor o pantalla LED
  * (score.html?pantalla=1). Es independiente de los PARTIDOS:
  *   - Dos pantallas pueden mostrar dos partidos distintos (Pista 1 y Pista 2)
  *   - o el MISMO partido (ej. una pantalla a cada lado de la pista).
  *
- * Por cada pantalla se guarda (data/screens.json):
- *   matchId     Partido que muestra
- *   mode        'scoreAds' (marcador + franja publicitaria)
- *               'score'    (solo marcador)
- *               'ads'      (solo publicidad a pantalla completa)
- *   ads         Archivos elegidos: { banner: [...], fullscreen: [...] }
- *   adInterval  Segundos que se muestra cada imagen
+ * Qué se guarda de cada pantalla y cómo se valida: ver screenConfig.js.
  *
- * Además se lleva la PRESENCIA en tiempo real (no se guarda): qué ventanas
- * están conectadas, su resolución, qué versión del marcador han dibujado
- * (para detectar si una pantalla está desactualizada) y errores de publicidad.
+ * Este módulo añade:
+ *   - Guardado en disco (data/screens.json) y valores por defecto
+ *   - Comandos del reproductor: play / pause / resume / stop
+ *   - Publicidad al terminar el partido (se activa UNA vez por final)
+ *   - PRESENCIA en tiempo real (no se guarda): ventanas conectadas, su
+ *     resolución, la versión del marcador que han dibujado (sincronización),
+ *     qué están reproduciendo y qué archivos fallan
+ *
+ * La publicidad nunca toca el marcador: este módulo solo recibe avisos
+ * ("el partido X terminó / se reanudó") y cambia lo que muestran las pantallas.
  */
 
 const { createStore } = require('./storage');
 const { appError }    = require('./errors');
-
-const MODES = ['scoreAds', 'score', 'ads'];
-
-const AD_INTERVAL_MIN = 3;
-const AD_INTERVAL_MAX = 120;
+const screenConfig    = require('./screenConfig');
 
 const DEFAULT_SCREENS = [
   { id: 'pantalla-1', label: 'Pantalla 1' },
   { id: 'pantalla-2', label: 'Pantalla 2' },
 ];
 
+const MEDIA_COMMANDS = ['play', 'pause', 'resume', 'stop'];
+
 /**
  * @param {Object}   options
  * @param {string[]} options.matchIds - Partidos existentes (para validar y asignar por defecto)
  * @param {Array}    [options.screens] - Pantallas a crear (por defecto DEFAULT_SCREENS)
+ * @param {Function} [options.now]     - Reloj (las pruebas lo sustituyen)
  */
-function createScreenManager({ matchIds, screens = DEFAULT_SCREENS }) {
+function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.now }) {
   const store = createStore('screens.json', { validate: (data) => Array.isArray(data.screens) });
   const saved = (store.load() || { screens: [] }).screens;
 
-  // Configuración: lo guardado en disco, completado con los valores por defecto.
-  // Por defecto, la pantalla N muestra el partido N (o el primero si no existe).
+  // Por defecto, la pantalla N muestra el partido N (o el primero si no existe)
   const configs = new Map(screens.map((screen, index) => {
-    const previous = saved.find((s) => s.id === screen.id) || {};
-    const config = {
-      id:         screen.id,
-      label:      screen.label,
-      matchId:    matchIds.includes(previous.matchId) ? previous.matchId : (matchIds[index] || matchIds[0]),
-      mode:       MODES.includes(previous.mode) ? previous.mode : 'scoreAds',
-      ads:        {
-        banner:     Array.isArray(previous.ads?.banner) ? previous.ads.banner : [],
-        fullscreen: Array.isArray(previous.ads?.fullscreen) ? previous.ads.fullscreen : [],
-      },
-      adInterval: Number.isInteger(previous.adInterval) ? previous.adInterval : 10,
-    };
-    return [screen.id, config];
+    const base = { ...screen, matchId: matchIds[index] || matchIds[0], matchIds };
+    return [screen.id, screenConfig.normalizeSaved(saved.find((s) => s.id === screen.id), base)];
   }));
 
   // Presencia: pantalla → (socketId → datos de la ventana conectada)
@@ -74,58 +62,116 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS }) {
     return config;
   }
 
+  function set(id, config) {
+    configs.set(id, config);
+    persist();
+    return config;
+  }
+
   /**
-   * Cambia la configuración de una pantalla (validando cada campo).
+   * Cambia la configuración de una pantalla (validada en screenConfig.js).
    * @param {string} id
-   * @param {Object} changes   - Campos a cambiar: matchId, mode, ads, adInterval
-   * @param {Object} adLibrary - Biblioteca actual (ads.listAds()) para validar nombres
+   * @param {Object} changes - Ver screenConfig.applyChanges
+   * @param {Object} library - Biblioteca actual (ads.listAds()) para validar nombres
    * @returns {{ config: Object, previousMatchId: string }}
    */
-  function update(id, changes, adLibrary) {
+  function update(id, changes, library) {
     const config = get(id);
-    const next   = { ...config, ads: { ...config.ads } };
-    const fail   = (message) => { throw appError('INVALID_SCREEN_CONFIG', message); };
+    const next   = screenConfig.applyChanges(config, changes, { matchIds, library });
 
-    if (!changes || typeof changes !== 'object') fail('Cambios de pantalla inválidos');
+    // Otro partido, se pide el marcador o se desactiva la publicidad final: se vuelve al marcador
+    if (next.matchId !== config.matchId || !next.endAds.enabled || changes.view === 'score') next.postMatch = null;
+    if (next.matchId !== config.matchId) next.lastFinishKey = null;
+    // Pasar a la lista de reproducción la empieza desde el principio
+    if (next.view === 'media' && config.view !== 'media') {
+      next.playback = 'playing';
+      next.playId   = config.playId + 1;
+    }
+    return { config: set(id, next), previousMatchId: config.matchId };
+  }
 
-    if (changes.matchId !== undefined) {
-      if (!matchIds.includes(changes.matchId)) fail(`Partido inexistente: ${changes.matchId}`);
-      next.matchId = changes.matchId;
+  /**
+   * Reproductor de la lista a pantalla completa:
+   *   play    Muestra la lista desde el principio
+   *   pause   Congela el vídeo o la imagen actual (no deja la pantalla en negro)
+   *   resume  Continúa donde se pausó
+   *   stop    Vuelve al marcador (también termina la publicidad de fin de partido)
+   */
+  function command(id, name) {
+    const config = get(id);
+    if (!MEDIA_COMMANDS.includes(name)) throw appError('INVALID_ACTION', `Comando desconocido: ${name}`);
+
+    const next = { ...config };
+    const showingMedia = config.view === 'media' || !!config.postMatch;
+    switch (name) {
+      case 'play':
+        next.view = 'media';
+        next.playback = 'playing';
+        next.playId = config.playId + 1;
+        break;
+      case 'pause':
+      case 'resume':
+        if (!showingMedia) throw appError('INVALID_ACTION', 'La pantalla no está reproduciendo publicidad');
+        next.playback = name === 'pause' ? 'paused' : 'playing';
+        break;
+      case 'stop':
+        next.view = 'score';
+        next.postMatch = null;
+        next.playback = 'playing';
+        break;
     }
-    if (changes.mode !== undefined) {
-      if (!MODES.includes(changes.mode)) fail(`Modo inválido: ${changes.mode}`);
-      next.mode = changes.mode;
-    }
-    if (changes.adInterval !== undefined) {
-      const seconds = Number(changes.adInterval);
-      if (!Number.isInteger(seconds) || seconds < AD_INTERVAL_MIN || seconds > AD_INTERVAL_MAX) {
-        fail(`El intervalo de publicidad debe estar entre ${AD_INTERVAL_MIN} y ${AD_INTERVAL_MAX} segundos`);
+    return set(id, next);
+  }
+
+  // ── Publicidad al terminar el partido ──────────────────────────
+
+  /**
+   * El partido `matchId` acaba de terminar. `finishKey` identifica ESE final
+   * (partido + versión): si llega dos veces, la segunda se ignora.
+   * @returns {string[]} Pantallas que cambian
+   */
+  function matchFinished(matchId, finishKey) {
+    const key = `${matchId}:${finishKey}`;
+    const changed = [];
+    configs.forEach((config, id) => {
+      if (config.matchId !== matchId || config.lastFinishKey === key) return;
+      const next = { ...config, lastFinishKey: key };
+      // Solo si está activada AHORA; activarla después no dispara un final pasado
+      if (config.endAds.enabled && config.view === 'score') {
+        next.postMatch = { key, since: now() };
+        next.playback  = 'playing';
+        next.playId    = config.playId + 1;
+        changed.push(id);
       }
-      next.adInterval = seconds;
-    }
-    if (changes.ads !== undefined) {
-      ['banner', 'fullscreen'].forEach((category) => {
-        const names = changes.ads[category];
-        if (names === undefined) return;
-        if (!Array.isArray(names)) fail('Selección de publicidad inválida');
-        const available = adLibrary[category].map((ad) => ad.name);
-        const unknown   = names.filter((name) => !available.includes(name));
-        if (unknown.length) fail(`Publicidad inexistente: ${unknown.join(', ')}`);
-        next.ads[category] = [...new Set(names)];
-      });
-    }
-
-    const previousMatchId = config.matchId;
-    configs.set(id, next);
+      configs.set(id, next);
+    });
     persist();
-    return { config: next, previousMatchId };
+    return changed;
+  }
+
+  /**
+   * El partido vuelve a jugarse (deshacer el último punto, partido nuevo o
+   * reiniciado): las pantallas que mostraban su publicidad final vuelven al marcador.
+   * @returns {string[]} Pantallas que cambian
+   */
+  function matchActive(matchId) {
+    const changed = [];
+    configs.forEach((config, id) => {
+      if (config.matchId === matchId && config.postMatch) {
+        configs.set(id, { ...config, postMatch: null });
+        changed.push(id);
+      }
+    });
+    if (changed.length) persist();
+    return changed;
   }
 
   // ── Presencia ──────────────────────────────────────────────────
 
   function attach(id, socketId) {
     presence.get(id).set(socketId, {
-      connectedAt: Date.now(), viewport: null, renderedMatchId: null, renderedVersion: null, adErrors: [],
+      connectedAt: now(), viewport: null, renderedMatchId: null, renderedVersion: null,
+      adErrors: [], playing: null, soundBlocked: false,
     });
   }
 
@@ -137,6 +183,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS }) {
   function report(id, socketId, data) {
     const entry = presence.get(id)?.get(socketId);
     if (!entry || !data || typeof data !== 'object') return;
+    const text = (value, max = 200) => String(value).slice(0, max);
 
     if (data.viewport && Number.isFinite(data.viewport.width) && Number.isFinite(data.viewport.height)) {
       entry.viewport = {
@@ -152,8 +199,19 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS }) {
       entry.renderedVersion = data.renderedVersion;
     }
     if (Array.isArray(data.adErrors)) {
-      entry.adErrors = data.adErrors.filter((e) => typeof e === 'string').slice(0, 20);
+      entry.adErrors = data.adErrors.filter((e) => typeof e === 'string').slice(0, 20).map((e) => text(e));
     }
+    if (data.playing === null) entry.playing = null;
+    else if (data.playing && typeof data.playing === 'object') {
+      entry.playing = {
+        name:   text(data.playing.name || '', 120),
+        kind:   data.playing.kind === 'video' ? 'video' : 'image',
+        index:  Number.isInteger(data.playing.index) ? data.playing.index : 0,
+        total:  Number.isInteger(data.playing.total) ? data.playing.total : 0,
+        paused: data.playing.paused === true,
+      };
+    }
+    if (typeof data.soundBlocked === 'boolean') entry.soundBlocked = data.soundBlocked;
   }
 
   function presenceOf(id) {
@@ -165,6 +223,9 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS }) {
     has:  (id) => configs.has(id),
     list: () => [...configs.values()],
     update,
+    command,
+    matchFinished,
+    matchActive,
     attach,
     detach,
     report,
@@ -172,4 +233,4 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS }) {
   };
 }
 
-module.exports = { createScreenManager, MODES, DEFAULT_SCREENS };
+module.exports = { createScreenManager, DEFAULT_SCREENS, MEDIA_COMMANDS };

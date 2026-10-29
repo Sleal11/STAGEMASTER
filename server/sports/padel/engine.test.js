@@ -838,43 +838,37 @@ test('Con sistema Ventaja el 3er 40-40 NO es decisivo', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════
-// SINCRONÍA: engine.js y engine-browser.js deben comportarse igual
+// ROBUSTEZ: miles de acciones aleatorias
 // ═════════════════════════════════════════════════════════════════
-console.log('\nSINCRONÍA: motor del servidor vs motor del navegador');
+console.log('\nROBUSTEZ: 4000 acciones aleatorias');
 
-test('Ambos motores producen el mismo estado en 4000 acciones aleatorias', () => {
-  const fs   = require('fs');
-  const path = require('path');
-  const vm   = require('vm');
-
-  // Cargamos engine-browser.js en un "navegador" falso que solo tiene window
-  const codigo  = fs.readFileSync(path.join(__dirname, '../../../public/js/engine-browser.js'), 'utf8');
-  const sandbox = { window: {} };
-  vm.runInNewContext(codigo, sandbox);
-  const browser = sandbox.window.PadelEngine;
-
+test('4000 acciones aleatorias: el motor nunca falla y el marcador siempre es coherente', () => {
   // Generador pseudoaleatorio con semilla fija → la prueba es reproducible
   let semilla = 12345;
   const aleatorio = () => (semilla = (semilla * 1103515245 + 12345) % 2147483648) / 2147483648;
   const acciones  = ['pointA', 'pointA', 'pointB', 'pointB', 'undo', 'changeServer'];
+  const PUNTOS_VALIDOS = [0, 15, 30, 40, 'AD'];
 
-  const configs = [
+  [
     config(),
     config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }),
     config({ gamesPerSet: 2, totalSets: 5, tiebreakType: 'none' }),
     config({ scoringSystem: 'starPoint', tiebreakType: 'superTiebreak', totalSets: 5 }),
-  ];
-
-  configs.forEach((cfg) => {
-    let sNode    = createMatch(cfg);
-    let sBrowser = browser.createMatch(cfg);
+  ].forEach((cfg) => {
+    let estado = createMatch(cfg);
     for (let i = 0; i < 1000; i++) {
       const accion = acciones[Math.floor(aleatorio() * acciones.length)];
-      sNode    = applyAction(sNode, accion);
-      sBrowser = browser.applyAction(sBrowser, accion);
-      // JSON para comparar ignorando el "mundo" (vm) en el que se creó cada objeto
-      assert.strictEqual(JSON.stringify(sBrowser), JSON.stringify(sNode),
-        `Divergencia en la acción #${i} (${accion})`);
+      estado = applyAction(estado, accion);
+      const { A, B } = estado.players;
+      const contexto = `acción #${i} (${accion})`;
+      if (estado.phase === 'normal') {
+        assert.ok(PUNTOS_VALIDOS.includes(A.points) && PUNTOS_VALIDOS.includes(B.points), `Puntos inválidos en ${contexto}`);
+      } else {
+        assert.ok(Number.isInteger(A.points) && Number.isInteger(B.points), `Puntos de desempate inválidos en ${contexto}`);
+      }
+      assert.strictEqual(A.sets + B.sets, estado.setScores.length, `Sets incoherentes en ${contexto}`);
+      assert.ok(Math.max(A.sets, B.sets) <= Math.ceil(cfg.totalSets / 2), `Demasiados sets en ${contexto}`);
+      if (estado.status === 'finished') assert.ok(estado.winner === 'A' || estado.winner === 'B', `Final sin ganador en ${contexto}`);
     }
   });
 });

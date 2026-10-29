@@ -12,7 +12,9 @@
  *   - Match: estado público, versiones, protecciones, persistencia
  *   - Aislamiento entre partidos (matchRegistry.js)
  *   - PIN, tokens y limitación de intentos (auth.js)
- *   - Pantallas: asignación, modos, publicidad (screens.js, ads.js)
+ *   - Pantallas: asignación, cinta, lista de reproducción, reproductor,
+ *     publicidad al terminar, formato LED, migración (screens.js, screenConfig.js, ads.js)
+ *   - Pausa del partido
  *   - Migración desde la versión de un solo partido (data/match.json)
  * ─────────────────────────────────────────────────────────────────
  */
@@ -411,72 +413,190 @@ function prepareAds() {
   fs.mkdirSync(path.join(TEST_ADS_DIR, 'banner'), { recursive: true });
   fs.mkdirSync(path.join(TEST_ADS_DIR, 'pantalla-completa'), { recursive: true });
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'b-marca.png'), 'x');
-  fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'notas.txt'), 'x');      // no es publicidad
+  fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'notas.txt'), 'x');        // no es publicidad
+  fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'clip.mp4'), 'x');         // la cinta solo usa imágenes
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'promo grande.png'), 'x');
-  fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'video.mp4'), 'x');   // vídeo: no se usa
+  fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'video.mp4'), 'x');
+  fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'clip.webm'), 'x');
+  fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'iphone.mov'), 'x');  // no compatible
 }
 
-function freshScreens() {
+const EMPTY_LIBRARY = { banner: [], fullscreen: [] };
+
+/** Pantallas con un reloj controlable (para la publicidad de fin de partido) */
+function freshScreens(clock = { t: 1000 }) {
   fs.rmSync(path.join(TEST_DATA_DIR, 'screens.json'), { force: true });
-  return loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'] });
+  return loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'], now: () => clock.t });
 }
 
-test('Por defecto: Pantalla 1 → Pista 1, Pantalla 2 → Pista 2, marcador + publicidad', () => {
+test('Por defecto: Pantalla 1 → Pista 1, Pantalla 2 → Pista 2, marcador con cinta, monitor completo', () => {
   const screens = freshScreens();
-  assert.strictEqual(screens.get('pantalla-1').matchId, 'pista-1');
+  const p1 = screens.get('pantalla-1');
+  assert.strictEqual(p1.matchId, 'pista-1');
   assert.strictEqual(screens.get('pantalla-2').matchId, 'pista-2');
-  assert.strictEqual(screens.get('pantalla-1').mode, 'scoreAds');
+  assert.strictEqual(p1.view, 'score');
+  assert.strictEqual(p1.ribbon.enabled, true);
+  assert.strictEqual(p1.endAds.enabled, false, 'La publicidad final empieza desactivada');
+  assert.deepStrictEqual(p1.output, { format: 'fill', x: 0, y: 0 });
 });
 
 test('Dos pantallas pueden mostrar el MISMO partido', () => {
   const screens = freshScreens();
-  screens.update('pantalla-2', { matchId: 'pista-1' }, { banner: [], fullscreen: [] });
+  screens.update('pantalla-2', { matchId: 'pista-1' }, EMPTY_LIBRARY);
   assert.strictEqual(screens.get('pantalla-1').matchId, screens.get('pantalla-2').matchId);
 });
 
-test('Validación de pantalla: partido, modo e intervalo inválidos se rechazan', () => {
+test('Validación de pantalla: partido, vista, tiempos, formato y posición inválidos se rechazan', () => {
   const screens = freshScreens();
-  const library = { banner: [], fullscreen: [] };
-  assertCode(() => screens.update('pantalla-1', { matchId: 'pista-9' }, library), 'INVALID_SCREEN_CONFIG');
-  assertCode(() => screens.update('pantalla-1', { mode: 'karaoke' }, library), 'INVALID_SCREEN_CONFIG');
-  assertCode(() => screens.update('pantalla-1', { adInterval: 1 }, library), 'INVALID_SCREEN_CONFIG');
+  [
+    { matchId: 'pista-9' }, { view: 'karaoke' }, { ribbon: { interval: 1 } }, { ribbon: { motion: 'zigzag' } },
+    { ribbon: { enabled: 'si' } }, { ribbon: { texts: Array(11).fill('x') } }, { media: { imageSeconds: 500 } },
+    { media: { sound: 1 } }, { endAds: { delay: -1 } }, { output: { format: '4k' } }, { output: { y: 1.5 } },
+    { ribbon: 'todo' }, null,
+  ].forEach((changes) => assertCode(() => screens.update('pantalla-1', changes, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG'));
   assertCode(() => screens.get('pantalla-7'), 'UNKNOWN_SCREEN');
+  assert.strictEqual(screens.get('pantalla-1').view, 'score', 'Nada cambió');
 });
 
-test('Biblioteca de publicidad: solo imágenes (PNG); ignora vídeos y otros archivos', () => {
+test('Biblioteca: cinta = imágenes; lista = imágenes y vídeos MP4/WEBM (ignora .mov, .txt)', () => {
   prepareAds();
   const { ads } = loadModules();
   const library = ads.listAds();
   assert.deepStrictEqual(library.banner.map((a) => a.name), ['b-marca.png']);
-  assert.deepStrictEqual(library.fullscreen.map((a) => a.name), ['promo grande.png']);
-  assert.strictEqual(library.fullscreen[0].url, '/publicidad/pantalla-completa/promo%20grande.png');
+  assert.deepStrictEqual(library.fullscreen.map((a) => [a.name, a.kind]),
+    [['clip.webm', 'video'], ['promo grande.png', 'image'], ['video.mp4', 'video']]);
+  assert.strictEqual(library.fullscreen[1].url, '/publicidad/pantalla-completa/promo%20grande.png');
 });
 
-test('Solo se puede asignar publicidad que existe en la carpeta', () => {
+test('Solo se puede asignar publicidad que existe; la lista conserva el orden elegido', () => {
   prepareAds();
   const { ads } = loadModules();
   const screens = freshScreens();
-  screens.update('pantalla-1', { ads: { banner: ['b-marca.png'] } }, ads.listAds());
-  assert.deepStrictEqual(screens.get('pantalla-1').ads.banner, ['b-marca.png']);
-  assertCode(() => screens.update('pantalla-1', { ads: { banner: ['../../secreto.png'] } }, ads.listAds()), 'INVALID_SCREEN_CONFIG');
+  screens.update('pantalla-1', { ribbon: { images: ['b-marca.png'] }, media: { items: ['video.mp4', 'promo grande.png'] } }, ads.listAds());
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.images, ['b-marca.png']);
+  assert.deepStrictEqual(screens.get('pantalla-1').media.items, ['video.mp4', 'promo grande.png']);
+  assertCode(() => screens.update('pantalla-1', { ribbon: { images: ['../../secreto.png'] } }, ads.listAds()), 'INVALID_SCREEN_CONFIG');
+  assertCode(() => screens.update('pantalla-1', { ribbon: { images: ['clip.mp4'] } }, ads.listAds()), 'INVALID_SCREEN_CONFIG');
 });
 
 test('Si un archivo asignado se borra, se omite y se informa como "missing"', () => {
   prepareAds();
   const { ads } = loadModules();
-  fs.rmSync(path.join(TEST_ADS_DIR, 'banner', 'b-marca.png'));
-  const resolved = ads.resolveSelection({ banner: ['b-marca.png'], fullscreen: [] });
-  assert.deepStrictEqual(resolved.banner, []);
-  assert.deepStrictEqual(resolved.missing, ['banner/b-marca.png']);
+  fs.rmSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'video.mp4'));
+  const resolved = ads.resolve('fullscreen', ['video.mp4', 'clip.webm']);
+  assert.deepStrictEqual(resolved.items.map((i) => i.name), ['clip.webm']);
+  assert.deepStrictEqual(resolved.missing, ['pantalla-completa/video.mp4']);
+});
+
+test('Mensajes de la cinta: se limpian espacios y se descartan los vacíos', () => {
+  const screens = freshScreens();
+  screens.update('pantalla-1', { ribbon: { texts: ['  Bar   Central ', '', '   ', 'Club Pádel'] } }, EMPTY_LIBRARY);
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.texts, ['Bar Central', 'Club Pádel']);
 });
 
 test('La configuración de pantallas se conserva tras reiniciar', () => {
   const screens = freshScreens();
-  screens.update('pantalla-2', { matchId: 'pista-1', mode: 'ads', adInterval: 20 }, { banner: [], fullscreen: [] });
-  const again = loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'] });
-  assert.strictEqual(again.get('pantalla-2').matchId, 'pista-1');
-  assert.strictEqual(again.get('pantalla-2').mode, 'ads');
-  assert.strictEqual(again.get('pantalla-2').adInterval, 20);
+  screens.update('pantalla-2', {
+    matchId: 'pista-1', ribbon: { motion: 'scroll', speed: 'slow' }, output: { format: 'led-sm', x: 32, y: 0 },
+    endAds: { enabled: true, delay: 20 },
+  }, EMPTY_LIBRARY);
+  const again = loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'] }).get('pantalla-2');
+  assert.strictEqual(again.matchId, 'pista-1');
+  assert.strictEqual(again.ribbon.motion, 'scroll');
+  assert.strictEqual(again.ribbon.speed, 'slow');
+  assert.deepStrictEqual(again.output, { format: 'led-sm', x: 32, y: 0 });
+  assert.deepStrictEqual(again.endAds, { enabled: true, delay: 20 });
+});
+
+test('Migración desde la versión 2.0 (mode / ads / adInterval)', () => {
+  fs.writeFileSync(path.join(TEST_DATA_DIR, 'screens.json'), JSON.stringify({ screens: [
+    { id: 'pantalla-1', matchId: 'pista-2', mode: 'scoreAds', adInterval: 12, ads: { banner: ['b.png'], fullscreen: ['f.png'] } },
+    { id: 'pantalla-2', matchId: 'pista-1', mode: 'ads', adInterval: 7, ads: { banner: [], fullscreen: ['x.png'] } },
+  ] }));
+  const screens = loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'] });
+  const [p1, p2] = [screens.get('pantalla-1'), screens.get('pantalla-2')];
+  assert.strictEqual(p1.matchId, 'pista-2');
+  assert.strictEqual(p1.view, 'score');
+  assert.deepStrictEqual([p1.ribbon.enabled, p1.ribbon.images, p1.ribbon.interval], [true, ['b.png'], 12]);
+  assert.deepStrictEqual(p1.media.items, ['f.png']);
+  assert.strictEqual(p2.view, 'media', '"Solo publicidad" pasa a la lista de reproducción');
+  assert.strictEqual(p2.media.imageSeconds, 7);
+});
+
+test('Reproductor: play reinicia la lista, pause/resume solo si se reproduce, stop vuelve al marcador', () => {
+  const screens = freshScreens();
+  assertCode(() => screens.command('pantalla-1', 'pause'), 'INVALID_ACTION');
+  assertCode(() => screens.command('pantalla-1', 'rebobinar'), 'INVALID_ACTION');
+  const playId = screens.get('pantalla-1').playId;
+  screens.command('pantalla-1', 'play');
+  assert.deepStrictEqual([screens.get('pantalla-1').view, screens.get('pantalla-1').playId], ['media', playId + 1]);
+  screens.command('pantalla-1', 'pause');
+  assert.strictEqual(screens.get('pantalla-1').playback, 'paused');
+  screens.command('pantalla-1', 'resume');
+  assert.strictEqual(screens.get('pantalla-1').playback, 'playing');
+  screens.command('pantalla-1', 'stop');
+  assert.strictEqual(screens.get('pantalla-1').view, 'score');
+  assert.strictEqual(screens.get('pantalla-2').view, 'score', 'La otra pantalla no cambia');
+});
+
+test('Publicidad final: una vez por final, solo con la opción activada y en la vista de marcador', () => {
+  const clock = { t: 5000 };
+  const screens = freshScreens(clock);
+  screens.update('pantalla-1', { endAds: { enabled: true } }, EMPTY_LIBRARY);
+  screens.update('pantalla-2', { matchId: 'pista-1' }, EMPTY_LIBRARY);   // misma pista, opción desactivada
+
+  assert.deepStrictEqual(screens.matchFinished('pista-1', '40'), ['pantalla-1']);
+  assert.deepStrictEqual(screens.get('pantalla-1').postMatch, { key: 'pista-1:40', since: 5000 });
+  assert.strictEqual(screens.get('pantalla-2').postMatch, null);
+
+  clock.t = 9000;
+  assert.deepStrictEqual(screens.matchFinished('pista-1', '40'), [], 'El mismo final no se repite');
+  assert.strictEqual(screens.get('pantalla-1').postMatch.since, 5000);
+
+  // Activarla DESPUÉS de un final no la dispara con ese final
+  screens.update('pantalla-2', { endAds: { enabled: true } }, EMPTY_LIBRARY);
+  assert.deepStrictEqual(screens.matchFinished('pista-1', '40'), []);
+
+  // El partido vuelve a jugarse (deshacer) → marcador; nuevo final → se activa otra vez
+  assert.deepStrictEqual(screens.matchActive('pista-1'), ['pantalla-1']);
+  assert.strictEqual(screens.get('pantalla-1').postMatch, null);
+  assert.deepStrictEqual(screens.matchFinished('pista-1', '42').sort(), ['pantalla-1', 'pantalla-2']);
+
+  // Volver al marcador, desactivar la opción o cambiar de partido la terminan
+  screens.command('pantalla-1', 'stop');
+  assert.strictEqual(screens.get('pantalla-1').postMatch, null);
+  screens.update('pantalla-2', { endAds: { enabled: false } }, EMPTY_LIBRARY);
+  assert.strictEqual(screens.get('pantalla-2').postMatch, null);
+
+  // Otra pista no afecta
+  assert.deepStrictEqual(screens.matchFinished('pista-2', '3'), []);
+});
+
+test('Publicidad final pendiente sobrevive a un reinicio y no se repite', () => {
+  const screens = freshScreens({ t: 100 });
+  screens.update('pantalla-1', { endAds: { enabled: true } }, EMPTY_LIBRARY);
+  screens.matchFinished('pista-1', '9');
+  const again = loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'], now: () => 200 });
+  assert.deepStrictEqual(again.get('pantalla-1').postMatch, { key: 'pista-1:9', since: 100 });
+  assert.deepStrictEqual(again.matchFinished('pista-1', '9'), []);
+});
+
+test('Pausa: bloquea puntos y saque; deshacer y finalizar siguen disponibles; se guarda en disco', () => {
+  const match = freshRegistry().get('pista-1');
+  quiet(() => match.setup(validConfig()));
+  quiet(() => match.applyAction('pointA', match.version));
+  const v = match.version;
+  quiet(() => match.applyAction('pause', v));
+  assert.strictEqual(match.getPublicState().paused, true);
+  assert.strictEqual(match.version, v + 1, 'La pausa crea una versión nueva (las pantallas se enteran)');
+  ['pointA', 'pointB', 'changeServer'].forEach((a) => assertCode(() => match.applyAction(a, match.version), 'MATCH_PAUSED'));
+  assert.strictEqual(restartRegistry().get('pista-1').getPublicState().paused, true, 'La pausa sobrevive a un reinicio');
+
+  quiet(() => match.applyAction('undo', match.version));
+  assert.strictEqual(match.getPublicState().players.A.points, 0, 'Deshacer funciona en pausa');
+  quiet(() => match.applyAction('finishMatch', match.version));
+  assert.strictEqual(match.getPublicState().paused, false, 'Al terminar se quita la pausa');
+  assertCode(() => match.applyAction('pause', match.version), 'INVALID_ACTION');
 });
 
 test('Informe de pantalla: guarda resolución y versión dibujada (datos saneados)', () => {

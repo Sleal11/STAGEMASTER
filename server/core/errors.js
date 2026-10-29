@@ -22,6 +22,10 @@
  *   WRONG_MATCH          El teléfono intenta controlar un partido que no es el suyo
  *   FORBIDDEN            Acción reservada a la estación operadora
  *   INVALID_SCREEN_CONFIG Configuración de pantalla inválida
+ *   MATCH_PAUSED         El partido está en pausa: no admite puntos
+ *   INVALID_MONITOR      El monitor elegido ya no está conectado
+ *   STATION_LOCAL_ONLY   La estación solo se abre en el propio portátil
+ *   DISPLAY_LOCAL_ONLY   Las pantallas solo se abren en el propio portátil
  */
 
 class AppError extends Error {

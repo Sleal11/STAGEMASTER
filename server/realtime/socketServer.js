@@ -29,16 +29,17 @@
  *   resetMatch { matchId, version }                 teléfono vinculado / estación
  *   station:newPin { matchId }                      estación
  *   station:unpair { matchId }                      estación
- *   station:updateScreen { screenId, changes }      estación
+ *   station:updateScreen { screenId, changes }      estación (ver core/screenConfig.js)
+ *   station:media { screenId, command }             estación: play | pause | resume | stop
  *   station:identify { screenId }                   estación
  *   station:refreshAds                              estación
  *   station:setMonitor { screenId, monitor }        estación (solo aplicación de escritorio)
  *   station:openScreen { screenId }                 estación (solo aplicación de escritorio)
  *   station:openAdsFolder                           estación (solo aplicación de escritorio)
- *   display:report { viewport, renderedMatchId, renderedVersion, adErrors }   pantalla
+ *   display:report { viewport, renderedMatchId, renderedVersion, adErrors, playing, soundBlocked }   pantalla
  *
  * EVENTOS servidor → cliente:
- *   matchUpdate { matchId, state }                  sala del partido
+ *   matchUpdate { matchId, state }                  sala del partido (state.paused: partido en pausa)
  *   controllerSession { matchId, label, color }     teléfono vinculado
  *   controllerRevoked { reason, message }           teléfono que pierde el permiso
  *   screenConfig { ... }                            pantalla
@@ -51,6 +52,7 @@ const { MATCH_ACTIONS } = require('../core/Match');
 const auth              = require('../core/auth');
 const ads               = require('../core/ads');
 const { getQrSvg }      = require('../core/network');
+const { OUTPUT_FORMATS, LIMITS, resolveOutput } = require('../core/screenConfig');
 
 /** Tiempo tras el que una pantalla que no ha dibujado la última versión se considera desincronizada */
 const SYNC_TOLERANCE_MS = 2000;
@@ -126,8 +128,9 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     handle(socket, 'matchAction', ({ matchId, action, version } = {}) => {
       if (!MATCH_ACTIONS.includes(action)) throw appError('INVALID_ACTION', `Acción no permitida: ${action}`);
       const match = authorizeMatch(socket, matchId);
+      const wasFinished = match.state && match.state.status === 'finished';
       match.applyAction(action, version);
-      publishMatch(match);
+      publishMatch(match, wasFinished);
     });
 
     handle(socket, 'resetMatch', ({ matchId, version } = {}) => {
@@ -165,12 +168,20 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     handle(socket, 'station:updateScreen', ({ screenId, changes } = {}) => {
       requireStation(socket);
       const { config, previousMatchId } = screens.update(screenId, changes, ads.listAds());
-      if (config.matchId !== previousMatchId) {
+      const matchChanged = config.matchId !== previousMatchId;
+      if (matchChanged) {
         // La pantalla pasa a mostrar otro partido: cambia de sala
         io.in(`screen:${screenId}`).socketsLeave(`match:${previousMatchId}`);
         io.in(`screen:${screenId}`).socketsJoin(`match:${config.matchId}`);
       }
-      pushScreenConfig(screenId);
+      pushScreenConfig(screenId, matchChanged);
+      scheduleStationState();
+    });
+
+    handle(socket, 'station:media', ({ screenId, command } = {}) => {
+      requireStation(socket);
+      screens.command(screenId, command);
+      pushScreenConfig(screenId, false);
       scheduleStationState();
     });
 
@@ -381,35 +392,63 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     return { matchId: match.id, state: match.getPublicState() };
   }
 
-  /** Nuevo estado de un partido → SOLO a su sala (teléfono + pantallas que lo muestran) */
-  function publishMatch(match) {
+  /**
+   * Nuevo estado de un partido → SOLO a su sala (teléfono + pantallas que lo muestran).
+   * Además avisa a las pantallas de que el partido terminó (publicidad final)
+   * o vuelve a jugarse (fin de esa publicidad). Nunca al revés: la
+   * publicidad no puede cambiar el marcador.
+   *
+   * @param {Match}   match
+   * @param {boolean} [wasFinished] - Si estaba terminado ANTES de la acción
+   */
+  function publishMatch(match, wasFinished = false) {
+    const state = match.getPublicState();
     io.to(`match:${match.id}`).emit('matchUpdate', matchPayload(match));
+
+    const finishedNow = !!state && state.status === 'finished';
+    const changed = finishedNow && !wasFinished
+      ? screens.matchFinished(match.id, String(match.version))
+      : (finishedNow ? [] : screens.matchActive(match.id));
+    changed.forEach((screenId) => {
+      pushScreenConfig(screenId, false);
+      // La estación muestra "en X s" y después "mostrando publicidad": refrescar al empezar
+      setTimeout(scheduleStationState, screens.get(screenId).endAds.delay * 1000 + 200);
+    });
+
     scheduleStationState();
     // Segunda revisión pasada la tolerancia: detecta pantallas que no dibujaron la versión nueva
     setTimeout(scheduleStationState, SYNC_TOLERANCE_MS + 200);
   }
 
+  /** Lo que necesita una pantalla para dibujarse (URLs resueltas, sin datos internos) */
   function buildScreenConfig(screenId) {
-    const config   = screens.get(screenId);
-    const match    = registry.get(config.matchId);
-    const resolved = ads.resolveSelection(config.ads);
+    const config  = screens.get(screenId);
+    const match   = registry.get(config.matchId);
+    const library = ads.listAds();
+    const ribbon  = ads.resolve('banner', config.ribbon.images, library);
+    const media   = ads.resolve('fullscreen', config.media.items, library);
+    const { postMatch, endAds } = config;
     return {
       id:         config.id,
       label:      config.label,
       matchId:    match.id,
       matchLabel: match.label,
       matchColor: match.color,
-      mode:       config.mode,
-      adInterval: config.adInterval,
-      ads:        { banner: resolved.banner, fullscreen: resolved.fullscreen },
-      missingAds: resolved.missing,
+      view:       config.view,
+      ribbon:     { ...config.ribbon, images: ribbon.items },
+      media:      { ...config.media, items: media.items, playback: config.playback, playId: config.playId },
+      // Tiempo restante (no la hora): así no importa si el reloj de la pantalla va desajustado
+      postMatch:  postMatch && { remainingMs: Math.max(0, postMatch.since + endAds.delay * 1000 - Date.now()) },
+      output:     resolveOutput(config.output),
+      missingAds: ribbon.missing.concat(media.missing),
     };
   }
 
-  function pushScreenConfig(screenId) {
+  /** Envía su configuración a una pantalla (y el marcador, si cambió de partido) */
+  function pushScreenConfig(screenId, withMatch = true) {
     const config = screens.get(screenId);
     io.to(`screen:${screenId}`).emit('screenConfig', buildScreenConfig(screenId));
-    io.to(`screen:${screenId}`).emit('matchUpdate', matchPayload(registry.get(config.matchId)));
+    if (withMatch) io.to(`screen:${screenId}`).emit('matchUpdate', matchPayload(registry.get(config.matchId)));
   }
 
   // ── Estado para la estación (agrupado: como mucho 1 envío cada 100 ms) ──
@@ -426,6 +465,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
   function buildStationState() {
     const now     = Date.now();
     const network = getNetworkInfo();
+    const library = ads.listAds();
     return {
       matches: registry.list().map((match) => {
         const presence = controllerPresence.get(match.id);
@@ -449,19 +489,23 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       }),
       screens: screens.list().map((config) => {
         const match = registry.get(config.matchId);
-        const resolved = ads.resolveSelection(config.ads);
         return {
           ...config,
           matchLabel: match.label,
-          missingAds: resolved.missing,
+          missingAds: ads.resolve('banner', config.ribbon.images, library).missing
+            .concat(ads.resolve('fullscreen', config.media.items, library).missing),
           displays: screens.presenceOf(config.id).map((display) => ({
-            viewport: display.viewport,
-            adErrors: display.adErrors,
-            sync:     syncStatus(display, match, now),
+            viewport:     display.viewport,
+            adErrors:     display.adErrors,
+            playing:      display.playing,
+            soundBlocked: display.soundBlocked,
+            sync:         syncStatus(display, match, now),
           })),
         };
       }),
-      ads:     ads.listAds(),
+      ads:     library,
+      outputFormats: Object.entries(OUTPUT_FORMATS).map(([id, format]) => ({ id, ...format })),
+      limits:  LIMITS,
       network,
       desktop: desktop ? desktop.getState() : null,
       serverTime: now,

@@ -77,6 +77,7 @@ fs.mkdirSync(path.join(ADS_DIR, 'banner'));
 fs.mkdirSync(path.join(ADS_DIR, 'pantalla-completa'));
 fs.writeFileSync(path.join(ADS_DIR, 'banner', 'patrocinador.png'), 'imagen');
 fs.writeFileSync(path.join(ADS_DIR, 'pantalla-completa', 'promo.jpg'), 'imagen');
+fs.writeFileSync(path.join(ADS_DIR, 'pantalla-completa', 'anuncio.mp4'), Buffer.alloc(4096, 7));
 
 function getFreePort() {
   return new Promise((resolve, reject) => {
@@ -145,7 +146,7 @@ function createDevice(nombre, auth, host = 'localhost') {
     device.states[matchId]  = state;
     device.updates[matchId] = (device.updates[matchId] || 0) + 1;
   });
-  socket.on('screenConfig', (cfg) => { device.screenConfig = cfg; });
+  socket.on('screenConfig', (cfg) => { device.screenConfig = cfg; device.configs = (device.configs || 0) + 1; });
   socket.on('stationState', (st) => { device.stationState = st; });
   socket.on('controllerSession', (s) => { device.session = s; device.revoked = null; });
   socket.on('controllerRevoked', (r) => { device.revoked = r; device.session = null; });
@@ -399,25 +400,86 @@ test('Estación asigna la Pista 1 a la Pantalla 2: ambas pantallas muestran el M
   await waitFor(() => pantalla2.screenConfig.matchId === 'pista-2', 'pantalla 2 restaurada');
 });
 
-test('Publicidad: la estación ve los archivos y los asigna a una pantalla en vivo', async () => {
+test('Cinta publicitaria: imágenes y mensajes se aplican en vivo a la pantalla', async () => {
   assert.deepStrictEqual(estacion.stationState.ads.banner.map((a) => a.name), ['patrocinador.png']);
   const res = await send(estacion, 'station:updateScreen', {
-    screenId: 'pantalla-1', changes: { mode: 'scoreAds', adInterval: 8, ads: { banner: ['patrocinador.png'], fullscreen: ['promo.jpg'] } },
+    screenId: 'pantalla-1',
+    changes: { ribbon: { enabled: true, images: ['patrocinador.png'], texts: ['  Gracias a   Bar Central ', ''], motion: 'scroll', interval: 8 } },
   });
   assert.ok(res.ok, res.message);
-  await waitFor(() => pantalla1.screenConfig.ads.banner.length === 1, 'pantalla 1 con publicidad');
-  assert.strictEqual(pantalla1.screenConfig.ads.banner[0].url, '/publicidad/banner/patrocinador.png');
-  assert.strictEqual(pantalla1.screenConfig.adInterval, 8);
+  await waitFor(() => pantalla1.screenConfig.ribbon.images.length === 1, 'cinta en la pantalla 1');
+  const { ribbon } = pantalla1.screenConfig;
+  assert.strictEqual(ribbon.images[0].url, '/publicidad/banner/patrocinador.png');
+  assert.deepStrictEqual(ribbon.texts, ['Gracias a Bar Central'], 'Mensajes limpios (espacios y vacíos)');
+  assert.strictEqual(ribbon.motion, 'scroll');
+  assert.strictEqual(ribbon.interval, 8);
 
   const http = await fetch(`http://localhost:${PORT}/publicidad/banner/patrocinador.png`);
   assert.strictEqual(http.status, 200, 'El servidor sirve el archivo de publicidad');
 });
 
-test('Publicidad inexistente o modo inválido → INVALID_SCREEN_CONFIG', async () => {
-  let res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-1', changes: { ads: { banner: ['no-existe.png'] } } });
-  assert.strictEqual(res.code, 'INVALID_SCREEN_CONFIG');
-  res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-1', changes: { mode: 'karaoke' } });
-  assert.strictEqual(res.code, 'INVALID_SCREEN_CONFIG');
+test('Lista de reproducción con vídeo: la pantalla recibe imágenes y vídeos en orden; el vídeo se sirve por partes', async () => {
+  const library = estacion.stationState.ads.fullscreen;
+  assert.deepStrictEqual(library.map((a) => [a.name, a.kind]), [['anuncio.mp4', 'video'], ['promo.jpg', 'image']]);
+  const res = await send(estacion, 'station:updateScreen', {
+    screenId: 'pantalla-1', changes: { media: { items: ['promo.jpg', 'anuncio.mp4'], imageSeconds: 6, sound: true } },
+  });
+  assert.ok(res.ok, res.message);
+  await waitFor(() => pantalla1.screenConfig.media.items.length === 2, 'lista en la pantalla 1');
+  assert.deepStrictEqual(pantalla1.screenConfig.media.items.map((i) => i.kind), ['image', 'video']);
+  assert.strictEqual(pantalla1.screenConfig.media.sound, true);
+
+  // Los vídeos se piden por rangos (así se reproducen sin descargarlos enteros)
+  const part = await fetch(`http://localhost:${PORT}/publicidad/pantalla-completa/anuncio.mp4`, { headers: { Range: 'bytes=0-99' } });
+  assert.strictEqual(part.status, 206);
+  assert.strictEqual(part.headers.get('content-type'), 'video/mp4');
+  assert.strictEqual((await part.arrayBuffer()).byteLength, 100);
+});
+
+test('Reproductor: reproducir, pausar, reanudar y detener (vuelve al marcador)', async () => {
+  const playId = pantalla1.screenConfig.media.playId;
+  const steps = [
+    ['play',   (c) => c.view === 'media' && c.media.playback === 'playing' && c.media.playId === playId + 1],
+    ['pause',  (c) => c.view === 'media' && c.media.playback === 'paused'],
+    ['resume', (c) => c.view === 'media' && c.media.playback === 'playing' && c.media.playId === playId + 1],
+    ['stop',   (c) => c.view === 'score'],
+  ];
+  for (const [command, check] of steps) {
+    const res = await send(estacion, 'station:media', { screenId: 'pantalla-1', command });
+    assert.ok(res.ok, `${command}: ${res.message}`);
+    await waitFor(() => check(pantalla1.screenConfig), `pantalla tras "${command}"`);
+  }
+  const res = await send(estacion, 'station:media', { screenId: 'pantalla-1', command: 'pause' });
+  assert.strictEqual(res.code, 'INVALID_ACTION', 'No se puede pausar si no se está reproduciendo');
+  assert.strictEqual(pantalla2.screenConfig.view, 'score', 'La otra pantalla no cambia');
+});
+
+test('Configuración inválida de pantalla → INVALID_SCREEN_CONFIG (nada cambia)', async () => {
+  const invalid = [
+    { ribbon: { images: ['no-existe.png'] } },
+    { media: { items: ['../../secreto.mp4'] } },
+    { view: 'karaoke' },
+    { output: { format: 'led-gigante' } },
+    { output: { x: -5 } },
+    { ribbon: { texts: ['x'.repeat(121)] } },
+    { endAds: { delay: 9999 } },
+  ];
+  for (const changes of invalid) {
+    const res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-1', changes });
+    assert.strictEqual(res.code, 'INVALID_SCREEN_CONFIG', JSON.stringify(changes));
+  }
+  const res = await send(estacion, 'station:media', { screenId: 'pantalla-1', command: 'rebobinar' });
+  assert.strictEqual(res.code, 'INVALID_ACTION');
+});
+
+test('Formato LED: la pantalla recibe el tamaño exacto y la posición', async () => {
+  let res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-2', changes: { output: { format: 'led-sm', x: 16, y: 8 } } });
+  assert.ok(res.ok, res.message);
+  await waitFor(() => pantalla2.screenConfig.output.format === 'led-sm', 'formato LED en la pantalla 2');
+  assert.deepStrictEqual(pantalla2.screenConfig.output, { format: 'led-sm', width: 416, height: 208, x: 16, y: 8 });
+  assert.ok(estacion.stationState.outputFormats.some((f) => f.id === 'led-xl' && f.width === 832 && f.height === 416));
+  res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-2', changes: { output: { format: 'fill', x: 0, y: 0 } } });
+  assert.ok(res.ok, res.message);
 });
 
 test('Identificar pantalla: solo la elegida recibe la orden', async () => {
@@ -472,7 +534,8 @@ test('REINICIO DEL SERVIDOR: partidos, PIN, teléfonos y pantallas se recuperan 
   assert.deepStrictEqual(pantalla1.states['pista-1'], antes.p1);
   assert.deepStrictEqual(pantalla2.states['pista-2'], antes.p2);
   assert.strictEqual(pinOf(estacion, 'pista-1'), antes.pin1);
-  assert.strictEqual(pantalla1.screenConfig.ads.banner.length, 1, 'La publicidad asignada se conserva');
+  assert.strictEqual(pantalla1.screenConfig.ribbon.images.length, 1, 'La cinta asignada se conserva');
+  assert.strictEqual(pantalla1.screenConfig.media.items.length, 2, 'La lista de reproducción se conserva');
 
   const res = await action(telefono2, 'pista-2', 'undo');
   assert.ok(res.ok, 'Se puede deshacer tras el reinicio: ' + res.message);
@@ -540,6 +603,71 @@ test('Uso intensivo: 2 árbitros puntuando a la vez (400 acciones) sin mezclar p
   const p99   = tiempos[Math.floor(tiempos.length * 0.99)];
   assert.ok(p99 < 250, `Respuesta demasiado lenta: p99 = ${p99.toFixed(1)} ms`);
   return `${tiempos.length} acciones · media ${media.toFixed(1)} ms · p99 ${p99.toFixed(1)} ms`;
+});
+
+test('Publicidad al terminar: se activa UNA vez por final, solo en las pantallas con la opción activada', async () => {
+  await send(estacion, 'setupMatch', { matchId: 'pista-1', config: config(), force: true });
+  await send(estacion, 'station:updateScreen', { screenId: 'pantalla-1', changes: { endAds: { enabled: true, delay: 1 } } });
+  await send(estacion, 'station:updateScreen', { screenId: 'pantalla-2', changes: { matchId: 'pista-1', endAds: { enabled: false } } });
+  await waitFor(() => pantalla1.screenConfig.view === 'score' && pantalla2.screenConfig.matchId === 'pista-1' &&
+    telefono1.states['pista-1'].status === 'playing', 'pantallas preparadas');
+
+  await action(telefono1, 'pista-1', 'pointA');
+  await waitFor(() => telefono1.states['pista-1'].players.A.points === 15, 'punto');
+  assert.strictEqual(pantalla1.screenConfig.postMatch, null, 'Durante el partido no hay publicidad final');
+
+  const configsBefore = pantalla1.configs;
+  await action(telefono1, 'pista-1', 'finishMatch');
+  await waitFor(() => pantalla1.screenConfig.postMatch, 'publicidad final en la pantalla 1');
+  const { remainingMs } = pantalla1.screenConfig.postMatch;
+  assert.ok(remainingMs > 0 && remainingMs <= 1000, `El resultado se ve primero (${remainingMs} ms)`);
+  assert.strictEqual(pantalla2.screenConfig.postMatch, null, 'Pantalla 2 tiene la opción desactivada');
+
+  // Repetir "finalizar" sobre el partido ya terminado NO la vuelve a activar
+  await action(telefono1, 'pista-1', 'finishMatch');
+  await sleep(200);
+  assert.strictEqual(pantalla1.configs, configsBefore + 1, 'Una sola activación por final');
+  await waitFor(() => estacion.stationState.screens[0].postMatch, 'la estación lo ve');
+
+  // Deshacer el final → vuelve el marcador; volver a terminar → nuevo final, se activa otra vez
+  await action(telefono1, 'pista-1', 'undo');
+  await waitFor(() => pantalla1.screenConfig.postMatch === null, 'marcador tras deshacer');
+  await action(telefono1, 'pista-1', 'finishMatch');
+  await waitFor(() => pantalla1.screenConfig.postMatch, 'publicidad tras el nuevo final');
+
+  // "Volver al marcador" desde la estación
+  await send(estacion, 'station:media', { screenId: 'pantalla-1', command: 'stop' });
+  await waitFor(() => pantalla1.screenConfig.postMatch === null && pantalla1.screenConfig.view === 'score', 'vuelta al marcador');
+  assert.strictEqual(telefono1.states['pista-1'].status, 'finished', 'La publicidad no cambia el marcador');
+
+  // Con la opción desactivada, terminar el partido no cambia la pantalla
+  await send(estacion, 'station:updateScreen', { screenId: 'pantalla-1', changes: { endAds: { enabled: false } } });
+  await action(telefono1, 'pista-1', 'undo');
+  await waitFor(() => telefono1.states['pista-1'].status === 'playing', 'partido reabierto');
+  await action(telefono1, 'pista-1', 'finishMatch');
+  await waitFor(() => telefono1.states['pista-1'].status === 'finished', 'partido terminado');
+  await sleep(200);
+  assert.strictEqual(pantalla1.screenConfig.postMatch, null);
+  await send(estacion, 'station:updateScreen', { screenId: 'pantalla-2', changes: { matchId: 'pista-2' } });
+});
+
+test('Pausa: el partido no admite puntos hasta reanudarlo; las pantallas lo muestran', async () => {
+  let res = await action(telefono1, 'pista-1', 'pause');
+  assert.strictEqual(res.code, 'INVALID_ACTION', 'Un partido terminado no se pausa');
+
+  await send(estacion, 'setupMatch', { matchId: 'pista-1', config: config(), force: true });
+  await waitFor(() => telefono1.states['pista-1'].status === 'playing' && telefono1.states['pista-1'].version > 0, 'partido nuevo');
+  res = await action(telefono1, 'pista-1', 'pause');
+  assert.ok(res.ok, res.message);
+  await waitFor(() => pantalla1.states['pista-1'].paused === true, 'pantalla en pausa');
+
+  res = await action(telefono1, 'pista-1', 'pointA');
+  assert.strictEqual(res.code, 'MATCH_PAUSED');
+  await waitFor(() => estacion.stationState.matches[0].state.version === telefono1.states['pista-1'].version, 'estación al día');
+  res = await send(estacion, 'matchAction', { matchId: 'pista-1', action: 'resume', version: estacion.stationState.matches[0].state.version });
+  assert.ok(res.ok, res.message);
+  await waitFor(() => telefono1.states['pista-1'].paused === false, 'reanudado');
+  assert.ok((await action(telefono1, 'pista-1', 'pointA')).ok);
 });
 
 test('/health responde con el estado de ambos partidos', async () => {
