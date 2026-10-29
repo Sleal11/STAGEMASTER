@@ -23,8 +23,11 @@
 
 import { cleanLogo } from './logo-cleaner.js';
 
-/** Velocidad del desplazamiento: alturas de cinta por segundo */
-const SPEEDS  = { slow: 1.3, normal: 1.9, fast: 2.7 };
+/**
+ * Velocidad del desplazamiento: alturas de cinta por segundo. "Normal"
+ * cruza una pantalla LED XL (832 px) en unos 13 s: se lee sin prisa.
+ */
+const SPEEDS  = { slow: 0.7, normal: 1.0, fast: 1.5 };
 const FADE_MS = 600;
 /** Un mensaje puede reducirse hasta este tamaño antes de desplazarse */
 const TEXT_MIN_SCALE = 0.78;

@@ -10,8 +10,13 @@
  *      letras blancas del logo de Pepsi).
  *   2. Suaviza el borde para que no quede un halo blanco.
  *   3. Recorta los márgenes vacíos: todos los logos quedan igual de separados.
- *   4. Un logo de un solo color oscuro (p. ej. negro) se pasa a BLANCO: si no,
- *      sería invisible sobre el fondo oscuro.
+ *   4. Un logo que no contrasta con el azul de la cinta (negro, gris oscuro,
+ *      azul marino…) se pasa a BLANCO. Se mide con el contraste estándar
+ *      (WCAG) frente al color real de la cinta; los logos de colores vivos
+ *      (rojo, naranja…) conservan su color.
+ *
+ * Los SVG se dibujan a alta resolución antes de procesarlos (nítidos aunque
+ * el archivo no indique su tamaño).
  *
  * Si la imagen no tiene nada que limpiar, se usa la original.
  * Se activa o desactiva por pantalla (Cinta → "Quitar el fondo blanco").
@@ -21,8 +26,9 @@ const MAX_SIDE      = 1600;  // las imágenes grandes se reducen antes de proces
 const WHITE_MIN     = 226;   // un píxel es "blanco de fondo" si R, G y B superan esto…
 const WHITE_SPREAD  = 30;    // …y apenas tienen color (diferencia entre canales)
 const FEATHER_MIN   = 170;   // claros junto al fondo: transparencia parcial (sin halo)
-const MONO_SAT      = 0.2;   // por debajo: logo "sin color"
-const MONO_LUM      = 0.42;  // por debajo: logo oscuro → se pasa a blanco
+const RIBBON_LUM    = 0.015; // luminancia relativa del azul de la cinta (#08204A)
+const MIN_CONTRAST  = 2.5;   // por debajo, el logo no se distingue del fondo → blanco
+const SVG_SIDE      = 800;   // lado mayor al dibujar un SVG
 
 const cache = new Map();
 
@@ -41,10 +47,29 @@ function loadImage(url) {
   });
 }
 
+/** Proporción de un SVG (viewBox o width/height); 1 si no se puede saber */
+async function svgRatio(url) {
+  try {
+    const text = await (await fetch(url)).text();
+    const viewBox = text.match(/viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i);
+    if (viewBox && +viewBox[1] > 0 && +viewBox[2] > 0) return +viewBox[1] / +viewBox[2];
+    const w = text.match(/<svg[^>]*\swidth\s*=\s*["']([\d.]+)/i);
+    const h = text.match(/<svg[^>]*\sheight\s*=\s*["']([\d.]+)/i);
+    if (w && h && +w[1] > 0 && +h[1] > 0) return +w[1] / +h[1];
+  } catch (_) { /* se usa 1 */ }
+  return 1;
+}
+
 async function process(url) {
   const img = await loadImage(url);
   let width = img.naturalWidth;
   let height = img.naturalHeight;
+  if (/\.svg$/i.test(decodeURIComponent(url.split(/[?#]/)[0]))) {
+    // Vectorial: se dibuja grande para que quede nítido
+    const ratio = width && height ? width / height : await svgRatio(url);
+    width = ratio >= 1 ? SVG_SIDE : Math.round(SVG_SIDE * ratio);
+    height = ratio >= 1 ? Math.round(SVG_SIDE / ratio) : SVG_SIDE;
+  }
   if (!width || !height) return url;
   const scale = Math.min(1, MAX_SIDE / Math.max(width, height));
   width = Math.round(width * scale);
@@ -122,20 +147,21 @@ function removeWhiteBackground(px, width, height) {
   return true;
 }
 
-/** Logo oscuro de un solo color → blanco (mantiene la forma y los bordes suaves) */
+/** Canal sRGB (0-255) → valor lineal (para la luminancia relativa WCAG) */
+const linear = (c) => { const v = c / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+
+/** Logo que no contrasta con la cinta → blanco (mantiene la forma y los bordes suaves) */
 function whitenDarkMonochrome(px) {
   let count = 0;
   let lum = 0;
-  let sat = 0;
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] < 128) continue;
-    const r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    lum += 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    sat += max === 0 ? 0 : (max - min) / max;
+    lum += 0.2126 * linear(px[i]) + 0.7152 * linear(px[i + 1]) + 0.0722 * linear(px[i + 2]);
     count++;
   }
-  if (!count || sat / count >= MONO_SAT || lum / count >= MONO_LUM) return false;
+  if (!count) return false;
+  const contrast = (lum / count + 0.05) / (RIBBON_LUM + 0.05);
+  if (contrast >= MIN_CONTRAST) return false;
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] === 0) continue;
     px[i] = px[i + 1] = px[i + 2] = 255;
