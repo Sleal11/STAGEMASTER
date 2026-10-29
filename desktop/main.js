@@ -24,10 +24,13 @@
 const path = require('path');
 const fs   = require('fs');
 const {
-  app, BrowserWindow, screen, dialog, shell, powerSaveBlocker, Menu,
+  app, BrowserWindow, screen, dialog, shell, powerSaveBlocker, Menu, session,
 } = require('electron');
 
 const monitors = require('./monitors');
+const { getBuildInfo, describeBuild } = require('../server/core/buildInfo');
+
+const BUILD = getBuildInfo();
 
 const SCREEN_IDS = ['pantalla-1', 'pantalla-2'];
 const BACKGROUND = '#041024';
@@ -35,18 +38,43 @@ const ICON       = path.join(__dirname, 'icon.png');
 
 // ─────────────────────────────────────────────────────────────────
 // UNA SOLA INSTANCIA (abrirla dos veces chocaría por el puerto)
+//
+// Si se abre StageMaster con otro ya abierto, se muestra el que estaba.
+// Si el que se intenta abrir es OTRA versión (p. ej. una versión de prueba
+// recién descargada), se avisa: si no, el operador seguiría usando la vieja
+// sin darse cuenta.
 // ─────────────────────────────────────────────────────────────────
 
-if (!app.requestSingleInstanceLock()) {
+if (!app.requestSingleInstanceLock({ version: BUILD.version, commit: BUILD.commit })) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (stationWindow) {
-      if (stationWindow.isMinimized()) stationWindow.restore();
-      stationWindow.focus();
-    }
+  app.on('second-instance', (event, argv, cwd, other) => {
+    if (!stationWindow) return;
+    if (stationWindow.isMinimized()) stationWindow.restore();
+    stationWindow.focus();
+    // Aviso sin bloquear: la copia que se intenta abrir se cierra al momento
+    if (other && (other.version !== BUILD.version || other.commit !== BUILD.commit)) setImmediate(() => warnOtherVersion(other));
   });
   app.whenReady().then(start);
+}
+
+function warnOtherVersion(other) {
+  console.log(`[Escritorio] Se intentó abrir otra versión: ${describeBuild(other)} (abierta: ${describeBuild(BUILD)})`);
+  dialog.showMessageBox(stationWindow, {
+    type: 'warning',
+    buttons: ['Seguir con esta', 'Cerrar esta versión'],
+    defaultId: 1,
+    cancelId: 0,
+    title: 'Otra versión de StageMaster',
+    message: 'Ya hay un StageMaster abierto, de otra versión.',
+    detail: `Abierto ahora: ${describeBuild(BUILD)}\nEl que intentas abrir: ${describeBuild(other)}\n\n` +
+      'Solo puede haber uno abierto. Para usar el otro, cierra este y vuelve a abrirlo. ' +
+      'Los partidos y la configuración se conservan.',
+  }).then(({ response }) => {
+    if (response !== 1) return;
+    quitting = true;
+    app.quit();
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -351,6 +379,8 @@ const desktopAdapter = {
 
 async function start() {
   Menu.setApplicationMenu(null);
+  // Nada de páginas de versiones anteriores guardadas en la caché
+  await session.defaultSession.clearCache().catch(() => {});
   prepareAdsFolder();
   preferences = loadPreferences();
 
@@ -366,7 +396,7 @@ async function start() {
     return;
   }
   baseUrl = `http://localhost:${started.port}`;
-  console.log(`[Escritorio] Servidor en ${baseUrl} · datos: ${dataDir} · publicidad: ${adsDir}`);
+  console.log(`[Escritorio] StageMaster ${describeBuild(BUILD)} · servidor en ${baseUrl} · datos: ${dataDir} · publicidad: ${adsDir}`);
 
   // Las pantallas no se apagan ni entran en reposo mientras StageMaster esté abierto
   powerSaveBlocker.start('prevent-display-sleep');

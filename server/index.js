@@ -40,6 +40,7 @@ const { isLocalAddress }      = require('./core/auth');
 const { getLocalAddresses }   = require('./core/network');
 const { attachSocketServer }  = require('./realtime/socketServer');
 const { createAdsRouter }     = require('./http/adsApi');
+const { getBuildInfo }        = require('./core/buildInfo');
 
 /** Puertos que se prueban en orden si el anterior está ocupado */
 const DEFAULT_PORTS = [3000, 3001, 3002, 3003, 3004, 3005];
@@ -100,7 +101,13 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
       .send('La estación operadora solo puede abrirse en el portátil donde funciona StageMaster.');
   });
 
-  app.use(express.static(path.join(__dirname, '..', 'public')));
+  // Páginas de la app: nunca desde la caché. Así, al actualizar StageMaster,
+  // la estación, las pantallas y los teléfonos cargan siempre la versión nueva.
+  app.use(express.static(path.join(__dirname, '..', 'public'), {
+    etag: false,
+    lastModified: false,
+    setHeaders: (res) => res.set('Cache-Control', 'no-store'),
+  }));
   // La publicidad son archivos que trae el operador: nunca se ejecuta nada de
   // ellos (un SVG con código se muestra como imagen, sin ejecutar su código)
   app.use('/publicidad', express.static(adsDir(), {
@@ -123,6 +130,7 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
     res.json({
       ok:      true,
       app:     'StageMaster',
+      build:   getBuildInfo(),
       matches: registry.list().map((m) => ({ id: m.id, status: m.state ? m.state.status : 'empty', version: m.version })),
       clients: io.engine.clientsCount,
       yourIp:  req.ip,

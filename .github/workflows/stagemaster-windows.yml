@@ -50,6 +50,13 @@ jobs:
       - name: Pruebas (motor, núcleo, monitores, integración)
         run: npm test
 
+      # Versión exacta dentro del .exe (la estación la muestra: "v2.2.0 · 19c768c")
+      - name: Datos de la compilación
+        shell: bash
+        run: |
+          echo "{\"commit\":\"${GITHUB_SHA::7}\",\"date\":\"$(date -u +'%Y-%m-%d %H:%M UTC')\"}" > build-info.json
+          cat build-info.json
+
       - name: Compilar StageMaster.exe
         run: npm run dist:win
 

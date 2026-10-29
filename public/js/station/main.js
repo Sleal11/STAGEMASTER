@@ -52,6 +52,8 @@ function connectToServer() {
 
 function render(state) {
   $('st-open-ads').classList.toggle('hidden', !state.desktop);
+  // Versión que está funcionando: para comprobar que es la última de prueba
+  $('st-build').textContent = `v${state.build.version} · ${state.build.commit}`;
   renderNetwork(state.network);
   renderMatches(state);
   renderScreens(state);

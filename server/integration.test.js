@@ -726,6 +726,11 @@ test('/health responde con el estado de ambos partidos', async () => {
   const body = await (await fetch(`http://localhost:${PORT}/health`)).json();
   assert.strictEqual(body.ok, true);
   assert.deepStrictEqual(body.matches.map((m) => m.id), ['pista-1', 'pista-2']);
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.strictEqual(body.build.version, pkg.version, 'Indica la versión que funciona');
+  assert.strictEqual(estacion.stationState.build.version, pkg.version, 'La estación también la ve');
+  const page = await fetch(`http://localhost:${PORT}/js/display/ribbon.js`);
+  assert.strictEqual(page.headers.get('cache-control'), 'no-store', 'Las páginas nunca salen de la caché (siempre la versión nueva)');
 });
 
 test('station.html solo se sirve en el portátil; la raíz lleva a la estación en localhost', async () => {

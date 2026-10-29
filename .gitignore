@@ -11,3 +11,4 @@ Thumbs.db
 
 # Ejecutables generados (StageMaster.exe)
 dist/
+build-info.json

@@ -52,6 +52,7 @@ const { MATCH_ACTIONS } = require('../core/Match');
 const auth              = require('../core/auth');
 const ads               = require('../core/ads');
 const { getQrSvg }      = require('../core/network');
+const { getBuildInfo }  = require('../core/buildInfo');
 const { OUTPUT_FORMATS, LIMITS, resolveOutput } = require('../core/screenConfig');
 
 /** Tiempo tras el que una pantalla que no ha dibujado la última versión se considera desincronizada */
@@ -513,6 +514,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       limits:  LIMITS,
       network,
       desktop: desktop ? desktop.getState() : null,
+      build:   getBuildInfo(),
       serverTime: now,
     };
   }
