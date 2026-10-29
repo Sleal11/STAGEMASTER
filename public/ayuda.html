@@ -8,25 +8,26 @@
   <link rel="stylesheet" href="css/shared.css" />
   <style>
     body { background: #06142C; padding: 28px; line-height: 1.55; font-size: 16px; }
-    main { max-width: 820px; margin: 0 auto; }
+    main { max-width: 860px; margin: 0 auto; }
     h1 { font-family: var(--font-score); font-size: 2rem; margin-bottom: 4px; }
-    h2 { margin: 28px 0 10px; font-size: 1.15rem; color: #8FD3FF; text-transform: uppercase; letter-spacing: 1px; }
+    h2 { display: flex; align-items: center; gap: 10px; margin: 30px 0 10px; font-size: 1.1rem; color: #8FD3FF; text-transform: uppercase; letter-spacing: 1px; }
+    h2 .icon { width: 22px; height: 22px; }
     p, li { color: #DCEBFA; }
     ol, ul { padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
     strong { color: #fff; }
     .intro { color: #BEE6FF; }
     table { width: 100%; border-collapse: collapse; margin-top: 6px; }
     td { padding: 8px 10px; border-bottom: 1px solid #1E4F9C; vertical-align: top; color: #DCEBFA; }
-    td:first-child { width: 40%; font-weight: 700; color: #fff; }
+    td:first-child { width: 34%; font-weight: 700; color: #fff; }
     .tip { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: #0C2C63; border-left: 4px solid #8FD3FF; }
   </style>
 </head>
 <body>
 <main>
   <h1>StageMaster · Ayuda</h1>
-  <p class="intro">Marcador de pádel para hasta 2 partidos y 2 pantallas. Funciona sin Internet: solo necesita Wi-Fi para los teléfonos de los árbitros.</p>
+  <p class="intro">Marcador de pádel para hasta 2 partidos y 2 pantallas (monitores o pantallas LED). Funciona sin Internet: solo necesita Wi-Fi para los teléfonos de los árbitros.</p>
 
-  <h2>Antes del evento</h2>
+  <h2><svg class="icon"><use href="img/icons.svg#check"></use></svg>Antes del evento</h2>
   <ol>
     <li>Conecta las pantallas al portátil por cable.</li>
     <li>Conecta el portátil y los teléfonos a la <strong>misma red Wi-Fi</strong>.</li>
@@ -34,42 +35,52 @@
     <li>La primera vez, si Windows pregunta por el <strong>Firewall</strong>, pulsa <strong>Permitir</strong> (redes privadas).</li>
   </ol>
 
-  <h2>1 · Partidos</h2>
+  <h2><svg class="icon"><use href="img/icons.svg#scoreboard"></use></svg>1 · Partidos</h2>
   <ol>
-    <li>En cada pista pulsa <strong>Configurar partido…</strong>: jugadores (uno por casilla), games, sets, puntuación, desempate y quién saca.</li>
-    <li>Pulsa <strong>Iniciar partido</strong>. La pantalla de esa pista lo muestra al momento.</li>
+    <li>En cada pista pulsa <strong>Configurar partido…</strong>: jugadores (uno por casilla), games, sets, puntuación, desempate y quién saca. Pulsa <strong>Iniciar partido</strong>.</li>
+    <li><strong>Pausar</strong> (lesión, lluvia…): la pantalla muestra EN PAUSA y no se puede puntuar hasta <strong>Reanudar</strong>. Deshacer sigue disponible.</li>
+    <li><strong>Finalizar</strong> termina el partido con el marcador actual; <strong>Reiniciar</strong> lo vuelve a 0. Ambos piden confirmación.</li>
+    <li>Si falla el teléfono de un árbitro, abre <strong>Puntuar desde la estación</strong> en la tarjeta de la pista.</li>
   </ol>
 
-  <h2>2 · Teléfonos de los árbitros</h2>
+  <h2><svg class="icon"><use href="img/icons.svg#phone"></use></svg>2 · Teléfonos de los árbitros</h2>
   <ol>
-    <li>El árbitro escanea con la cámara el <strong>código QR</strong> de su pista.</li>
-    <li>Escribe el <strong>PIN</strong> de 4 cifras que aparece junto al QR.</li>
-    <li>En su teléfono verá arriba <strong>CONTROLAS PISTA 1</strong> (o 2). Desde ahí suma puntos, deshace y cambia el saque.</li>
+    <li>El árbitro escanea con la cámara el <strong>código QR</strong> de su pista y escribe el <strong>PIN</strong> de 4 cifras.</li>
+    <li>En su teléfono verá arriba <strong>CONTROLAS PISTA 1</strong> (o 2): suma puntos, deshace, cambia el saque y puede pausar.</li>
   </ol>
-  <p class="tip">Recomendación para los teléfonos: bloqueo automático en <strong>Nunca</strong> y modo avión con la Wi-Fi activada.</p>
+  <p class="tip">Teléfonos: bloqueo automático en <strong>Nunca</strong> y modo avión con la Wi-Fi activada.</p>
 
-  <h2>3 · Pantallas</h2>
+  <h2><svg class="icon"><use href="img/icons.svg#screen"></use></svg>3 · Qué se ve en cada pantalla</h2>
   <table>
-    <tr><td>Monitor</td><td>En qué monitor se ve cada pantalla. <strong>Identificar</strong> muestra "PANTALLA 1" en grande para comprobarlo.</td></tr>
-    <tr><td>Partido</td><td>Qué pista muestra. Las dos pantallas pueden mostrar la misma.</td></tr>
-    <tr><td>Modo</td><td><strong>Marcador + publicidad</strong> (franja abajo; sin partido, publicidad a pantalla completa) · <strong>Solo marcador</strong> · <strong>Solo publicidad</strong>.</td></tr>
-    <tr><td>Publicidad</td><td>Marca las imágenes que quieres en cada pantalla y cada cuántos segundos cambian.</td></tr>
+    <tr><td>Marcador</td><td>El partido, con la <strong>cinta publicitaria</strong> abajo si está activa. Sin partido, se ve la lista de reproducción (o "Próximo partido").</td></tr>
+    <tr><td>Publicidad y vídeos</td><td>La <strong>lista de reproducción</strong> a pantalla completa, en bucle. Con <strong>Pausar</strong>, <strong>Reanudar</strong> y <strong>Detener</strong> (vuelve al marcador). Si hay un partido en juego, pide confirmación.</td></tr>
+    <tr><td>Identificar</td><td>Muestra "PANTALLA 1" en grande, con su tamaño real en píxeles.</td></tr>
   </table>
 
-  <h2>4 · Añadir publicidad</h2>
+  <h2><svg class="icon"><use href="img/icons.svg#sliders"></use></svg>4 · Pestañas de cada pantalla</h2>
+  <table>
+    <tr><td>Contenido</td><td>Qué partido muestra (las dos pantallas pueden mostrar el mismo) y la <strong>publicidad al terminar</strong>: al acabar el partido se ve el resultado unos segundos y después la lista de reproducción. Vuelve al marcador con <strong>Volver al marcador</strong>, al empezar otro partido o al deshacer el último punto.</td></tr>
+    <tr><td>Cinta</td><td>Activar o quitar la cinta, elegir imágenes y logos, escribir mensajes (uno por línea y <strong>Aplicar mensajes</strong>) y su movimiento: <strong>cambia cada X segundos</strong> o <strong>desplazamiento continuo</strong> (lenta, normal o rápida).</td></tr>
+    <tr><td>Lista de reproducción</td><td>Imágenes y vídeos a pantalla completa (en orden alfabético), segundos de cada imagen y si los vídeos llevan sonido.</td></tr>
+    <tr><td>Salida</td><td>En qué <strong>monitor</strong> se ve y el <strong>formato</strong>: monitor completo, <strong>LED XL 832 × 416</strong> o <strong>LED pequeño 416 × 208</strong>, con su posición (normalmente 0, 0).</td></tr>
+  </table>
+
+  <h2><svg class="icon"><use href="img/icons.svg#folder"></use></svg>5 · Añadir publicidad</h2>
   <ol>
-    <li>Pulsa <strong>📁 Carpeta de publicidad</strong>.</li>
-    <li>Copia imágenes <strong>PNG</strong> en <strong>banner</strong> (franja, 1920 × 200) o en <strong>pantalla-completa</strong> (1920 × 1080).</li>
-    <li>En la estación pulsa <strong>Actualizar publicidad</strong> y márcalas en cada pantalla.</li>
+    <li>Pulsa <strong>Carpeta de publicidad</strong>.</li>
+    <li>Copia imágenes y logos de la cinta en <strong>banner</strong> (PNG, 1920 × 200). Copia imágenes y <strong>vídeos</strong> de pantalla completa en <strong>pantalla-completa</strong> (PNG/JPG y MP4 H.264 o WEBM).</li>
+    <li>Para las pantallas LED, prepara la pantalla completa en <strong>2:1</strong> (ej. 1664 × 832): así ocupa toda la pantalla.</li>
+    <li>En la estación pulsa <strong>Actualizar publicidad</strong> y márcalas en la pantalla que quieras.</li>
   </ol>
 
-  <h2>Si algo falla</h2>
+  <h2><svg class="icon"><use href="img/icons.svg#alert"></use></svg>Si algo falla</h2>
   <table>
     <tr><td>Teléfono "desconectado"</td><td>Espera unos segundos: se reconecta solo. Comprueba que está en la misma Wi-Fi.</td></tr>
-    <tr><td>El teléfono de un árbitro deja de funcionar</td><td>Otro teléfono escanea el QR, escribe el PIN y confirma "reemplazar". O puntúa desde la estación (desplegable de la pista).</td></tr>
+    <tr><td>El teléfono de un árbitro deja de funcionar</td><td>Otro teléfono escanea el QR, escribe el PIN y confirma "reemplazar". O puntúa desde la estación.</td></tr>
     <tr><td>Pantalla "Sin conexión"</td><td>Pulsa <strong>Abrir ventana</strong>.</td></tr>
-    <tr><td>Pantalla en el monitor equivocado</td><td>Cámbiala en <strong>Monitor</strong>. Si eliges el monitor de la otra pantalla, se intercambian.</td></tr>
-    <tr><td>Un anuncio no se ve</td><td>La estación indica cuál: revisa que sea un PNG válido.</td></tr>
+    <tr><td>Pantalla en el monitor equivocado</td><td>Cámbiala en la pestaña <strong>Salida</strong>. Si eliges el monitor de la otra pantalla, se intercambian.</td></tr>
+    <tr><td>La LED muestra solo una parte o con bordes</td><td>En <strong>Salida</strong>, elige el formato LED y ajusta la posición al píxel donde empieza la LED en el controlador.</td></tr>
+    <tr><td>Un anuncio o vídeo no se ve</td><td>La estación indica cuál y se salta. Usa PNG/JPG y vídeos MP4 (H.264) o WEBM; los .mov del iPhone conviértelos a MP4.</td></tr>
     <tr><td>Se cerró StageMaster o se fue la luz</td><td>Vuelve a abrirlo: partidos, PIN, teléfonos y pantallas se recuperan solos.</td></tr>
     <tr><td>Alguien vio un PIN</td><td><strong>Nuevo PIN</strong> (el teléfono ya vinculado sigue funcionando).</td></tr>
   </table>

@@ -68,7 +68,8 @@ Anota el resultado de cada prueba en la tabla del final.
 1. Con todo apagado, pon en marcha un cronómetro.
 2. Enciende router y portátil, conecta las dos pantallas (Windows + P → Extender).
 3. Abre **StageMaster** (estación + pantallas en sus monitores). En la estación,
-   **Identificar** cada pantalla; si alguna está mal, cámbiala en **Monitor**.
+   **Identificar** cada pantalla; si alguna está mal, cámbiala en **Salida → Monitor**.
+   En pantallas LED, elige en **Salida → Formato** el tamaño de la LED (832 × 416 o 416 × 208).
 4. Configura un partido en cada pista desde la estación.
 5. Vincula cada teléfono a su pista con el PIN.
 
@@ -184,12 +185,17 @@ no ha crecido de forma continua.
 |---|---|
 | Mover el ratón sobre una pantalla | No aparece el cursor |
 | Resolución de cada pantalla (la muestra la estación) | Anotarla; marcador sin cortes ni solapes |
-| Publicidad en franja y a pantalla completa | Se ve completa, sin deformarse; rota con el intervalo elegido |
+| Cinta publicitaria (imágenes y mensajes, "cambia" y "desplazamiento continuo") | Se lee bien, no tapa nombres ni números; los cambios se ven al momento |
+| **Publicidad y vídeos**: Reproducir, Pausar, Reanudar, Detener | Vídeos en bucle sin pantallas negras; Detener vuelve al marcador |
+| Vídeo con sonido (si se usa) | Se oye por la salida de audio elegida en Windows |
+| Publicidad al terminar el partido (activada) | Primero el resultado, después la lista; "Volver al marcador" funciona |
+| Formato LED (832 × 416 / 416 × 208) | La LED muestra el marcador entero, sin bordes ni recortes (ajustar la posición si hace falta) |
 | Cerrar una pantalla (Alt + F4) | La otra sigue funcionando; la estación muestra "Sin conexión" y la reabre con **Abrir ventana** |
 | Nombres más largos del torneo | Se ajustan, nunca se salen |
 | Resolución real de la pantalla (anotarla) | El marcador ocupa la pantalla sin cortes |
 | 30 min sin tocar nada | La pantalla no se apaga ni aparece protector |
-| Final del partido | ⭐ junto al ganador, nombre en dorado, "GANADOR DEL PARTIDO" |
+| Final del partido | Estrella junto al ganador, nombre en dorado, "PARTIDO FINALIZADO" arriba |
+| Pausar el partido (estación o teléfono) | La pantalla muestra EN PAUSA; no se puede puntuar hasta Reanudar |
 
 ---
 
