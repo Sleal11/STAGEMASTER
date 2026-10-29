@@ -101,7 +101,11 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
   });
 
   app.use(express.static(path.join(__dirname, '..', 'public')));
-  app.use('/publicidad', express.static(adsDir()));
+  // La publicidad son archivos que trae el operador: nunca se ejecuta nada de
+  // ellos (un SVG con código se muestra como imagen, sin ejecutar su código)
+  app.use('/publicidad', express.static(adsDir(), {
+    setHeaders: (res) => res.set('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self'"),
+  }));
 
   // Subir y borrar publicidad desde la estación (solo en el portátil)
   app.use('/api/publicidad', createAdsRouter({

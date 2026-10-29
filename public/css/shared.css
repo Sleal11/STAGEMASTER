@@ -85,7 +85,6 @@
   --danger:           #E53935;   /* Rojo — acciones destructivas      */
   --danger-hover:     #C62828;
   --danger-bg:        rgba(229, 57, 53, 0.12);
-  --winner-gold:      #FFD700;   /* Dorado — estrella ganador         */
   --success:          #00CC66;   /* Verde — confirmaciones            */
   --warning:          #FF9800;   /* Naranja — advertencias            */
 
@@ -119,7 +118,6 @@
   --shadow-card:   0 4px 24px rgba(0, 0, 0, 0.50);
   --shadow-btn:    0 4px 20px rgba(30, 144, 255, 0.35);
   --shadow-danger: 0 4px 20px rgba(229, 57, 53, 0.30);
-  --glow-gold:     0 0 24px rgba(255, 215, 0, 0.50);
 
   /* Transiciones */
   --transition-fast:   120ms ease;
@@ -247,10 +245,6 @@ input {
   50%       { box-shadow: 0 0 25px rgba(30, 144, 255, 0.7); }
 }
 
-@keyframes starPulse {
-  0%, 100% { transform: scale(1);    filter: brightness(1);   }
-  50%       { transform: scale(1.15); filter: brightness(1.3); }
-}
 
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-12px); }

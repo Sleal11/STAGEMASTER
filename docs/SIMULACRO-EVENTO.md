@@ -194,7 +194,8 @@ no ha crecido de forma continua.
 | Nombres más largos del torneo | Se ajustan, nunca se salen |
 | Resolución real de la pantalla (anotarla) | El marcador ocupa la pantalla sin cortes |
 | 30 min sin tocar nada | La pantalla no se apaga ni aparece protector |
-| Final del partido | Estrella junto al ganador, nombre en dorado, "PARTIDO FINALIZADO" arriba |
+| Final del partido | Trofeo azul junto al ganador, su fila resaltada en azul, "PARTIDO FINALIZADO" arriba |
+| Cinta con logos de fondo blanco | Se ven sin el recuadro blanco, separados por igual; los logos negros, en blanco |
 | Pausar el partido (estación o teléfono) | La pantalla muestra EN PAUSA; no se puede puntuar hasta Reanudar |
 
 ---

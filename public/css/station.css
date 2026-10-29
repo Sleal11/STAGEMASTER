@@ -281,7 +281,8 @@ code   { color: var(--st-soft); font-size: 0.9em; }
 }
 .st-score-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-score-name .st-mark { width: 16px; height: 16px; margin-left: -24px; flex-shrink: 0; }
-.st-score-name.is-winner { color: var(--st-gold); }
+.st-score-name.is-winner { color: var(--st-accent); }
+.st-score-name .st-trophy { color: var(--st-accent); }
 .st-score-num { font-family: var(--font-score); font-weight: 700; font-size: 1.55rem; text-align: center; }
 .st-score-pts { border-radius: 6px; background: var(--st-accent); color: #04122B; }
 

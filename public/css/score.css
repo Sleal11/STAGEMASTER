@@ -39,7 +39,8 @@
   --d-light:       #8FD3FF;   /* azul claro: puntos, títulos, filetes     */
   --d-light-soft:  #BEE6FF;
   --d-ink:         #04122B;   /* texto oscuro sobre azul claro            */
-  --d-gold:        #FFD54A;   /* ganador, punto de oro                    */
+  --d-gold:        #FFD54A;   /* punto de oro y ventaja                   */
+  --d-win-row:     #11408C;   /* fila del ganador (azul más vivo)         */
   --d-pause:       #FFB020;   /* partido en pausa                         */
   --d-cyan:        #22D3EE;   /* destellos de animación                   */
 
@@ -200,7 +201,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
    ───────────────────────────────────────────────────────────────── */
 .d-board {
   /* Anchos de columna proporcionales a la ALTURA, con tope según el ANCHO */
-  --col-icon:  min(9cqh, 6cqw);
+  --col-icon:  min(11cqh, 6cqw);
   --col-sets:  min(19cqh, 11cqw);
   --col-games: min(23cqh, 14cqw);
   --col-pts:   min(33cqh, 21cqw);
@@ -261,17 +262,24 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .d-row.is-serving::before { background: var(--d-light); }
 
 .d-row.is-winner {
-  border-color: var(--d-gold);
-  box-shadow: 0 0 2.5cqh rgba(255, 213, 74, 0.45);
+  background: var(--d-win-row);
+  border-color: var(--d-light);
+  box-shadow: 0 0 2.5cqh rgba(143, 211, 255, 0.4);
 }
 
 .d-row.is-loser { opacity: 0.6; }
 
-/* ── Icono (pelota de saque / estrella) ─────────────────────────── */
+/* ── Icono (pelota de saque / trofeo del ganador) ───────────────── */
 .d-icon { display: flex; align-items: center; justify-content: center; }
 .d-icon svg { display: none; width: 88%; aspect-ratio: 1; }
 .d-row.is-serving .icon-ball { display: block; animation: fadeIn var(--transition-normal); }
-.d-row.is-winner .icon-star  { display: block; animation: starPulse 1.6s ease-in-out infinite; }
+.d-row.is-winner .icon-trophy {
+  display: block;
+  width: 100%;
+  color: var(--d-light);
+  filter: drop-shadow(0 0 0.8cqh rgba(143, 211, 255, 0.55));
+  animation: fadeIn var(--transition-slow);
+}
 
 /* ── Nombres: una línea por jugador ─────────────────────────────── */
 .d-names {
@@ -299,7 +307,6 @@ html { width: 100%; height: 100%; overflow: hidden; }
 /* Pareja con un solo nombre (ej. "EQUIPO AZUL"): una línea más grande */
 .d-names.is-single .d-name-line { font-size: min(17cqh, 9cqw); }
 
-.d-row.is-winner .d-name-line { color: var(--d-gold); }
 
 /* ── Celdas numéricas ───────────────────────────────────────────── */
 .d-cell {
@@ -336,7 +343,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   padding: 0.2em 0.8em;
   border-radius: 0.3em;
   color: var(--d-ink);
-  background: var(--d-gold);
+  background: var(--d-light);
 }
 
 .d-divider-label:empty { display: none; }
@@ -446,17 +453,10 @@ html { width: 100%; height: 100%; overflow: hidden; }
   will-change: transform;
 }
 
+/* Sin separadores: todos los elementos a la misma distancia, sobre el mismo fondo */
 .ribbon-group { display: flex; align-items: center; height: 100%; flex-shrink: 0; }
-.ribbon-track .ribbon-image { height: 74%; width: auto; }
-
-.ribbon-sep {
-  flex-shrink: 0;
-  width: calc(var(--ribbon-h) * 0.14);
-  height: calc(var(--ribbon-h) * 0.14);
-  margin: 0 calc(var(--ribbon-h) * 0.5);
-  transform: rotate(45deg);
-  background: var(--d-light);
-}
+.ribbon-group > .ribbon-item { margin: 0 calc(var(--ribbon-h) * 0.7); }
+.ribbon-track .ribbon-image { height: 70%; width: auto; }
 
 /* ─────────────────────────────────────────────────────────────────
    LISTA DE REPRODUCCIÓN (imágenes y vídeos a pantalla completa)
@@ -574,8 +574,8 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .d-row.anim-winner { animation: winnerGlow 1400ms ease-in-out; }
 
 @keyframes winnerGlow {
-  0%, 100% { box-shadow: 0 0 2.5cqh rgba(255, 213, 74, 0.45); }
-  50%      { box-shadow: 0 0 6cqh rgba(255, 213, 74, 0.8); }
+  0%, 100% { box-shadow: 0 0 2.5cqh rgba(143, 211, 255, 0.4); }
+  50%      { box-shadow: 0 0 6cqh rgba(143, 211, 255, 0.85); }
 }
 
 @media (prefers-reduced-motion: reduce) {

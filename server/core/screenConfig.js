@@ -10,6 +10,7 @@
  *             'media'  lista de reproducción a pantalla completa (imágenes y vídeos)
  *   ribbon    Cinta publicitaria del marcador:
  *               enabled · items (imágenes y vídeos de banner/) · texts (mensajes) ·
+ *               cleanLogos (quitar el fondo blanco de los logos) ·
  *               motion ('rotate' cambia cada `interval` s | 'scroll' desplazamiento) · speed
  *   media     Lista de reproducción: items (de pantalla-completa/, en orden) ·
  *             imageSeconds (tiempo de cada imagen) · sound (vídeos con sonido)
@@ -57,7 +58,7 @@ function defaultConfig({ id, label, matchId }) {
     label,
     matchId,
     view:   'score',
-    ribbon: { enabled: true, items: [], texts: [], motion: 'rotate', interval: 10, speed: 'normal' },
+    ribbon: { enabled: true, items: [], texts: [], motion: 'rotate', interval: 10, speed: 'normal', cleanLogos: true },
     media:  { items: [], imageSeconds: 10, sound: false },
     endAds: { enabled: false, delay: 15 },
     output: { format: 'fill', x: 0, y: 0 },
@@ -106,6 +107,7 @@ function normalizeSaved(saved, base) {
     motion:   pick(r.motion, oneOf(RIBBON_MOTIONS), 'rotate'),
     interval: pick(r.interval, inRange(LIMITS.interval), 10),
     speed:    pick(r.speed, oneOf(SCROLL_SPEEDS), 'normal'),
+    cleanLogos: pick(r.cleanLogos, bool, true),
   };
   config.media = {
     items:        pick(m.items, names, []),
@@ -189,6 +191,7 @@ function applyChanges(config, changes, { matchIds, library }) {
     if (ribbon.motion   !== undefined) next.ribbon.motion   = oneOf(ribbon.motion, RIBBON_MOTIONS, 'Movimiento');
     if (ribbon.speed    !== undefined) next.ribbon.speed    = oneOf(ribbon.speed, SCROLL_SPEEDS, 'Velocidad');
     if (ribbon.interval !== undefined) next.ribbon.interval = integer(ribbon.interval, LIMITS.interval, 'Tiempo de cada elemento');
+    if (ribbon.cleanLogos !== undefined) next.ribbon.cleanLogos = boolean(ribbon.cleanLogos, 'Quitar el fondo blanco');
     if (ribbon.texts !== undefined) {
       if (!Array.isArray(ribbon.texts) || ribbon.texts.some((t) => typeof t !== 'string')) fail('Mensajes inválidos');
       const texts = ribbon.texts.map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean);

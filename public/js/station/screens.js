@@ -233,7 +233,9 @@ function ribbonPanel(screen, state) {
 
   return field('Cinta', toggle('ribbonEnabled', screen.id, ribbon.enabled, 'Mostrar la cinta debajo del marcador')) +
     field('Imágenes, logos y vídeos', libraryHtml('banner', 'ribbonItem', screen, ribbon.items, 'Aún no hay archivos para la cinta.'),
-      'Imágenes PNG/JPG (recomendado 1920 × 200, logos con fondo transparente) y vídeos cortos MP4 o WEBM (sin sonido).') +
+      'Imágenes PNG/JPG/SVG (recomendado 1920 × 200) y vídeos cortos MP4 o WEBM (sin sonido).') +
+    field('Logos', toggle('cleanLogos', screen.id, ribbon.cleanLogos, 'Quitar el fondo blanco y poner todos sobre el mismo fondo'),
+      'Quita el recuadro blanco de los logos, los separa por igual y pasa a blanco los logos negros (los archivos no se modifican).') +
     field('Mensajes', `<textarea class="input" rows="3" maxlength="1300" data-action="texts" data-screen="${screen.id}" placeholder="Un mensaje por línea (ej. Gracias a Bar Central)">${esc(ribbon.texts.join('\n'))}</textarea>` +
       `<button type="button" class="btn btn-secondary btn-sm" data-action="applyTexts" data-screen="${screen.id}" disabled>${icon('check')}Aplicar mensajes</button>`,
       `Hasta ${state.limits.texts} mensajes de ${state.limits.textLength} caracteres.`) +
@@ -392,6 +394,7 @@ export function onScreenChange(event) {
     case 'endDelay':       update(screenId, { endAds: { delay: value } }); break;
     case 'ribbonEnabled':  update(screenId, { ribbon: { enabled: el.checked } }); break;
     case 'ribbonInterval': update(screenId, { ribbon: { interval: value } }); break;
+    case 'cleanLogos':     update(screenId, { ribbon: { cleanLogos: el.checked } }); break;
     case 'ribbonItem':     update(screenId, { ribbon: { items: checkedValues(screenId, 'ribbonItem') } }); break;
     case 'mediaItem':      update(screenId, { media: { items: checkedValues(screenId, 'mediaItem') } }); break;
     case 'imageSeconds':   update(screenId, { media: { imageSeconds: value } }); break;

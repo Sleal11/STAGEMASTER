@@ -3,7 +3,7 @@
  *
  * Dibuja el estado que envía el servidor; nunca lo modifica.
  *   - Una línea por jugador, cada una ajustada por separado ("Santiago R")
- *   - Saque, ganador, badge (EN PAUSA, TIE BREAK, PUNTO DE ORO…)
+ *   - Saque, ganador (trofeo), badge (EN PAUSA, TIE BREAK, PUNTO DE ORO…)
  *   - Historial de sets y animaciones SOLO de lo que cambió
  */
 
@@ -76,7 +76,7 @@ export function createScoreboard(root) {
 
   /** Badge de la cabecera; al terminar, "PARTIDO FINALIZADO" (legible también en 416×208) */
   function renderBadge(state, finished) {
-    const badge = finished ? { text: 'PARTIDO FINALIZADO', gold: true } : ScoreFormat.badgeFor(state);
+    const badge = finished ? { text: 'PARTIDO FINALIZADO', gold: false } : ScoreFormat.badgeFor(state);
     dom.badge.classList.toggle('hidden', !badge);
     if (!badge) return;
     dom.badge.textContent = badge.text;

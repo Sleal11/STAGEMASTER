@@ -656,10 +656,11 @@ body.is-offline .btn-secondary {
   animation: fadeIn 300ms ease;
 }
 
-.winner-star {
+.winner-trophy {
   width: 64px;
   height: 64px;
-  animation: starPulse 2s ease infinite;
+  color: #8FD3FF;
+  filter: drop-shadow(0 0 14px rgba(143, 211, 255, 0.55));
 }
 
 .winner-label {
@@ -674,8 +675,8 @@ body.is-offline .btn-secondary {
   font-family: var(--font-score);
   font-size: 2.2rem;
   font-weight: 700;
-  color: var(--winner-gold);
-  text-shadow: var(--glow-gold);
+  color: #FFFFFF;
+  text-shadow: 0 0 24px rgba(143, 211, 255, 0.45);
   margin: var(--space-xs) 0;
 }
 

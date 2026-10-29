@@ -25,7 +25,7 @@ function adsDir() {
   return process.env.STAGEMASTER_ADS_DIR || path.join(__dirname, '..', '..', 'publicidad');
 }
 
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.svg'];
 const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.webm'];
 
 /** Categoría → subcarpeta y tipos de archivo que admite */

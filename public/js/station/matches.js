@@ -75,7 +75,7 @@ function scoreHtml(state) {
   const row = (side) => {
     const p = state.players[side];
     const cls = (!finished && state.server === side ? ' is-serving' : '') + (finished && state.winner === side ? ' is-winner' : '');
-    const mark = finished && state.winner === side ? icon('star', 'st-mark') : (!finished && state.server === side ? icon('ball', 'st-mark') : '');
+    const mark = finished && state.winner === side ? icon('trophy', 'st-mark st-trophy') : (!finished && state.server === side ? icon('ball', 'st-mark') : '');
     return `<span class="st-score-name${cls}" title="${esc(p.name)}">${mark}<span>${esc(p.name)}</span></span>` +
       `<span class="st-score-num">${p.sets}</span>` +
       `<span class="st-score-num">${finished ? '–' : p.games}</span>` +

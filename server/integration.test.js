@@ -416,6 +416,7 @@ test('Cinta publicitaria: imágenes y mensajes se aplican en vivo a la pantalla'
 
   const http = await fetch(`http://localhost:${PORT}/publicidad/banner/patrocinador.png`);
   assert.strictEqual(http.status, 200, 'El servidor sirve el archivo de publicidad');
+  assert.match(http.headers.get('content-security-policy'), /default-src 'none'/, 'La publicidad nunca ejecuta código (SVG)');
 });
 
 test('Lista de reproducción con vídeo: la pantalla recibe imágenes y vídeos en orden alfabético; el vídeo se sirve por partes', async () => {

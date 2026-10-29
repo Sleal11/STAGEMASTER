@@ -15,8 +15,13 @@
  *             (animación por GPU), a una velocidad proporcional a la altura
  *             de la cinta: igual de legible en 832×416 que en 416×208.
  *
+ * Los logos se muestran sin su fondo blanco y con la misma separación
+ * (logo-cleaner.js), si la opción está activada en la estación.
+ *
  * Los cambios de la estación se aplican al momento, sin recargar la página.
  */
+
+import { cleanLogo } from './logo-cleaner.js';
 
 /** Velocidad del desplazamiento: alturas de cinta por segundo */
 const SPEEDS  = { slow: 1.3, normal: 1.9, fast: 2.7 };
@@ -55,7 +60,7 @@ export function createRibbon(container, { onChange }) {
 
   function configure(ribbon) {
     const next = JSON.stringify([ribbon.enabled, ribbon.items.map((i) => i.url), ribbon.texts,
-      ribbon.motion, ribbon.interval, ribbon.speed]);
+      ribbon.motion, ribbon.interval, ribbon.speed, ribbon.cleanLogos]);
     if (next === signature) return;
     if (!config || JSON.stringify(config.items) !== JSON.stringify(ribbon.items)) failed.clear();
     signature = next;
@@ -114,7 +119,9 @@ export function createRibbon(container, { onChange }) {
       const img = document.createElement('img');
       img.className = 'ribbon-item ribbon-image';
       img.alt = '';
-      img.src = item.url;
+      // La versión sin fondo blanco se prepara aparte; quien espera 'load' la recibe igual
+      if (config.cleanLogos) cleanLogo(item.url).then((src) => { img.src = src; });
+      else img.src = item.url;
       return img;
     }
     if (item.type === 'video') {
@@ -219,9 +226,6 @@ export function createRibbon(container, { onChange }) {
     const loads = list.map((item) => {
       const el = createItem(item, true);
       group.appendChild(el);
-      const sep = document.createElement('span');
-      sep.className = 'ribbon-sep';
-      group.appendChild(sep);
       if (item.type === 'text') return Promise.resolve(true);
       // Hay que conocer el tamaño de imágenes y vídeos antes de medir la cinta
       return new Promise((resolve) => {

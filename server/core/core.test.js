@@ -415,6 +415,7 @@ function prepareAds() {
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'b-marca.png'), 'x');
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'notas.txt'), 'x');        // no es publicidad
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'clip.mp4'), 'x');         // la cinta también admite vídeos
+  fs.writeFileSync(path.join(TEST_ADS_DIR, 'banner', 'logo.svg'), '<svg/>');    // y logos SVG
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'promo grande.png'), 'x');
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'video.mp4'), 'x');
   fs.writeFileSync(path.join(TEST_ADS_DIR, 'pantalla-completa', 'clip.webm'), 'x');
@@ -437,6 +438,7 @@ test('Por defecto: Pantalla 1 → Pista 1, Pantalla 2 → Pista 2, marcador con 
   assert.strictEqual(p1.view, 'score');
   assert.strictEqual(p1.ribbon.enabled, true);
   assert.strictEqual(p1.endAds.enabled, false, 'La publicidad final empieza desactivada');
+  assert.strictEqual(p1.ribbon.cleanLogos, true, 'Logos sin fondo blanco por defecto');
   assert.deepStrictEqual(p1.output, { format: 'fill', x: 0, y: 0 });
 });
 
@@ -451,6 +453,7 @@ test('Validación de pantalla: partido, vista, tiempos, formato y posición inv�
   [
     { matchId: 'pista-9' }, { view: 'karaoke' }, { ribbon: { interval: 1 } }, { ribbon: { motion: 'zigzag' } },
     { ribbon: { enabled: 'si' } }, { ribbon: { texts: Array(11).fill('x') } }, { media: { imageSeconds: 500 } },
+    { ribbon: { cleanLogos: 'no' } },
     { media: { sound: 1 } }, { endAds: { delay: -1 } }, { output: { format: '4k' } }, { output: { y: 1.5 } },
     { ribbon: 'todo' }, null,
   ].forEach((changes) => assertCode(() => screens.update('pantalla-1', changes, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG'));
@@ -462,7 +465,7 @@ test('Biblioteca: cinta y lista = imágenes y vídeos MP4/WEBM (ignora .mov, .tx
   prepareAds();
   const { ads } = loadModules();
   const library = ads.listAds();
-  assert.deepStrictEqual(library.banner.map((a) => [a.name, a.kind]), [['b-marca.png', 'image'], ['clip.mp4', 'video']]);
+  assert.deepStrictEqual(library.banner.map((a) => [a.name, a.kind]), [['b-marca.png', 'image'], ['clip.mp4', 'video'], ['logo.svg', 'image']]);
   assert.deepStrictEqual(library.fullscreen.map((a) => [a.name, a.kind]),
     [['clip.webm', 'video'], ['promo grande.png', 'image'], ['video.mp4', 'video']]);
   assert.strictEqual(library.fullscreen[1].url, '/publicidad/pantalla-completa/promo%20grande.png');

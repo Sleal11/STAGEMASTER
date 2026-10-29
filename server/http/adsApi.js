@@ -47,7 +47,7 @@ function createAdsRouter({ onChange, onRemoved }) {
     try { rawName = decodeURIComponent(req.get('X-File-Name') || ''); } catch (_) { /* nombre ilegible */ }
     const safe = ads.safeFileName(category, rawName);
     if (!safe) {
-      return fail(415, `"${rawName || 'archivo'}" no es compatible: usa imágenes PNG, JPG o WEBP y vídeos MP4 (H.264) o WEBM`);
+      return fail(415, `"${rawName || 'archivo'}" no es compatible: usa imágenes PNG, JPG, WEBP o SVG y vídeos MP4 (H.264) o WEBM`);
     }
     if (Number(req.get('Content-Length')) > MAX_UPLOAD_BYTES) return fail(413, 'El archivo es demasiado grande (máximo 2 GB)');
 
