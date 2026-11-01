@@ -9,7 +9,7 @@
  *
  * COMPOSICIÓN (rejilla de 3 filas dentro de la caja de salida):
  *   ┌──────────────────────────────────────────────┐
- *   │ LOGO                      [BADGE]  PISTA 1   │  cabecera  (--header-h)
+ *   │ LOGO  [SET 1 6-3][SET 2 EN JUEGO] [BADGE] PISTA 1 │  cabecera (--header-h)
  *   ├──────────────────────────────────────────────┤
  *   │                 marcador                     │  zona del marcador (resto)
  *   ├──────────────────────────────────────────────┤
@@ -24,7 +24,8 @@
  * (.d-stage): si aparece la cinta, el marcador se reparte el espacio que queda.
  *
  * FORMATO PEQUEÑO (altura ≤ 300 px, ej. 416×208): se ocultan los títulos de
- * columna y el historial de sets, y crecen nombres y números.
+ * columna y crecen nombres y números. Los sets siguen en la cabecera; si no
+ * caben, se ocultan los más antiguos (el set en juego siempre se ve).
  */
 
 /* ─────────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 
 .display {
   --header-h: 14cqh;
-  --ribbon-h: 15cqh;
+  --ribbon-h: 19cqh;
   --safe-x:   2.2cqw;        /* margen seguro lateral */
   --line:     max(2px, 0.55cqh);
 
@@ -89,7 +90,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .display.has-ribbon { grid-template-rows: var(--header-h) minmax(0, 1fr) var(--ribbon-h); }
 
 @container out (max-height: 300px) {
-  .display { --header-h: 17cqh; --ribbon-h: 17cqh; --safe-x: 2.5cqw; }
+  .display { --header-h: 17cqh; --ribbon-h: 21cqh; --safe-x: 2.5cqw; }
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -211,7 +212,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   max-width: 270cqh;             /* en pantallas muy panorámicas no se estira de más */
   height: 100%;
   display: grid;
-  grid-template-rows: 8cqh 1fr 5cqh 1fr 11cqh;
+  grid-template-rows: 8cqh 1fr 5cqh 1fr;
   animation: fadeIn var(--transition-slow);
 }
 
@@ -348,35 +349,40 @@ html { width: 100%; height: 100%; overflow: hidden; }
 
 .d-divider-label:empty { display: none; }
 
-/* ── Historial de sets ──────────────────────────────────────────── */
+/* ── Sets en la cabecera, junto al logo ─────────────────────────── */
 .d-history {
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: min(1.6cqh, 1.2cqw);
+  justify-content: flex-start;
+  gap: calc(var(--header-h) * 0.12);
   min-width: 0;
+  height: 100%;
   overflow: hidden;
 }
 
 .d-set-chip {
+  flex-shrink: 0;
   display: flex;
   align-items: baseline;
-  gap: 0.4em;
-  padding: 0.22em 0.7em;
+  gap: 0.35em;
+  padding: 0.2em 0.6em 0.24em;
   border-radius: 999px;
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: min(6.5cqh, 3.4cqw);
+  font-size: calc(var(--header-h) * 0.3);
   line-height: 1.1;
   white-space: nowrap;
   color: #FFFFFF;
   background: var(--d-row);
-  border: max(2px, 0.4cqh) solid var(--d-row-edge);
+  border: max(2px, calc(var(--header-h) * 0.03)) solid var(--d-row-edge);
 }
 
+.d-set-chip.is-hidden { display: none; }   /* no cabe: se ocultan los más antiguos */
 .d-set-chip-label  { color: var(--d-light); }
 .d-set-chip-detail { color: var(--d-light-soft); font-size: 0.8em; }
-.d-set-chip.is-current { border-color: var(--d-light); }
+.d-set-chip.is-current { color: var(--d-ink); background: var(--d-light); border-color: var(--d-light); }
+.d-set-chip.is-current .d-set-chip-label { color: var(--d-ink); }
 
 /* ── Formato pequeño: solo lo esencial, más grande ──────────────── */
 @container out (max-height: 300px) {
@@ -388,8 +394,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
     --gap:       1.6cqw;
     grid-template-rows: 1fr 6cqh 1fr;
   }
-  .d-head,
-  .d-history { display: none; }
+  .d-head { display: none; }
   .d-name-line { font-size: min(17cqh, 8.5cqw); }
   .d-names.is-single .d-name-line { font-size: min(22cqh, 10cqw); }
   .d-sets    { font-size: min(27cqh, 8cqw); }

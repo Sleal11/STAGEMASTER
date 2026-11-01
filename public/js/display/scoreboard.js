@@ -84,7 +84,10 @@ export function createScoreboard(root) {
     dom.badge.classList.toggle('is-pause', !!badge.pause);
   }
 
-  /** [SET 1 6-3] [SET 2 7-6 (8-6)] [SET 3 · EN JUEGO]; súper TB decisivo: [SUPER TB 10-8] */
+  /**
+   * Cabecera, junto al logo: [SET 1 6-3] [SET 2 7-6 (8-6)] [SET 3 · EN JUEGO];
+   * súper TB decisivo: [SUPER TB 10-8]
+   */
   function renderHistory(state, finished) {
     dom.history.innerHTML = '';
     state.setScores.forEach((set, i) => {
@@ -98,6 +101,16 @@ export function createScoreboard(root) {
     if (!finished) {
       const label = ScoreFormat.isDecidingSuperTiebreak(state) ? 'SUPER TB' : 'SET ' + (state.setScores.length + 1);
       dom.history.appendChild(buildChip(label, 'EN JUEGO', null, true));
+    }
+    fitHistory();
+  }
+
+  /** Si los sets no caben en la cabecera, se ocultan los más antiguos (el último siempre se ve) */
+  function fitHistory() {
+    const chips = Array.prototype.slice.call(dom.history.children);
+    chips.forEach((chip) => chip.classList.remove('is-hidden'));
+    for (let i = 0; i < chips.length - 1 && dom.history.scrollWidth > dom.history.clientWidth + 1; i++) {
+      chips[i].classList.add('is-hidden');
     }
   }
 
@@ -136,6 +149,7 @@ export function createScoreboard(root) {
     if (!last) return;
     fitNames(dom.A.names);
     fitNames(dom.B.names);
+    fitHistory();
   }
 
   function fitNames(container) {
