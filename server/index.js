@@ -36,6 +36,8 @@ const { Server } = require('socket.io');
 const { createMatchRegistry } = require('./core/matchRegistry');
 const { createScreenManager } = require('./core/screens');
 const { createHistory }       = require('./core/history');
+const { createRemoteRegistry } = require('./core/remotes');
+const discovery               = require('./core/discovery');
 const { adsDir }              = require('./core/ads');
 const { isLocalAddress }      = require('./core/auth');
 const { getLocalAddresses }   = require('./core/network');
@@ -60,6 +62,7 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
   const registry = createMatchRegistry();
   const screens  = createScreenManager({ matchIds: registry.ids() });
   const history  = createHistory();
+  const remotes  = createRemoteRegistry();
 
   const app    = express();
   const server = http.createServer(app);
@@ -81,7 +84,7 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
     return { port, addresses, primary: addresses[0] || null };
   };
 
-  const realtime = attachSocketServer(io, { registry, screens, getNetworkInfo, desktop, history });
+  const realtime = attachSocketServer(io, { registry, screens, getNetworkInfo, desktop, history, remotes });
 
   // ── HTTP ─────────────────────────────────────────────────────────
 
@@ -142,11 +145,20 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
   // ── Escuchar en el primer puerto libre ───────────────────────────
   port = await listenOnFirstFreePort(server, ports, host);
 
+  // Anuncio en la red para los portátiles en modo «pantalla remota»
+  const beacon = discovery.enabled() ? discovery.startBeacon(() => ({
+    name: require('os').hostname(), port, version: getBuildInfo().version,
+  })) : null;
+
   return {
     port,
     registry,
     getNetworkInfo,
-    close: () => new Promise((resolve) => { io.close(); server.close(() => resolve()); }),
+    close: () => new Promise((resolve) => {
+      if (beacon) beacon.stop();
+      io.close();
+      server.close(() => resolve());
+    }),
   };
 }
 

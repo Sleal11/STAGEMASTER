@@ -94,7 +94,7 @@ function startServer() {
   return new Promise((resolve, reject) => {
     serverProcess = spawn(process.execPath, ['server/index.js'], {
       cwd: ROOT,
-      env: { ...process.env, PORT: String(PORT), STAGEMASTER_DATA_DIR: DATA_DIR, STAGEMASTER_ADS_DIR: ADS_DIR },
+      env: { ...process.env, PORT: String(PORT), STAGEMASTER_DATA_DIR: DATA_DIR, STAGEMASTER_ADS_DIR: ADS_DIR, STAGEMASTER_DISCOVERY: '0' },
     });
     let output = '';
     const timer = setTimeout(() => reject(new Error('El servidor no arrancó:\n' + output)), 8000);
@@ -152,6 +152,8 @@ function createDevice(nombre, auth, host = 'localhost') {
   socket.on('controllerRevoked', (r) => { device.revoked = r; device.session = null; });
   socket.on('identify', () => { device.identified++; });
   socket.on('screenRemoved', () => { device.removed = true; });
+  socket.on('remoteState', (st) => { device.remoteState = st; });
+  socket.on('remoteRevoked', (r) => { device.remoteRevoked = r; });
   socket.on('historyChanged', () => { device.historyChanged = (device.historyChanged || 0) + 1; });
   dispositivos.push(device);
   return device;
@@ -594,6 +596,90 @@ test('VARIAS PANTALLAS: añadir una 3ª, hacerla espejo de la 1 (mismo contenido
   res = await send(estacion, 'station:removeScreen', { screenId: 'pantalla-3' });
   assert.strictEqual(res.code, 'UNKNOWN_SCREEN');
   return '3 pantallas · espejo sincronizado · quitada';
+});
+
+test('PORTÁTIL REMOTO: se enlaza con el código, muestra una pantalla por la red y la estación lo ve; desvincularlo lo corta', async () => {
+  const lanIp = Object.values(os.networkInterfaces()).flat()
+    .find((n) => n && n.family === 'IPv4' && !n.internal);
+  if (!lanIp) return { skip: 'este equipo no tiene una IP de red local para simular otro portátil' };
+  const host = lanIp.address;
+  const connectError = (auth) => new Promise((resolve) => {
+    const s = io(`http://${host}:${PORT}`, { auth, forceNew: true, reconnection: false });
+    s.once('connect_error', (err) => { s.close(); resolve(err.data && err.data.code); });
+    s.once('connect', () => { s.close(); resolve('connected'); });
+  });
+
+  // Sin enlazar, una pantalla desde la red se rechaza (también con un token inventado)
+  assert.strictEqual(await connectError({ role: 'display', screenId: 'pantalla-2', remoteToken: 'inventado' }), 'DISPLAY_LOCAL_ONLY');
+
+  // Enlace: código incorrecto (avisa de los intentos) y correcto
+  const remoto = createDevice('Portátil remoto', { role: 'remote' }, host);
+  await waitFor(() => remoto.socket.connected, 'portátil remoto conectado');
+  let res = await send(remoto, 'remote:pair', { code: '000000', name: 'Portátil pista central' });
+  assert.strictEqual(res.code, 'INVALID_CODE');
+  assert.ok(/intento/.test(res.message), res.message);
+  remoto.socket.emit('remote:report', { screens: { 'pantalla-1': 'Monitor 9' } });   // sin enlazar: se ignora
+  const code = estacion.stationState.remotes.code;
+  assert.ok(/^\d{6}$/.test(code), 'La estación ve un código de 6 cifras');
+  res = await send(remoto, 'remote:pair', { code, name: '<b>Portátil pista central</b>' });
+  assert.ok(res.ok, res.message);
+  assert.strictEqual(res.name, 'bPortátil pista central/b', 'El nombre se limpia');
+  const token = res.token;
+  await waitFor(() => remoto.remoteState && remoto.remoteState.screens.length === 2, 'el remoto recibe las pantallas');
+  assert.deepStrictEqual(remoto.remoteState.screens.map((sc) => sc.id), ['pantalla-1', 'pantalla-2']);
+
+  // Una pantalla del remoto: conecta por la red con su token y recibe su partido
+  const lejana = createDevice('Pantalla 2 (remota)', { role: 'display', screenId: 'pantalla-2', remoteToken: token }, host);
+  await waitFor(() => lejana.screenConfig && lejana.states['pista-2'], 'la pantalla remota recibe su partido');
+  await action(telefono2, 'pista-2', 'pointA');
+  await waitFor(() => lejana.states['pista-2'].version === telefono2.states['pista-2'].version, 'la pantalla remota al día');
+
+  // El remoto informa dónde la muestra; la estación lo ve todo
+  remoto.socket.emit('remote:report', { monitors: [{ label: 'Monitor 2', width: 832, height: 416 }], screens: { 'pantalla-2': 'Monitor 2', 'pantalla-9': 'x' } });
+  await waitFor(() => {
+    const r = estacion.stationState.remotes.list[0];
+    return r && r.online && r.screens['pantalla-2'] === 'Monitor 2';
+  }, 'la estación ve el portátil remoto');
+  const remote = estacion.stationState.remotes.list[0];
+  assert.strictEqual(remote.address, host);
+  assert.ok(!('pantalla-9' in remote.screens), 'Pantallas inexistentes se ignoran');
+  await waitFor(() => estacion.stationState.screens[1].displays.some((d) => d.remote === 'bPortátil pista central/b'), 'la tarjeta indica el portátil');
+
+  // Añadir una pantalla en el principal: el remoto recibe la lista nueva
+  res = await send(estacion, 'station:addScreen', {});
+  await waitFor(() => remoto.remoteState.screens.length === 3, 'el remoto ve la pantalla nueva');
+  await send(estacion, 'station:removeScreen', { screenId: res.screenId });
+  await waitFor(() => remoto.remoteState.screens.length === 2, 'y deja de verla al quitarla');
+
+  // Código nuevo: el anterior ya no sirve; el portátil enlazado sigue funcionando
+  await send(estacion, 'station:remoteCode', {});
+  await waitFor(() => estacion.stationState.remotes.code !== code, 'código nuevo');
+  const otro = createDevice('Otro portátil', { role: 'remote' }, host);
+  await waitFor(() => otro.socket.connected, 'otro portátil');
+  res = await send(otro, 'remote:pair', { code, name: 'Intruso' });
+  assert.strictEqual(res.code, 'INVALID_CODE');
+  otro.socket.close();
+  assert.ok(lejana.socket.connected, 'La pantalla remota sigue conectada');
+
+  // Un remoto no puede administrar ni puntuar
+  res = await send(remoto, 'station:newPin', { matchId: 'pista-1' });
+  assert.strictEqual(res.code, 'FORBIDDEN');
+  res = await send(lejana, 'matchAction', { matchId: 'pista-2', action: 'pointA', version: lejana.states['pista-2'].version });
+  assert.strictEqual(res.code, 'FORBIDDEN');
+
+  // Desvincular: el remoto se entera y su pantalla se corta; el token ya no vale
+  const remoteId = estacion.stationState.remotes.list[0].id;
+  res = await send(estacion, 'station:unlinkRemote', { remoteId });
+  assert.ok(res.ok, res.message);
+  await waitFor(() => remoto.remoteRevoked && !lejana.socket.connected, 'remoto desvinculado y pantalla cortada');
+  lejana.socket.close();
+  remoto.socket.close();
+  assert.strictEqual(await connectError({ role: 'display', screenId: 'pantalla-2', remoteToken: token }), 'DISPLAY_LOCAL_ONLY');
+  const viejo = createDevice('Remoto con token viejo', { role: 'remote', token }, host);
+  await waitFor(() => viejo.remoteRevoked, 'token viejo → debe enlazarse otra vez');
+  viejo.socket.close();
+  await waitFor(() => estacion.stationState.remotes.list.length === 0, 'la estación ya no lo lista');
+  return `remoto en ${host}`;
 });
 
 test('Sincronización: la estación ve "al día" o "desincronizada" según lo que dibuja cada pantalla', async () => {

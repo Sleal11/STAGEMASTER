@@ -39,7 +39,9 @@ const dom = {
   dimmer:   $('d-dimmer'),
 };
 
-const screenId = readScreenId();
+const screenId    = readScreenId();
+// Portátil remoto enlazado: su token viene en el enlace (score.html?pantalla=N#remoto=TOKEN)
+const remoteToken = new URLSearchParams(window.location.hash.slice(1)).get('remoto') || undefined;
 const board    = createScoreboard(dom.display);
 const ribbon   = createRibbon(dom.ribbon, { onChange: () => updateLayout() });
 const player   = createMediaPlayer(dom.media, { onChange: () => updateLayout() });
@@ -71,12 +73,16 @@ function connectToServer() {
     setTimeout(() => window.location.reload(), 3000);
     return;
   }
-  socket = window.io({ auth: { role: 'display', screenId } });
+  socket = window.io({ auth: { role: 'display', screenId, remoteToken } });
 
   socket.on('connect_error', (err) => {
-    if (err.data && err.data.code === 'UNKNOWN_SCREEN') {
-      dom.waitingCourt.textContent = 'Pantalla no válida';
-      console.error('[Pantalla] ' + err.message + '. Usa score.html?pantalla=N con una pantalla de la estación');
+    const code = err.data && err.data.code;
+    if (code === 'UNKNOWN_SCREEN' || code === 'DISPLAY_LOCAL_ONLY') {
+      // Rechazo del servidor (no es un corte de red): se reintenta cada 5 s
+      // por si se añade la pantalla o se vuelve a enlazar el portátil
+      dom.waitingCourt.textContent = code === 'UNKNOWN_SCREEN' ? 'Pantalla no válida' : 'Pantalla no autorizada';
+      console.error('[Pantalla] ' + err.message);
+      setTimeout(() => { if (!socket.connected) socket.connect(); }, 5000);
     }
   });
   // El operador quitó esta pantalla en la estación: no se reconecta

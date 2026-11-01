@@ -358,9 +358,11 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
 
   // ── Presencia ──────────────────────────────────────────────────
 
-  function attach(id, socketId) {
+  /** extra.remote: nombre del portátil remoto que la muestra (null = este portátil) */
+  function attach(id, socketId, extra = {}) {
     if (!presence.has(id)) return;
     presence.get(id).set(socketId, {
+      remote: extra.remote || null,
       connectedAt: now(), viewport: null, renderedMatchId: null, renderedVersion: null,
       adErrors: [], playing: null, soundBlocked: false,
     });

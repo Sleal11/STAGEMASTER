@@ -81,6 +81,7 @@ function loadModules() {
     ads:  require('./ads'),
     auth: require('./auth'),
     history: require('./history'),
+    remotes: require('./remotes'),
   };
 }
 
@@ -844,6 +845,74 @@ test('Match: inicio, uid, tiempo en pausa y registro del historial', () => {
   assert.notStrictEqual(match.uid, uid, 'Reiniciar = partido nuevo');
 });
 
-fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
-fs.rmSync(TEST_ADS_DIR, { recursive: true, force: true });
-resumen();
+console.log('\nPORTÁTILES REMOTOS');
+
+test('Enlace de portátiles: código de 6 cifras, token (solo se guarda su hash), nuevo código y desvincular', () => {
+  fs.rmSync(path.join(TEST_DATA_DIR, 'remotes.json'), { force: true });
+  const { remotes } = loadModules();
+  const registry = remotes.createRemoteRegistry();
+  const code = registry.code();
+  assert.ok(/^[1-9]\d{5}$/.test(code), code);
+  assertCode(() => registry.pair('123', 'Portátil 2'), 'INVALID_CODE');
+  const paired = registry.pair(code, '  Portátil   pista 1 ');
+  assert.strictEqual(paired.name, 'Portátil pista 1');
+  assert.strictEqual(registry.verify(paired.token).id, paired.id);
+  assert.strictEqual(registry.verify('otro'), null);
+  assert.strictEqual(registry.verify(undefined), null);
+  const disk = fs.readFileSync(path.join(TEST_DATA_DIR, 'remotes.json'), 'utf8');
+  assert.ok(!disk.includes(paired.token), 'El token no se guarda en disco');
+
+  // Reiniciar: se conserva el enlace y el código
+  const again = loadModules().remotes.createRemoteRegistry();
+  assert.strictEqual(again.verify(paired.token).name, 'Portátil pista 1');
+  assert.strictEqual(again.code(), code);
+  // El mismo portátil se vuelve a enlazar: sustituye al anterior (no se duplica)
+  const repaired = again.pair(code, 'Portátil pista 1');
+  assert.strictEqual(again.list().length, 1);
+  assert.strictEqual(again.verify(paired.token), null);
+  // Código nuevo: el viejo no sirve, el enlazado sigue
+  const fresh = again.newCode();
+  assert.notStrictEqual(fresh, code);
+  assertCode(() => again.pair(code, 'Intruso'), 'INVALID_CODE');
+  assert.ok(again.verify(repaired.token));
+  again.unlink(repaired.id);
+  assert.strictEqual(again.verify(repaired.token), null);
+  assertCode(() => again.unlink(repaired.id), 'UNKNOWN_REMOTE');
+});
+
+test('Descubrimiento: direcciones de difusión de cada red', () => {
+  const discovery = require('./discovery');
+  const list = discovery.broadcastAddresses();
+  assert.ok(list.includes('255.255.255.255'));
+  assert.ok(list.every((a) => /^\d+\.\d+\.\d+\.\d+$/.test(a)));
+});
+
+/** El anuncio del portátil principal llega a quien escucha (red local real) */
+async function discoveryRoundTrip() {
+  const discovery = require('./discovery');
+  const port = 41000 + Math.floor(Math.random() * 500);
+  const found = [];
+  const listener = discovery.listen((info) => found.push(info), { port });
+  const beacon = discovery.startBeacon(() => ({ name: 'Principal', port: 3000, version: '9.9.9' }), { port, intervalMs: 100 });
+  const start = Date.now();
+  while (!found.length && Date.now() - start < 3000) await new Promise((r) => setTimeout(r, 50));
+  beacon.stop();
+  listener.stop();
+  try {
+    assert.ok(found.length > 0, 'No llegó ningún anuncio');
+    assert.strictEqual(found[0].port, 3000);
+    assert.strictEqual(found[0].name, 'Principal');
+    console.log(`  ✅  Descubrimiento: el anuncio del principal llega por la red (${found[0].address})`);
+    pasadas++;
+  } catch (err) {
+    console.log('  ❌  Descubrimiento: el anuncio del principal llega por la red');
+    console.log(`       → ${err.message}`);
+    fallidas++;
+  }
+}
+
+discoveryRoundTrip().then(() => {
+  fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+  fs.rmSync(TEST_ADS_DIR, { recursive: true, force: true });
+  resumen();
+});

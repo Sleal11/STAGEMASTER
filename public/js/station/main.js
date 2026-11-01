@@ -21,6 +21,7 @@ import { initDialogs } from './dialogs.js';
 import { renderMatches, onMatchClick } from './matches.js';
 import { renderScreens, onScreenClick, onScreenChange, onScreenInput } from './screens.js';
 import { initUploads } from './uploads.js';
+import { renderRemotes, onRemotesClick } from './remotes.js';
 import { initHistory, updateCourts, setHistoryVisible, onHistoryChanged } from './history.js';
 
 const $ = (id) => document.getElementById(id);
@@ -60,6 +61,7 @@ function render(state) {
   renderNetwork(state.network);
   renderMatches(state);
   renderScreens(state);
+  renderRemotes(state);
   updateCourts(state);
   tick();
 }
@@ -124,6 +126,7 @@ $('st-matches').addEventListener('click', onMatchClick);
 $('st-screens').addEventListener('click', onScreenClick);
 $('st-screens').addEventListener('change', onScreenChange);
 $('st-screens').addEventListener('input', onScreenInput);
+$('st-remotes').addEventListener('click', onRemotesClick);
 
 $('st-open-ads').addEventListener('click', (event) => send('station:openAdsFolder', {}, event.currentTarget));
 $('st-help').addEventListener('click', () => window.open('/ayuda.html', 'ayuda', 'width=920,height=820'));

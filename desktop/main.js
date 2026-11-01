@@ -15,9 +15,16 @@
  *   Datos (partidos, PIN, pantallas):  %APPDATA%\StageMaster\datos
  *   Publicidad (PNG):                  Documentos\StageMaster\Publicidad
  *
+ * Dos modos (mode.js):
+ *   - PORTÁTIL PRINCIPAL (este archivo): servidor + estación + pantallas.
+ *   - PANTALLA REMOTA (remote.js): otro portátil, lejos, que muestra
+ *     pantallas del principal por la red. Se elige desde la estación
+ *     («Usar este portátil como pantalla remota») y se recuerda.
+ *
  * Relación con otros archivos:
- *   → server/index.js       startServer() con el "adaptador de escritorio"
- *   → desktop/monitors.js   qué pantalla va en qué monitor (lógica pura)
+ *   → server/index.js          startServer() con el "adaptador de escritorio"
+ *   → desktop/screenWindows.js ventanas de las pantallas en los monitores
+ *   → desktop/monitors.js      qué pantalla va en qué monitor (lógica pura)
  *   ← la estación cambia monitores con 'station:setMonitor' (socketServer.js)
  */
 
@@ -27,13 +34,13 @@ const {
   app, BrowserWindow, screen, dialog, shell, powerSaveBlocker, Menu, session,
 } = require('electron');
 
-const monitors = require('./monitors');
+const { createScreenWindows } = require('./screenWindows');
+const mode = require('./mode');
 const { getBuildInfo, describeBuild } = require('../server/core/buildInfo');
 
 const BUILD = getBuildInfo();
+const SETTINGS = mode.loadSettings();
 
-// Pantallas que existen: las dice el servidor (la estación puede añadir y quitar)
-let screenIds = ['pantalla-1', 'pantalla-2'];
 const BACKGROUND = '#041024';
 const ICON       = path.join(__dirname, 'icon.png');
 
@@ -50,18 +57,22 @@ if (!app.requestSingleInstanceLock({ version: BUILD.version, commit: BUILD.commi
   app.quit();
 } else {
   app.on('second-instance', (event, argv, cwd, other) => {
-    if (!stationWindow) return;
-    if (stationWindow.isMinimized()) stationWindow.restore();
-    stationWindow.focus();
+    const target = SETTINGS.mode === 'remote' ? require('./remote').mainWindow() : stationWindow;
+    if (!target || target.isDestroyed()) return;
+    if (target.isMinimized()) target.restore();
+    target.focus();
     // Aviso sin bloquear: la copia que se intenta abrir se cierra al momento
     if (other && (other.version !== BUILD.version || other.commit !== BUILD.commit)) setImmediate(() => warnOtherVersion(other));
   });
-  app.whenReady().then(start);
+  app.whenReady().then(() => (SETTINGS.mode === 'remote'
+    ? require('./remote').start({ background: BACKGROUND, icon: ICON, build: BUILD, settings: SETTINGS })
+    : start()));
 }
 
 function warnOtherVersion(other) {
   console.log(`[Escritorio] Se intentó abrir otra versión: ${describeBuild(other)} (abierta: ${describeBuild(BUILD)})`);
-  dialog.showMessageBox(stationWindow, {
+  const parent = SETTINGS.mode === 'remote' ? require('./remote').mainWindow() : stationWindow;
+  dialog.showMessageBox(parent, {
     type: 'warning',
     buttons: ['Seguir con esta', 'Cerrar esta versión'],
     defaultId: 1,
@@ -119,165 +130,23 @@ function prepareAdsFolder() {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// PREFERENCIAS DE MONITORES (se guardan entre usos)
-// ─────────────────────────────────────────────────────────────────
-
-const prefsFile = path.join(dataDir, 'monitores.json');
-
-function loadPreferences() {
-  try {
-    return JSON.parse(fs.readFileSync(prefsFile, 'utf8')).preferences || {};
-  } catch (_) {
-    return {};
-  }
-}
-
-function savePreferences(preferences) {
-  try {
-    fs.mkdirSync(dataDir, { recursive: true });
-    fs.writeFileSync(prefsFile, JSON.stringify({ preferences }));
-  } catch (err) {
-    console.warn('[Escritorio] No se pudieron guardar los monitores:', err.message);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────
 // VENTANAS
 // ─────────────────────────────────────────────────────────────────
 
 let baseUrl       = null;
 let stationWindow = null;
-let preferences   = {};
-let assignments   = {};
 let quitting      = false;
+const listeners   = new Set();
 
-// pantalla → { win, target } de las ventanas abiertas
-const screenWindows = new Map();
-// pantallas cuya ventana cerró el operador (no se reabren solas)
-const closedByUser  = new Set();
-const listeners     = new Set();
-
-function notify() {
-  listeners.forEach((listener) => listener());
-}
-
-function currentMonitors() {
-  return monitors.describeMonitors(screen.getAllDisplays(), screen.getPrimaryDisplay().id);
-}
-
-/** Calcula dónde va cada pantalla y abre, mueve o cierra sus ventanas */
-function applyLayout() {
-  const list = currentMonitors();
-  assignments = monitors.resolveAssignments(screenIds, list, preferences);
-  const stuck = monitors.stickAutoAssignments(preferences, assignments);
-  if (JSON.stringify(stuck) !== JSON.stringify(preferences)) {
-    preferences = stuck;
-    savePreferences(preferences);
-  }
-
-  screenIds.forEach((screenId) => {
-    const target  = assignments[screenId];
-    const current = screenWindows.get(screenId);
-
-    if (!target || closedByUser.has(screenId)) {
-      closeScreenWindow(screenId);
-      return;
-    }
-    if (current && current.target === target && !current.win.isDestroyed()) {
-      // Mismo sitio: solo se ajusta si el monitor cambió de tamaño o posición
-      if (target !== 'window') fitToMonitor(current.win, list.find((m) => m.key === target));
-      return;
-    }
-    closeScreenWindow(screenId);
-    openScreenWindow(screenId, target, list);
-  });
-  notify();
-}
-
-function openScreenWindow(screenId, target, list) {
-  const number = screenId.replace('pantalla-', '');
-  const url    = `${baseUrl}/score.html?pantalla=${number}`;
-  const monitor = list.find((m) => m.key === target);
-  // Vídeos de la lista de reproducción: arrancan solos (también con sonido)
-  // y siguen a velocidad normal aunque la ventana no tenga el foco
-  const webPreferences = { backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' };
-
-  // Las ventanas se muestran cuando su página ya está dibujada: nunca se ve
-  // una ventana vacía (solo el color de fondo) mientras carga
-  const win = target === 'window'
-    ? new BrowserWindow({
-      width: 960, height: 540, show: false, title: `StageMaster · Pantalla ${number} (ventana de prueba)`,
-      backgroundColor: BACKGROUND, autoHideMenuBar: true, icon: ICON,
-      webPreferences,
-    })
-    : new BrowserWindow({
-      ...monitor.bounds, frame: false, show: false, title: `StageMaster · Pantalla ${number}`,
-      backgroundColor: BACKGROUND, autoHideMenuBar: true, skipTaskbar: true,
-      webPreferences,
-    });
-
-  let shown = false;
-  const reveal = () => {
-    if (shown || win.isDestroyed()) return;
-    shown = true;
-    if (target === 'window') {
-      win.showInactive();   // no le quita el foco a la estación
-    } else {
-      fitToMonitor(win, monitor);
-      win.show();
-      win.setFullScreen(true);
-    }
-  };
-  win.once('ready-to-show', reveal);
-  setTimeout(reveal, 8000);   // por si la página tarda: mejor verla que tenerla oculta
-
-  // Si la página no carga (el servidor tardó en responder), se reintenta sola
-  win.webContents.on('did-fail-load', (event, code, description, failedUrl, isMainFrame) => {
-    if (!isMainFrame || code === -3) return;   // -3 = carga cancelada a propósito
-    console.warn(`[Escritorio] ${screenId}: no cargó (${description}); reintentando…`);
-    setTimeout(() => { if (!win.isDestroyed()) win.loadURL(url); }, 1500);
-  });
-  protectWindow(win);
-
-  win.on('closed', () => {
-    const record = screenWindows.get(screenId);
-    if (record && record.win === win) {
-      screenWindows.delete(screenId);
-      // Cerrada por el operador (Alt+F4) y no por la aplicación
-      if (!record.closingByApp && !quitting) closedByUser.add(screenId);
-      notify();
-    }
-  });
-
-  win.loadURL(url);
-  screenWindows.set(screenId, { win, target, closingByApp: false });
-}
-
-/**
- * Una ventana de StageMaster solo muestra páginas de StageMaster: si se suelta
- * un archivo encima o algo intenta navegar fuera, no pasa nada.
- */
-function protectWindow(win) {
-  win.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(baseUrl)) event.preventDefault();
-  });
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-}
-
-function fitToMonitor(win, monitor) {
-  if (!monitor || win.isDestroyed()) return;
-  const bounds = win.getBounds();
-  const same = ['x', 'y', 'width', 'height'].every((k) => bounds[k] === monitor.bounds[k]);
-  if (!same && !win.isFullScreen()) win.setBounds(monitor.bounds);
-}
-
-function closeScreenWindow(screenId) {
-  const record = screenWindows.get(screenId);
-  if (!record) return;
-  record.closingByApp = true;
-  screenWindows.delete(screenId);
-  if (!record.win.isDestroyed()) record.win.close();
-}
+// Pantallas en los monitores de este portátil (se cargan de su propio servidor)
+const screenWindows = createScreenWindows({
+  prefsFile:   path.join(dataDir, 'monitores.json'),
+  urlFor:      (screenId) => baseUrl && `${baseUrl}/score.html?pantalla=${screenId.replace('pantalla-', '')}`,
+  allowedBase: () => baseUrl,
+  background:  BACKGROUND,
+  icon:        ICON,
+  onChange:    () => listeners.forEach((listener) => listener()),
+});
 
 function openStationWindow() {
   stationWindow = new BrowserWindow({
@@ -336,54 +205,49 @@ const desktopAdapter = {
 
   /** Lo que ve la estación: monitores, dónde va cada pantalla, ventanas cerradas */
   getState() {
-    return {
-      monitors: currentMonitors().map(({ key, label, width, height, primary }) => ({ key, label, width, height, primary })),
-      preferences,
-      assignments,
-      closed: [...closedByUser],
-      adsFolder: adsDir,
-    };
+    return { ...screenWindows.getState(), adsFolder: adsDir, canUseAsRemote: true };
   },
 
   /** El servidor indica qué pantallas existen (al arrancar y al añadir o quitar una) */
   setScreens(ids) {
-    const removed = screenIds.filter((id) => !ids.includes(id));
-    screenIds = ids.slice();
-    removed.forEach((id) => {
-      closeScreenWindow(id);
-      closedByUser.delete(id);
-      delete preferences[id];   // si se vuelve a añadir, empieza en "automático"
-    });
-    if (removed.length) savePreferences(preferences);
-    if (baseUrl) applyLayout();   // al arrancar, la primera colocación la hace start()
+    // Al arrancar, la primera colocación la hace start()
+    screenWindows.setScreens(ids, { relayout: !!baseUrl });
   },
 
   /** El operador elige monitor para una pantalla ('auto', id, 'window', 'none') */
   setMonitor(screenId, value) {
-    try {
-      preferences = monitors.choosePreference(screenIds, currentMonitors(), preferences, screenId, value);
-    } catch (err) {
-      const { appError } = require('../server/core/errors');
-      throw appError('INVALID_MONITOR', 'Ese monitor ya no está conectado');
-    }
-    savePreferences(preferences);
-    closedByUser.delete(screenId);
-    applyLayout();
+    screenWindows.setMonitor(screenId, value);
   },
 
   /** Reabre una pantalla (si no tenía monitor, en una ventana de prueba) */
   openScreen(screenId) {
-    closedByUser.delete(screenId);
-    if (!assignments[screenId]) {
-      preferences = monitors.choosePreference(screenIds, currentMonitors(), preferences, screenId, 'window');
-      savePreferences(preferences);
-    }
-    applyLayout();
+    screenWindows.openScreen(screenId);
   },
 
   openAdsFolder() {
     prepareAdsFolder();
     shell.openPath(adsDir);
+  },
+
+  /** Este portátil pasa a ser una pantalla remota de otro (con confirmación) */
+  useAsRemote() {
+    dialog.showMessageBox(stationWindow, {
+      type: 'question',
+      buttons: ['Cancelar', 'Usar como pantalla remota'],
+      defaultId: 0,
+      cancelId: 0,
+      title: 'Pantalla remota',
+      message: '¿Usar este portátil como pantalla remota?',
+      detail: 'StageMaster se reiniciará sin estación ni partidos: mostrará en sus monitores las pantallas ' +
+        'de OTRO portátil (el principal) por la red. Necesitarás el código de enlace que aparece en la ' +
+        'estación del portátil principal. Los partidos de este portátil se conservan y puedes volver ' +
+        'a usarlo como principal cuando quieras.',
+    }).then(({ response }) => {
+      if (response !== 1) return;
+      quitting = true;
+      screenWindows.setQuitting();
+      mode.switchMode('remote');
+    });
   },
 };
 
@@ -396,7 +260,6 @@ async function start() {
   // Nada de páginas de versiones anteriores guardadas en la caché
   await session.defaultSession.clearCache().catch(() => {});
   prepareAdsFolder();
-  preferences = loadPreferences();
 
   // El servidor se carga DESPUÉS de fijar las carpetas de datos y publicidad
   const { startServer } = require('../server/index');
@@ -416,18 +279,18 @@ async function start() {
   powerSaveBlocker.start('prevent-display-sleep');
 
   openStationWindow();
-  applyLayout();
+  screenWindows.applyLayout();
 
   // Monitores conectados/desconectados en caliente
   let layoutTimer = null;
   const relayout = () => {
     clearTimeout(layoutTimer);
-    layoutTimer = setTimeout(applyLayout, 600);
+    layoutTimer = setTimeout(screenWindows.applyLayout, 600);
   };
   screen.on('display-added', relayout);
   screen.on('display-removed', relayout);
   screen.on('display-metrics-changed', relayout);
 }
 
-app.on('before-quit', () => { quitting = true; });
+app.on('before-quit', () => { quitting = true; screenWindows.setQuitting(); });
 app.on('window-all-closed', () => app.quit());

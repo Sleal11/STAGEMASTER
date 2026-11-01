@@ -21,6 +21,7 @@ import { esc, icon, fileNameOf } from '../common/ui.js';
 import { ctx, send, toast, findMatch, findScreen, serverNow, patch } from './context.js';
 import { confirmDialog } from './dialogs.js';
 import { pickFiles, deleteAd } from './uploads.js';
+import { remotesShowing } from './remotes.js';
 
 const TABS = [
   { id: 'content', label: 'Contenido',             icon: 'sliders' },
@@ -116,13 +117,15 @@ function statusHtml(screen) {
     return `<div class="st-status-row"><span class="st-status"><span class="dot bad"></span>Sin conexión</span>${button('openScreen', 'screen', 'Abrir ventana')}</div>`;
   }
   const size = d.viewport ? `${d.viewport.width} × ${d.viewport.height} px` : 'tamaño desconocido';
+  const where = screen.displays.map((x) => x.remote ? `en «${esc(x.remote)}»` : 'en este portátil');
+  const place = [...new Set(where)].join(' y ');
   const sync = {
     ok:      '<span class="dot ok"></span>Marcador al día',
     pending: '<span class="dot warn"></span>Actualizando…',
     stale:   `<span class="dot bad"></span>${icon('alert')}Desincronizada`,
   }[d.sync];
   return `<div class="st-status-row">
-      <span class="st-status"><span class="dot ok"></span>Conectada · ${size}</span>
+      <span class="st-status"><span class="dot ok"></span>Conectada ${place} · ${size}</span>
       <span class="st-status">${sync}</span>
       ${button('identify', 'eye', 'Identificar')}
     </div>`;
@@ -191,8 +194,13 @@ function nowPlaying(screen, playing, hasList, afterMatch) {
 function warningsHtml(screen) {
   const warnings = [];
   const displays = screen.displays;
-  if (displays.length > 1) {
-    warnings.push(`Hay ${displays.length} ventanas abiertas para ${esc(screen.label)}. Cierra las que sobren.`);
+  // Dos ventanas de la misma pantalla en el MISMO portátil sobran (en portátiles distintos es a propósito)
+  const perPlace = {};
+  displays.forEach((d) => { perPlace[d.remote || ''] = (perPlace[d.remote || ''] || 0) + 1; });
+  const repeated = Object.entries(perPlace).filter(([, n]) => n > 1);
+  if (repeated.length) {
+    const [place, n] = repeated[0];
+    warnings.push(`Hay ${n} ventanas abiertas para ${esc(screen.label)} ${place ? `en «${esc(place)}»` : 'en este portátil'}. Cierra las que sobren.`);
   }
   const failed = [...new Set([].concat(...displays.map((d) => d.adErrors)))];
   if (failed.length) {
@@ -323,9 +331,12 @@ function outputPanel(screen, state) {
     const current = desktop.assignments[screen.id] || (desktop.preferences[screen.id] === 'none' ? 'none' : 'auto');
     const options = desktop.monitors.map((m) => [m.key, `${m.label} · ${m.width}×${m.height}${m.primary ? ' (aquí está la estación)' : ''}`])
       .concat([['auto', 'Automático (primer monitor libre)'], ['window', 'Ventana de prueba'], ['none', 'No mostrar']]);
+    const remote = remotesShowing(screen.id);
     monitor = field('Monitor', `<select class="input" data-action="monitor" data-screen="${screen.id}">${options.map(([v, t]) =>
       `<option value="${esc(v)}"${v === current ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`,
-    'Si eliges el monitor de otra pantalla, se intercambian.');
+    remote.length
+      ? `También se ve en ${remote.map((r) => `«${esc(r.name)}» (${esc(r.where)})`).join(', ')}. Si no la quieres en este portátil, elige «No mostrar».`
+      : 'Si eliges el monitor de otra pantalla, se intercambian.');
   } else {
     monitor = field('Monitor', `<span class="muted">Abre <code>/score.html?pantalla=${screen.id.replace('pantalla-', '')}</code> en el monitor y pulsa F11.</span>`);
   }

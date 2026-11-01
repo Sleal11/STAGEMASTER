@@ -12,7 +12,11 @@
  *   controller  Teléfono del árbitro (control.html). Controla UN partido,
  *               al que se vincula con el PIN de la pista (token).
  *   display     Pantalla de score/publicidad (score.html?pantalla=N).
- *               Solo lectura y solo desde localhost (van por cable al portátil).
+ *               Solo lectura. Desde localhost, o desde la red si trae el token
+ *               de un portátil remoto enlazado (auth.remoteToken).
+ *   remote      Portátil en modo «pantalla remota» (aplicación de escritorio).
+ *               Se enlaza con el código de la estación; informa de qué
+ *               pantallas muestra y en qué monitor. Nunca modifica nada.
  *
  * SALAS (aislamiento entre partidos)
  *   match:<id>   Teléfono y pantallas de ese partido → reciben sus 'matchUpdate'
@@ -39,6 +43,11 @@
  *   station:setMonitor { screenId, monitor }        estación (solo aplicación de escritorio)
  *   station:openScreen { screenId }                 estación (solo aplicación de escritorio)
  *   station:openAdsFolder                           estación (solo aplicación de escritorio)
+ *   station:remoteCode                              estación: código de enlace nuevo
+ *   station:unlinkRemote { remoteId }               estación: desvincula un portátil remoto
+ *   station:useAsRemote                             estación: este portátil pasa a modo remoto (escritorio)
+ *   remote:pair { code, name }                      portátil remoto → { token, remoteId, name }
+ *   remote:report { monitors, screens }             portátil remoto: dónde muestra cada pantalla
  *   display:report { viewport, renderedMatchId, renderedVersion, adErrors, playing, soundBlocked }   pantalla
  *
  * EVENTOS servidor → cliente:
@@ -50,6 +59,8 @@
  *   screenRemoved                                   pantalla que el operador ha quitado
  *   stationState { matches, screens, ads, network } estación
  *   historyChanged                                  estación: se guardó o anuló un partido del historial
+ *   remoteState { serverName, screens }             portátil remoto: pantallas que puede mostrar
+ *   remoteRevoked { message }                       portátil remoto desvinculado (token inválido)
  */
 
 const { appError }      = require('../core/errors');
@@ -58,6 +69,7 @@ const auth              = require('../core/auth');
 const ads               = require('../core/ads');
 const { getQrSvg }      = require('../core/network');
 const { getBuildInfo }  = require('../core/buildInfo');
+const os                = require('os');
 const { OUTPUT_FORMATS, LIMITS, resolveOutput } = require('../core/screenConfig');
 const { MAX_SCREENS }   = require('../core/screens');
 
@@ -73,9 +85,13 @@ const SYNC_TOLERANCE_MS = 2000;
  * @param {Object}  [deps.desktop] - Adaptador de la aplicación de escritorio (monitores y
  *                                   carpetas). null cuando se arranca con `npm start`.
  * @param {Object}  [deps.history] - Historial de partidos (core/history.js)
+ * @param {Object}  [deps.remotes] - Portátiles remotos enlazados (core/remotes.js)
  */
-function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = null, history = null }) {
-  const pinGuard = auth.createPinGuard();
+function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = null, history = null, remotes = null }) {
+  const pinGuard  = auth.createPinGuard();
+  const codeGuard = auth.createPinGuard();
+  // Portátiles remotos conectados: remoteId → { sockets: Set, address, monitors, screens, lastSeen }
+  const remotePresence = new Map();
 
   // La aplicación de escritorio avisa cuando cambian los monitores o las ventanas
   if (desktop) desktop.onChange(() => scheduleStationState());
@@ -92,25 +108,34 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 
   io.use((socket, next) => {
     const params = socket.handshake.auth || {};
-    const role   = ['station', 'display', 'controller'].includes(params.role) ? params.role : 'controller';
+    const role   = ['station', 'display', 'controller', 'remote'].includes(params.role) ? params.role : 'controller';
+    const local  = auth.isLocalAddress(socket.handshake.address);
     socket.data.role = role;
 
-    if (role === 'station' && !auth.isLocalAddress(socket.handshake.address)) {
+    if (role === 'station' && !local) {
       return next(connectionError('STATION_LOCAL_ONLY',
         'La estación operadora solo puede abrirse en el propio portátil (http://localhost:3000)'));
     }
     if (role === 'display') {
-      // Las pantallas van por cable al portátil: solo se aceptan desde localhost
-      // (así ningún dispositivo de la red puede hacerse pasar por una pantalla).
-      // STAGEMASTER_REMOTE_DISPLAYS=1 lo permite si algún día se usa una pantalla en otro equipo.
-      if (!auth.isLocalAddress(socket.handshake.address) && process.env.STAGEMASTER_REMOTE_DISPLAYS !== '1') {
+      // Las pantallas son del propio portátil o de un portátil remoto ENLAZADO
+      // (token del código de enlace): ningún otro dispositivo de la red puede
+      // hacerse pasar por una pantalla. STAGEMASTER_REMOTE_DISPLAYS=1 lo permite sin enlace.
+      const remote = remotes && !local ? remotes.verify(params.remoteToken) : null;
+      if (!local && !remote && process.env.STAGEMASTER_REMOTE_DISPLAYS !== '1') {
         return next(connectionError('DISPLAY_LOCAL_ONLY',
-          'Las pantallas se abren en el portátil (http://localhost:3000/score.html?pantalla=N)'));
+          'Esta pantalla no está autorizada: ábrela desde StageMaster en modo «pantalla remota» enlazado con el código de la estación'));
       }
       if (!screens.has(params.screenId)) {
         return next(connectionError('UNKNOWN_SCREEN', `Pantalla desconocida: ${params.screenId}`));
       }
       socket.data.screenId = params.screenId;
+      socket.data.remoteId = remote ? remote.id : null;
+    }
+    if (role === 'remote') {
+      if (!remotes) return next(connectionError('FORBIDDEN', 'Este servidor no admite portátiles remotos'));
+      const remote = typeof params.token === 'string' ? remotes.verify(params.token) : null;
+      socket.data.remoteId = remote ? remote.id : null;
+      socket.data.remoteInvalid = typeof params.token === 'string' && !remote;
     }
     if (role === 'controller' && typeof params.token === 'string') {
       socket.data.token = params.token;
@@ -125,6 +150,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     if (role === 'station')    onStationConnected(socket);
     if (role === 'display')    onDisplayConnected(socket);
     if (role === 'controller') onControllerConnected(socket);
+    if (role === 'remote')     onRemoteConnected(socket);
 
     // ── Eventos comunes ──────────────────────────────────────────
     handle(socket, 'listCourts', () => ({ courts: registry.list().map(courtSummary) }));
@@ -264,6 +290,74 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       desktop.openAdsFolder();
     });
 
+    // ── Portátiles remotos ───────────────────────────────────────
+    handle(socket, 'station:remoteCode', () => {
+      requireStation(socket);
+      remotes.newCode();
+      scheduleStationState();
+    });
+
+    handle(socket, 'station:unlinkRemote', ({ remoteId } = {}) => {
+      requireStation(socket);
+      remotes.unlink(remoteId);
+      // Su conexión y sus pantallas se cortan al momento
+      io.sockets.sockets.forEach((other) => {
+        if (other.data.remoteId !== remoteId) return;
+        if (other.data.role === 'remote') other.emit('remoteRevoked', { message: 'La estación del portátil principal desvinculó este portátil.' });
+        other.disconnect(true);
+      });
+      remotePresence.delete(remoteId);
+      scheduleStationState();
+    });
+
+    handle(socket, 'station:useAsRemote', () => {
+      requireStation(socket);
+      requireDesktop();
+      if (!desktop.useAsRemote) throw appError('FORBIDDEN', 'No disponible en esta versión');
+      desktop.useAsRemote();
+    });
+
+    handle(socket, 'remote:pair', ({ code, name } = {}) => {
+      if (socket.data.role !== 'remote') throw appError('FORBIDDEN', 'Solo un portátil en modo pantalla remota puede enlazarse');
+      const key = 'remote:' + socket.handshake.address;
+      codeGuard.check(key);
+      let paired;
+      try {
+        paired = remotes.pair(code, name);
+      } catch (err) {
+        if (err.code === 'INVALID_CODE') {
+          const left = codeGuard.fail(key);
+          throw appError('INVALID_CODE', left > 0
+            ? `Código incorrecto. Te quedan ${left} intento(s). Míralo en la estación del portátil principal.`
+            : 'Código incorrecto. Demasiados intentos: espera un minuto.');
+        }
+        throw err;
+      }
+      codeGuard.success(key);
+      socket.data.remoteId = paired.id;
+      socket.data.remoteInvalid = false;
+      bindRemote(socket);
+      return { token: paired.token, remoteId: paired.id, name: paired.name, serverName: serverName() };
+    });
+
+    socket.on('remote:report', (data) => {
+      const entry = socket.data.role === 'remote' && remotePresence.get(socket.data.remoteId);
+      if (!entry || !data || typeof data !== 'object') return;
+      const text = (v, max = 60) => String(v == null ? '' : v).slice(0, max);
+      if (Array.isArray(data.monitors)) {
+        entry.monitors = data.monitors.slice(0, 8).map((m) => ({
+          label: text(m && m.label), width: Number(m && m.width) || 0, height: Number(m && m.height) || 0,
+        }));
+      }
+      if (data.screens && typeof data.screens === 'object') {
+        entry.screens = {};
+        Object.keys(data.screens).filter((id) => screens.has(id)).forEach((id) => {
+          entry.screens[id] = data.screens[id] === null ? null : text(data.screens[id]);
+        });
+      }
+      scheduleStationState();
+    });
+
     // ── Pantalla: informe tras dibujar ───────────────────────────
     socket.on('display:report', (data) => {
       if (socket.data.role !== 'display' || !screens.has(socket.data.screenId)) return;
@@ -275,6 +369,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       console.log(`[-] ${roleLabel(socket)} desconectado (${reason})`);
       if (role === 'display') screens.detach(socket.data.screenId, socket.id);
       if (role === 'controller') unbindController(socket);
+      if (role === 'remote') unbindRemote(socket);
       scheduleStationState();
     });
   });
@@ -291,12 +386,58 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
   function onDisplayConnected(socket) {
     const { screenId } = socket.data;
     const config = screens.effective(screenId);
-    screens.attach(screenId, socket.id);
+    const remote = socket.data.remoteId && remotes ? remotes.get(socket.data.remoteId) : null;
+    screens.attach(screenId, socket.id, { remote: remote ? remote.name : null });
     socket.join(`screen:${screenId}`);
     socket.join(`match:${config.matchId}`);
     socket.emit('screenConfig', buildScreenConfig(screenId));
     socket.emit('matchUpdate', matchPayload(registry.get(config.matchId)));
     scheduleStationState();
+  }
+
+  /** Portátil remoto: si su token vale, recibe las pantallas; si no, debe enlazarse otra vez */
+  function onRemoteConnected(socket) {
+    if (socket.data.remoteInvalid) {
+      socket.emit('remoteRevoked', { message: 'Este portátil ya no está enlazado. Pide el código en la estación del portátil principal.' });
+      return;
+    }
+    if (socket.data.remoteId) bindRemote(socket);
+  }
+
+  function bindRemote(socket) {
+    const { remoteId } = socket.data;
+    let entry = remotePresence.get(remoteId);
+    if (!entry) {
+      entry = { sockets: new Set(), address: null, monitors: [], screens: {}, lastSeen: null };
+      remotePresence.set(remoteId, entry);
+    }
+    entry.sockets.add(socket.id);
+    entry.address = String(socket.handshake.address).replace(/^::ffff:/, '');
+    socket.join('remotes');
+    socket.emit('remoteState', remoteState());
+    scheduleStationState();
+  }
+
+  function unbindRemote(socket) {
+    const entry = remotePresence.get(socket.data.remoteId);
+    if (entry && entry.sockets.delete(socket.id)) entry.lastSeen = Date.now();
+  }
+
+  function serverName() {
+    return os.hostname();
+  }
+
+  /** Lo que ve un portátil remoto: las pantallas que puede mostrar */
+  function remoteState() {
+    return {
+      serverName: serverName(),
+      build: getBuildInfo(),
+      screens: screens.ids().map((id) => {
+        const config = screens.effective(id);
+        const mirror = config.mirrorOf ? screens.get(config.mirrorOf).label : null;
+        return { id, label: config.label, matchLabel: registry.get(config.matchId).label, mirrorOf: mirror };
+      }),
+    };
   }
 
   function onControllerConnected(socket) {
@@ -542,8 +683,18 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     stationTimer = setTimeout(() => {
       stationTimer = null;
       io.to('station').emit('stationState', buildStationState());
+      // Los portátiles remotos solo reciben su lista cuando cambia
+      if (remotes) {
+        const state = remoteState();
+        const key = JSON.stringify(state.screens);
+        if (key !== lastRemoteKey) {
+          lastRemoteKey = key;
+          io.to('remotes').emit('remoteState', state);
+        }
+      }
     }, 100);
   }
+  let lastRemoteKey = '';
 
   function buildStationState() {
     const now     = Date.now();
@@ -579,6 +730,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
           missingAds: ads.resolve('banner', config.ribbon.items, library).missing
             .concat(ads.resolve('fullscreen', config.media.items, library).missing),
           displays: screens.presenceOf(config.id).map((display) => ({
+            remote:       display.remote || null,
             viewport:     display.viewport,
             adErrors:     display.adErrors,
             playing:      display.playing,
@@ -593,7 +745,28 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       limits:  LIMITS,
       network,
       desktop: desktop ? desktop.getState() : null,
+      remotes: remotes ? remotesSummary(now) : null,
       build:   getBuildInfo(),
+      serverTime: now,
+    };
+  }
+
+  /** Portátiles remotos para la estación: código, enlazados, conectados y qué muestran */
+  function remotesSummary(now) {
+    return {
+      code: remotes.code(),
+      serverName: serverName(),
+      list: remotes.list().map((remote) => {
+        const entry = remotePresence.get(remote.id);
+        return {
+          ...remote,
+          online:   !!entry && entry.sockets.size > 0,
+          address:  entry ? entry.address : null,
+          lastSeen: entry ? entry.lastSeen : null,
+          monitors: entry ? entry.monitors : [],
+          screens:  entry ? entry.screens : {},
+        };
+      }),
       serverTime: now,
     };
   }
@@ -655,8 +828,9 @@ function connectionError(code, message) {
 }
 
 function roleLabel(socket) {
-  const { role, screenId, matchId } = socket.data;
-  if (role === 'display') return `Pantalla ${screenId}`;
+  const { role, screenId, matchId, remoteId } = socket.data;
+  if (role === 'display') return `Pantalla ${screenId}${remoteId ? ` (${remoteId})` : ''}`;
+  if (role === 'remote') return `Portátil remoto ${remoteId || 'sin enlazar'}`;
   if (role === 'station') return 'Estación';
   return matchId ? `Teléfono (${matchId})` : 'Teléfono sin vincular';
 }

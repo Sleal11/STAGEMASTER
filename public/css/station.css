@@ -806,3 +806,22 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
   .st-network { order: 5; flex-basis: 100%; justify-content: flex-start; }
   .st-grid { grid-template-columns: 1fr; }
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   PORTÁTILES REMOTOS
+   ───────────────────────────────────────────────────────────────── */
+.st-remotes { padding: 18px; display: flex; flex-direction: column; gap: 16px; --court-color: var(--st-primary); }
+.st-remote-code { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: start; }
+.st-code { font-family: 'Oswald', 'Inter', sans-serif; font-size: 2.6rem; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--st-gold); line-height: 1.1; margin: 4px 0 10px; font-variant-numeric: tabular-nums; }
+.st-remote-help p { margin: 0 0 8px; line-height: 1.5; font-size: 0.9rem; color: var(--st-soft); }
+.st-remote-help p.muted { color: var(--st-muted); }
+.st-remote-list { display: flex; flex-direction: column; gap: 8px; }
+.st-remote { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px;
+  border-radius: var(--st-radius); background: var(--st-inset); }
+.st-remote-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.st-remote-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.st-remote-name .icon { width: 18px; height: 18px; color: var(--st-accent); }
+.st-remote-what { font-size: 0.86rem; color: var(--st-soft); }
+.st-remote-empty { font-size: 0.9rem; }
+@media (max-width: 700px) { .st-remote-code { grid-template-columns: 1fr; } }
