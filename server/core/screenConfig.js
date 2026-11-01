@@ -19,8 +19,10 @@
  *   endAds    Publicidad al terminar el partido: enabled · delay (segundos que
  *             se ve el resultado antes de la lista de reproducción)
  *   pauseAds  Publicidad mientras el partido está en pausa: enabled
- *   output    Formato de salida: 'fill' (todo el monitor) o un formato LED de
- *             tamaño fijo (OUTPUT_FORMATS) en la posición x, y del monitor ·
+ *   output    Formato de salida: 'fill' (todo el monitor), un formato LED de
+ *             tamaño fijo (OUTPUT_FORMATS), 'custom' (width × height a mano) o
+ *             un formato guardado (id 'f-…', ver formats.js), en la posición
+ *             x, y del monitor. Tamaños en píxeles REALES (físicos) ·
  *             brightness: brillo de la IMAGEN que envía StageMaster (10-100 %).
  *             No es el brillo físico de los módulos LED (ese lo controla el
  *             procesador LED: ver docs/BRILLO-LED.md)
@@ -42,6 +44,7 @@ const VIEWS          = ['score', 'media'];
 const RIBBON_MOTIONS = ['rotate', 'scroll'];
 const SCROLL_SPEEDS  = ['slow', 'normal', 'fast'];
 const PLAYBACK       = ['playing', 'paused'];
+const PRESET_ID      = /^f-[0-9a-f]{8}$/;   // formato guardado por el operador (formats.js)
 
 /** Formatos de salida. Los LED tienen proporción 2:1 y tamaño exacto en píxeles físicos */
 const OUTPUT_FORMATS = {
@@ -55,6 +58,8 @@ const LIMITS = {
   imageSeconds: [3, 120],   // segundos de cada imagen de la lista de reproducción
   delay:        [0, 600],   // segundos del resultado antes de la publicidad final
   offset:       [0, 7680],  // posición del formato LED dentro del monitor
+  width:        [16, 7680], // tamaño personalizado (píxeles reales)
+  height:       [16, 4320],
   brightness:   [10, 100],  // brillo de la imagen (%)
   texts:        10,         // mensajes de la cinta
   textLength:   120,        // caracteres por mensaje
@@ -72,7 +77,7 @@ function defaultConfig({ id, label, matchId }) {
     media:  { items: [], imageSeconds: 10, sound: false },
     endAds: { enabled: false, delay: 15 },
     pauseAds: { enabled: true },
-    output: { format: 'fill', x: 0, y: 0, brightness: 100 },
+    output: { format: 'fill', x: 0, y: 0, brightness: 100, width: 832, height: 416 },
     playback:      'playing',
     playId:        0,
     postMatch:     null,
@@ -135,10 +140,12 @@ function normalizeSaved(saved, base) {
   };
   config.pauseAds = { enabled: pick(pa.enabled, bool, true) };
   config.output = {
-    format: pick(o.format, (v) => v in OUTPUT_FORMATS, 'fill'),
+    format: pick(o.format, (v) => v in OUTPUT_FORMATS || v === 'custom' || PRESET_ID.test(v), 'fill'),
     x:      pick(o.x, inRange(LIMITS.offset), 0),
     y:      pick(o.y, inRange(LIMITS.offset), 0),
     brightness: pick(o.brightness, inRange(LIMITS.brightness), 100),
+    width:  pick(o.width, inRange(LIMITS.width), 832),
+    height: pick(o.height, inRange(LIMITS.height), 416),
   };
   config.playback      = pick(saved.playback, oneOf(PLAYBACK), 'playing');
   config.playId        = pick(saved.playId, Number.isInteger, 0);
@@ -157,10 +164,11 @@ function normalizeSaved(saved, base) {
  *
  * @param {Object} config   - Configuración actual (no se modifica)
  * @param {Object} changes  - { matchId, view, ribbon: {...}, media: {...}, endAds: {...}, output: {...} }
- * @param {Object} context  - { matchIds, library } (library = ads.listAds())
+ * @param {Object} context  - { matchIds, library, formats } (library = ads.listAds(),
+ *                            formats = formatos guardados)
  * @returns {Object} Configuración nueva
  */
-function applyChanges(config, changes, { matchIds, library }) {
+function applyChanges(config, changes, { matchIds, library, formats = [] }) {
   const fail = (message) => { throw appError('INVALID_SCREEN_CONFIG', message); };
   const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
   if (!isObject(changes)) fail('Cambios de pantalla inválidos');
@@ -239,7 +247,19 @@ function applyChanges(config, changes, { matchIds, library }) {
 
   const output = section('output');
   if (output) {
-    if (output.format !== undefined) next.output.format = oneOf(output.format, Object.keys(OUTPUT_FORMATS), 'Formato');
+    if (output.format !== undefined) {
+      next.output.format = oneOf(output.format, Object.keys(OUTPUT_FORMATS).concat('custom', formats.map((f) => f.id)), 'Formato');
+      // Formato guardado: la pantalla copia su tamaño (si se borra, sigue igual como personalizado)
+      const preset = formats.find((f) => f.id === output.format);
+      if (preset) Object.assign(next.output, { width: preset.width, height: preset.height });
+    }
+    if (output.width  !== undefined) next.output.width  = integer(output.width, LIMITS.width, 'Ancho');
+    if (output.height !== undefined) next.output.height = integer(output.height, LIMITS.height, 'Alto');
+    // Cambiar el tamaño a mano de un formato guardado lo convierte en personalizado
+    if ((output.width !== undefined || output.height !== undefined) && PRESET_ID.test(next.output.format)) {
+      const preset = formats.find((f) => f.id === next.output.format);
+      if (!preset || preset.width !== next.output.width || preset.height !== next.output.height) next.output.format = 'custom';
+    }
     if (output.x      !== undefined) next.output.x      = integer(output.x, LIMITS.offset, 'Posición X');
     if (output.y      !== undefined) next.output.y      = integer(output.y, LIMITS.offset, 'Posición Y');
     if (output.brightness !== undefined) next.output.brightness = integer(output.brightness, LIMITS.brightness, 'Brillo de la imagen');
@@ -247,13 +267,17 @@ function applyChanges(config, changes, { matchIds, library }) {
   return next;
 }
 
-/** Formato de salida con su tamaño: { format, width, height, x, y, brightness } (width null = todo el monitor) */
+/**
+ * Formato de salida con su tamaño: { format, width, height, x, y, brightness }
+ * (width null = todo el monitor). Personalizado o guardado: su propio tamaño.
+ */
 function resolveOutput(output) {
-  const { width, height } = OUTPUT_FORMATS[output.format];
+  const fixed = OUTPUT_FORMATS[output.format];
+  const { width, height } = fixed || output;
   return { format: output.format, width, height, x: output.x, y: output.y, brightness: output.brightness };
 }
 
 module.exports = {
-  VIEWS, RIBBON_MOTIONS, SCROLL_SPEEDS, OUTPUT_FORMATS, LIMITS,
+  VIEWS, RIBBON_MOTIONS, SCROLL_SPEEDS, OUTPUT_FORMATS, LIMITS, PRESET_ID,
   defaultConfig, normalizeSaved, applyChanges, resolveOutput,
 };

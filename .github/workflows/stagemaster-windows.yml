@@ -50,6 +50,10 @@ jobs:
       - name: Pruebas (motor, núcleo, monitores, integración)
         run: npm test
 
+      # Resoluciones de Windows: compila y prueba el código de Windows real (sin cambiar la pantalla)
+      - name: Pruebas de resoluciones de Windows
+        run: node desktop/displayModes.win.test.js
+
       # Versión exacta dentro del .exe (la estación la muestra: "v2.2.0 · 19c768c")
       - name: Datos de la compilación
         shell: bash

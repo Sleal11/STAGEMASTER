@@ -973,6 +973,11 @@ test('Escritorio: la estación ve los monitores y elige dónde va cada pantalla'
     setMonitor: (screenId, monitor) => { calls.push(['setMonitor', screenId, monitor]); notify(); },
     openScreen: (screenId) => calls.push(['openScreen', screenId]),
     openAdsFolder: () => calls.push(['openAdsFolder']),
+    // Resoluciones: asíncronas (Windows tarda en responder)
+    listModes: async (screenId) => ({ monitor: 'Monitor 2', current: { width: 1280, height: 720, hz: 60 }, modes: [{ width: 1920, height: 1080, hz: 60 }], screenId }),
+    applyMode: async (screenId, mode) => { calls.push(['applyMode', screenId, mode]); return { revertAt: 123 }; },
+    confirmMode: async () => { calls.push(['confirmMode']); },
+    revertMode: async () => { throw Object.assign(new Error('No hay ningún cambio de resolución pendiente'), { code: 'DISPLAY_MODE' }); },
   };
 
   const { startServer } = require('./index');
@@ -993,6 +998,18 @@ test('Escritorio: la estación ve los monitores y elige dónde va cada pantalla'
     assert.strictEqual((await ask('station:setMonitor', { screenId: 'pantalla-9', monitor: '2' })).code, 'UNKNOWN_SCREEN');
     assert.deepStrictEqual(calls, [['setMonitor', 'pantalla-1', 'window'], ['openScreen', 'pantalla-2'], ['openAdsFolder']]);
     await waitFor(() => state.desktop.assignments['pantalla-1'] === 'window', 'la estación recibe el cambio');
+
+    // Resolución del monitor: respuestas asíncronas, validación y errores explicados
+    const modes = await ask('station:listModes', { screenId: 'pantalla-1' });
+    assert.ok(modes.ok && modes.modes[0].width === 1920, JSON.stringify(modes));
+    assert.strictEqual((await ask('station:applyMode', { screenId: 'pantalla-1', mode: { width: 1920, height: 1080.5, hz: 60 } })).code, 'DISPLAY_MODE');
+    const applied = await ask('station:applyMode', { screenId: 'pantalla-1', mode: { width: 1920, height: 1080, hz: 60, extra: 'x' } });
+    assert.strictEqual(applied.revertAt, 123);
+    assert.ok((await ask('station:confirmMode', {})).ok);
+    const reverted = await ask('station:revertMode', {});
+    assert.strictEqual(reverted.code, 'DISPLAY_MODE');
+    assert.ok(/pendiente/.test(reverted.message), 'El motivo llega a la estación');
+    assert.deepStrictEqual(calls.slice(3), [['applyMode', 'pantalla-1', { width: 1920, height: 1080, hz: 60 }], ['confirmMode']]);
   } finally {
     station.close();
     await app.close();

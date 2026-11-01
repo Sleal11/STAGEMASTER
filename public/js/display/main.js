@@ -221,8 +221,10 @@ function outputPixels() {
 
 function sendReport() {
   if (!socket || !socket.connected || !config) return;
+  const dpr = window.devicePixelRatio || 1;
   socket.emit('display:report', {
     viewport:        outputPixels(),
+    window:          { width: Math.round(window.innerWidth * dpr), height: Math.round(window.innerHeight * dpr) },
     renderedMatchId: config.matchId,
     renderedVersion: board.version(),
     adErrors:        ribbon.errors().concat(player.errors()),

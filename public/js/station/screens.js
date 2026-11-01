@@ -206,6 +206,13 @@ function warningsHtml(screen) {
   if (failed.length) {
     warnings.push(`No se puede mostrar: ${failed.map((u) => esc(fileNameOf(u))).join(', ')} (archivo dañado o formato no compatible: usa PNG, JPG, MP4 H.264 o WEBM). Se salta.`);
   }
+  const size = outputSize(screen, ctx.state);
+  const cut = size && displays.find((d) => d.window &&
+    (screen.output.x + size.width > d.window.width || screen.output.y + size.height > d.window.height));
+  if (cut) {
+    warnings.push(`El formato ${size.width} × ${size.height} en la posición ${screen.output.x}, ${screen.output.y} no cabe en el monitor ` +
+      `(${cut.window.width} × ${cut.window.height}): se ve recortado. Revisa el formato o la posición, o la resolución del monitor.`);
+  }
   if (screen.missingAds.length) {
     warnings.push(`Ya no están en la carpeta: ${esc(screen.missingAds.join(', '))}`);
   }
@@ -327,9 +334,10 @@ function mediaPanel(screen, state) {
 function outputPanel(screen, state) {
   const desktop = state.desktop;
   let monitor;
+  let diagnostics = '';
   if (desktop) {
     const current = desktop.assignments[screen.id] || (desktop.preferences[screen.id] === 'none' ? 'none' : 'auto');
-    const options = desktop.monitors.map((m) => [m.key, `${m.label} · ${m.width}×${m.height}${m.primary ? ' (aquí está la estación)' : ''}`])
+    const options = desktop.monitors.map((m) => [m.key, `${m.label} · ${m.width}×${m.height}${m.refreshRate ? ` · ${m.refreshRate} Hz` : ''}${m.primary ? ' (aquí está la estación)' : ''}`])
       .concat([['auto', 'Automático (primer monitor libre)'], ['window', 'Ventana de prueba'], ['none', 'No mostrar']]);
     const remote = remotesShowing(screen.id);
     monitor = field('Monitor', `<select class="input" data-action="monitor" data-screen="${screen.id}">${options.map(([v, t]) =>
@@ -337,22 +345,82 @@ function outputPanel(screen, state) {
     remote.length
       ? `También se ve en ${remote.map((r) => `«${esc(r.name)}» (${esc(r.where)})`).join(', ')}. Si no la quieres en este portátil, elige «No mostrar».`
       : 'Si eliges el monitor de otra pantalla, se intercambian.');
+    const assigned = desktop.monitors.find((m) => m.key === desktop.assignments[screen.id]);
+    if (assigned) diagnostics = monitorDiagnostics(screen, assigned, desktop);
   } else {
     monitor = field('Monitor', `<span class="muted">Abre <code>/score.html?pantalla=${screen.id.replace('pantalla-', '')}</code> en el monitor y pulsa F11.</span>`);
   }
-  const fixed = screen.output.format !== 'fill';
-  const formats = state.outputFormats.map((f) =>
-    `<option value="${f.id}"${f.id === screen.output.format ? ' selected' : ''}>${esc(f.label)}</option>`).join('');
-  return monitor +
+
+  const { format } = screen.output;
+  const fixed = format !== 'fill';
+  const saved = state.outputFormats.filter((f) => f.saved);
+  const option = (f) => `<option value="${esc(f.id)}"${f.id === format ? ' selected' : ''}>${esc(f.label)}</option>`;
+  const formats = state.outputFormats.filter((f) => !f.saved && f.id !== 'custom').map(option).join('') +
+    (saved.length ? `<optgroup label="Guardados">${saved.map(option).join('')}</optgroup>` : '') +
+    option(state.outputFormats.find((f) => f.id === 'custom'));
+  const preset = saved.find((f) => f.id === format);
+  const hint = !fixed ? 'El marcador ocupa todo el monitor y se adapta a su tamaño.'
+    : 'Tamaño en píxeles REALES de la pantalla LED (los que tiene configurados la tarjeta emisora), ' +
+      'no los de Windows con escalado: StageMaster compensa el escalado.';
+
+  return monitor + diagnostics +
     field('Brillo de la imagen', `<input class="range" type="range" min="${state.limits.brightness[0]}" max="${state.limits.brightness[1]}" step="5" ` +
       `value="${screen.output.brightness}" data-action="brightness" data-screen="${screen.id}" aria-label="Brillo de la imagen">` +
       `<output class="range-value" data-brightness-value="${screen.id}">${screen.output.brightness} %</output>`,
     'Atenúa la imagen que envía StageMaster (útil de noche). El brillo físico de los módulos LED se ajusta en el procesador LED.') +
-    field('Formato', `<select class="input" data-action="format" data-screen="${screen.id}">${formats}</select>`,
-      fixed ? 'Tamaño exacto en píxeles reales, también con el escalado de Windows activado.' : 'El marcador ocupa todo el monitor y se adapta a su tamaño.') +
+    field('Formato', `<select class="input" data-action="format" data-screen="${screen.id}">${formats}</select>` +
+      (preset ? `<button type="button" class="btn btn-ghost btn-sm" data-action="deleteFormat" data-format="${esc(preset.id)}" data-name="${esc(preset.name)}" data-screen="${screen.id}">${icon('trash')}Borrar formato guardado</button>` : ''),
+    hint) +
+    (format === 'custom' ? field('Tamaño',
+      `${number('outputW', screen.id, screen.output.width, state.limits.width, '')} × ${number('outputH', screen.id, screen.output.height, state.limits.height, 'píxeles')}` +
+      `<div class="st-save-format"><input class="input" type="text" maxlength="40" placeholder="Nombre (ej. LED pista central)" data-role="formatName" data-screen="${screen.id}">` +
+      `<button type="button" class="btn btn-secondary btn-sm" data-action="saveFormat" data-screen="${screen.id}">${icon('check')}Guardar formato</button></div>`,
+    'Ancho × alto de la pantalla LED. Guárdalo con un nombre para usarlo en otras pantallas.') : '') +
     (fixed ? field('Posición', `X ${number('outputX', screen.id, screen.output.x, state.limits.offset, '')}` +
       ` Y ${number('outputY', screen.id, screen.output.y, state.limits.offset, 'píxeles')}`,
     'Píxel del monitor donde empieza la pantalla LED (normalmente 0, 0).') : '');
+}
+
+/**
+ * Lo que dice Windows del monitor: nombre (EDID), resolución real, frecuencia y
+ * escalado, con avisos. En Windows, «Cambiar resolución…» y la prueba en curso.
+ */
+function monitorDiagnostics(screen, m, desktop) {
+  const facts = [
+    m.name ? `«${esc(m.name)}»` : '',
+    `${m.width} × ${m.height} px reales`,
+    m.refreshRate ? `${m.refreshRate} Hz` : 'frecuencia desconocida',
+    `escala ${Math.round(m.scale * 100)} %`,
+  ].filter(Boolean).join(' · ');
+  const notes = [];
+  if (m.refreshRate && Math.abs(m.refreshRate - 60) > 1 && Math.abs(m.refreshRate - 50) > 1) {
+    notes.push(`${icon('alert')}Va a ${m.refreshRate} Hz. Las tarjetas emisoras LED suelen trabajar a 60 Hz (o 50 Hz): si parpadea, ponlo a 60 Hz.`);
+  }
+  if (m.scale !== 1) {
+    notes.push(`Windows escala este monitor al ${Math.round(m.scale * 100)} % (en Windows se ve como ${Math.round(m.width / m.scale)} × ${Math.round(m.height / m.scale)}). ` +
+      'StageMaster lo compensa: el formato LED usa los píxeles reales.');
+  }
+  const modes = desktop.displayModes;
+  const pending = modes && modes.pending;
+  let action = '';
+  if (pending && pending.screenId === screen.id) {
+    action = `<div class="st-banner st-mode-pending">${icon('monitor')}<span>Probando <strong>${pending.next.width} × ${pending.next.height} · ${pending.next.hz} Hz</strong> en ${esc(pending.label)}. ` +
+      `¿Se ve bien? Si no confirmas, vuelve solo a ${pending.previous.width} × ${pending.previous.height} en <strong data-tick-until="${pending.revertAt}"></strong>.</span>` +
+      `<span class="st-mode-actions"><button type="button" class="btn btn-primary btn-sm" data-action="confirmMode" data-screen="${screen.id}">${icon('check')}Mantener</button>` +
+      `<button type="button" class="btn btn-secondary btn-sm" data-action="revertMode" data-screen="${screen.id}">${icon('undo')}Volver</button></span></div>`;
+  } else if (modes && !m.primary) {
+    action = `<button type="button" class="btn btn-ghost btn-sm" data-action="modes" data-screen="${screen.id}"${pending ? ' disabled' : ''}>${icon('monitor')}Cambiar resolución del monitor…</button>`;
+  }
+  return field('Resolución', `<div class="st-monitor-facts"><span>${facts}</span>${action}` +
+    notes.map((n) => `<span class="hint">${n}</span>`).join('') + '</div>');
+}
+
+/** Tamaño que ocupa el formato LED (null = todo el monitor) */
+function outputSize(screen, state) {
+  const { format, width, height } = screen.output;
+  if (format === 'fill') return null;
+  const fixed = state.outputFormats.find((f) => f.id === format && !f.saved && f.width);
+  return fixed ? { width: fixed.width, height: fixed.height } : { width, height };
 }
 
 function checkItem(action, screenId, ad, checked, category) {
@@ -411,6 +479,26 @@ export function onScreenClick(event) {
     case 'removeScreen':
       removeScreen(screen, el);
       break;
+    case 'saveFormat': {
+      const input = el.parentElement.querySelector('[data-role="formatName"]');
+      send('station:saveFormat', { label: input.value, width: screen.output.width, height: screen.output.height, screenId }, el)
+        .then((res) => { if (res.ok) toast(`Formato «${res.format.label}» guardado`); });
+      break;
+    }
+    case 'deleteFormat':
+      confirmDialog(`¿Borrar el formato «${el.dataset.name}»?`,
+        'Las pantallas que lo usan se quedan con el mismo tamaño (como personalizado).', 'Borrar formato')
+        .then((ok) => { if (ok) send('station:deleteFormat', { formatId: el.dataset.format }, el); });
+      break;
+    case 'modes':
+      openModesDialog(screen, el);
+      break;
+    case 'confirmMode':
+      send('station:confirmMode', {}, el).then((res) => { if (res.ok) toast('Resolución guardada'); });
+      break;
+    case 'revertMode':
+      send('station:revertMode', {}, el);
+      break;
     case 'openScreen':
       if (ctx.state.desktop) send('station:openScreen', { screenId }, el);
       else {
@@ -438,6 +526,35 @@ export function onScreenClick(event) {
       break;
     }
   }
+}
+
+/**
+ * Resoluciones que admite el monitor (las da Windows). Al probar una, el
+ * monitor cambia y vuelve solo en 15 s si no se pulsa «Mantener».
+ */
+function openModesDialog(screen, button) {
+  send('station:listModes', { screenId: screen.id }, button).then((res) => {
+    if (!res.ok) return;
+    const dialog = document.getElementById('dlg-modes');
+    const same = (m) => m.width === res.current.width && m.height === res.current.height && m.hz === res.current.hz;
+    document.getElementById('dlg-modes-title').textContent = `Resolución de ${res.monitor}`;
+    document.getElementById('dlg-modes-sub').textContent =
+      `${res.name || 'Monitor'}${res.adapter ? ' · ' + res.adapter : ''} · ahora ${res.current.width} × ${res.current.height} · ${res.current.hz} Hz`;
+    document.getElementById('dlg-modes-list').innerHTML = res.modes.map((m, i) =>
+      `<label class="st-mode"><input type="radio" name="mode" value="${i}"${same(m) ? ' checked' : ''}>` +
+      `<span>${m.width} × ${m.height}</span><span class="muted">${m.hz} Hz</span>` +
+      `${same(m) ? '<span class="pill">Actual</span>' : ''}${m.width === 1920 && m.height === 1080 && m.hz === 60 ? '<span class="pill info">Recomendado para LED</span>' : ''}</label>`).join('');
+    const ok = document.getElementById('dlg-modes-ok');
+    const close = () => { ok.onclick = null; dialog.close(); };
+    document.getElementById('dlg-modes-cancel').onclick = close;
+    ok.onclick = () => {
+      const checked = dialog.querySelector('input[name="mode"]:checked');
+      const mode = checked && res.modes[Number(checked.value)];
+      if (!mode || same(mode)) { close(); return; }
+      send('station:applyMode', { screenId: screen.id, mode }, ok).then((r) => { if (r.ok) close(); });
+    };
+    dialog.showModal();
+  });
 }
 
 /** Quitar una pantalla: su ventana se cierra; sus espejos siguen mostrando lo mismo */
@@ -479,6 +596,8 @@ export function onScreenChange(event) {
     case 'monitor':        send('station:setMonitor', { screenId, monitor: el.value }); break;
     case 'format':         update(screenId, { output: { format: el.value } }); break;
     case 'outputX':        update(screenId, { output: { x: value } }); break;
+    case 'outputW':        update(screenId, { output: { width: value } }); break;
+    case 'outputH':        update(screenId, { output: { height: value } }); break;
     case 'outputY':        update(screenId, { output: { y: value } }); break;
     case 'brightness':     update(screenId, { output: { brightness: value } }); break;
     case 'endAds':         update(screenId, { endAds: { enabled: el.checked } }); break;

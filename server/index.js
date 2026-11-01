@@ -37,6 +37,7 @@ const { createMatchRegistry } = require('./core/matchRegistry');
 const { createScreenManager } = require('./core/screens');
 const { createHistory }       = require('./core/history');
 const { createRemoteRegistry } = require('./core/remotes');
+const { createFormatLibrary }  = require('./core/formats');
 const discovery               = require('./core/discovery');
 const { adsDir }              = require('./core/ads');
 const { isLocalAddress }      = require('./core/auth');
@@ -63,6 +64,7 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
   const screens  = createScreenManager({ matchIds: registry.ids() });
   const history  = createHistory();
   const remotes  = createRemoteRegistry();
+  const formats  = createFormatLibrary();
 
   const app    = express();
   const server = http.createServer(app);
@@ -84,7 +86,7 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
     return { port, addresses, primary: addresses[0] || null };
   };
 
-  const realtime = attachSocketServer(io, { registry, screens, getNetworkInfo, desktop, history, remotes });
+  const realtime = attachSocketServer(io, { registry, screens, getNetworkInfo, desktop, history, remotes, formats });
 
   // ── HTTP ─────────────────────────────────────────────────────────
 

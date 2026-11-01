@@ -43,6 +43,10 @@ function describeMonitors(displays, primaryId) {
     // Resolución real en píxeles (bounds va en unidades escaladas por Windows)
     width:   Math.round(display.bounds.width * (display.scaleFactor || 1)),
     height:  Math.round(display.bounds.height * (display.scaleFactor || 1)),
+    // Diagnóstico: frecuencia (Hz), escalado de Windows y nombre del monitor (EDID)
+    refreshRate: Number.isFinite(display.displayFrequency) && display.displayFrequency > 0 ? Math.round(display.displayFrequency) : null,
+    scale:   display.scaleFactor || 1,
+    name:    typeof display.label === 'string' ? display.label.slice(0, 60) : '',
   }));
 }
 

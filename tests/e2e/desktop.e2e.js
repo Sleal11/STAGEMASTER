@@ -52,6 +52,20 @@ const isScreen = (page, n) => page.url().includes(`/score.html?pantalla=${n}`);
     T.check('La estación la ve conectada «en este portátil»',
       (await S.textContent('[data-screen-card="pantalla-1"] [data-part="status"]')).includes('en este portátil'));
 
+    // ── Diagnóstico del monitor (lo que dice el sistema: px reales, Hz, escala) ──
+    await S.click('[data-screen-card="pantalla-2"] [data-tab="output"]');
+    const primaryKey = await S.$eval('[data-screen-card="pantalla-2"] select[data-action="monitor"] option', (o) => o.value);
+    opened = app.waitForEvent('window');
+    await S.selectOption('[data-screen-card="pantalla-2"] select[data-action="monitor"]', primaryKey);
+    const D2 = await opened;
+    await S.waitForSelector('[data-screen-card="pantalla-2"] .st-monitor-facts');
+    const facts = await S.textContent('[data-screen-card="pantalla-2"] .st-monitor-facts');
+    T.check('Salida muestra la resolución real, la frecuencia y la escala del monitor', /px reales/.test(facts) && /escala \d+ %/.test(facts), facts.trim());
+    T.check('…y no ofrece cambiar la resolución de la pantalla de la estación', !(await S.$('[data-screen-card="pantalla-2"] [data-action="modes"]')));
+    const closedD2 = D2.waitForEvent('close');
+    await S.selectOption('[data-screen-card="pantalla-2"] select[data-action="monitor"]', 'none');
+    await closedD2;
+
     // ── Añadir y quitar ──
     await S.click('#st-add-screen');
     await S.waitForSelector('[data-screen-card="pantalla-3"]');

@@ -141,12 +141,12 @@ function report() {
     if (!key) return null;
     if (key === 'window') return 'Ventana de prueba';
     const monitor = state.monitors.find((m) => m.key === key);
-    return monitor ? `${monitor.label} · ${monitor.width}×${monitor.height}` : null;
+    return monitor ? `${monitor.label} · ${monitor.width}×${monitor.height}${monitor.refreshRate ? ` · ${monitor.refreshRate} Hz` : ''}` : null;
   };
   const screens = {};
   screensList.forEach((s) => { screens[s.id] = label(state.assignments[s.id]); });
   socket.emit('remote:report', {
-    monitors: state.monitors.map(({ label: l, width, height }) => ({ label: l, width, height })),
+    monitors: state.monitors.map(({ label: l, width, height, refreshRate }) => ({ label: l, width, height, refreshRate })),
     screens,
   });
 }

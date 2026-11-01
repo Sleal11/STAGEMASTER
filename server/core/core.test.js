@@ -82,6 +82,8 @@ function loadModules() {
     auth: require('./auth'),
     history: require('./history'),
     remotes: require('./remotes'),
+    formats: require('./formats'),
+    screenConfig: require('./screenConfig'),
   };
 }
 
@@ -441,7 +443,7 @@ test('Por defecto: Pantalla 1 → Pista 1, Pantalla 2 → Pista 2, marcador con 
   assert.strictEqual(p1.ribbon.enabled, true);
   assert.strictEqual(p1.endAds.enabled, false, 'La publicidad final empieza desactivada');
   assert.strictEqual(p1.ribbon.cleanLogos, true, 'Logos sin fondo blanco por defecto');
-  assert.deepStrictEqual(p1.output, { format: 'fill', x: 0, y: 0, brightness: 100 });
+  assert.deepStrictEqual(p1.output, { format: 'fill', x: 0, y: 0, brightness: 100, width: 832, height: 416 });
 });
 
 test('Dos pantallas pueden mostrar el MISMO partido', () => {
@@ -611,7 +613,7 @@ test('La configuración de pantallas se conserva tras reiniciar', () => {
   assert.strictEqual(again.matchId, 'pista-1');
   assert.strictEqual(again.ribbon.motion, 'scroll');
   assert.strictEqual(again.ribbon.speed, 'slow');
-  assert.deepStrictEqual(again.output, { format: 'led-sm', x: 32, y: 0, brightness: 100 });
+  assert.deepStrictEqual(again.output, { format: 'led-sm', x: 32, y: 0, brightness: 100, width: 832, height: 416 });
   assert.deepStrictEqual(again.endAds, { enabled: true, delay: 20 });
 });
 
@@ -843,6 +845,47 @@ test('Match: inicio, uid, tiempo en pausa y registro del historial', () => {
   assert.strictEqual(restartRegistry().get('pista-1').uid, uid, 'Se conserva tras reiniciar');
   quiet(() => match.reset(match.version));
   assert.notStrictEqual(match.uid, uid, 'Reiniciar = partido nuevo');
+});
+
+console.log('\nRESOLUCIONES PERSONALIZADAS');
+
+test('Formato personalizado: ancho × alto a mano, validado; la pantalla lo recibe tal cual', () => {
+  const screens = freshScreens();
+  const { screenConfig } = loadModules();
+  screens.update('pantalla-1', { output: { format: 'custom', width: 1536, height: 768, x: 10, y: 20 } }, EMPTY_LIBRARY);
+  assert.deepStrictEqual(screenConfig.resolveOutput(screens.get('pantalla-1').output),
+    { format: 'custom', width: 1536, height: 768, x: 10, y: 20, brightness: 100 });
+  [{ width: 8 }, { width: 9000 }, { height: 5000 }, { width: 100.5 }, { format: 'f-00000000' }].forEach((output) =>
+    assertCode(() => screens.update('pantalla-1', { output }, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG'));
+  // Los formatos fijos no cambian de tamaño aunque la pantalla guarde otro personalizado
+  screens.update('pantalla-1', { output: { format: 'led-sm' } }, EMPTY_LIBRARY);
+  assert.strictEqual(screenConfig.resolveOutput(screens.get('pantalla-1').output).width, 416);
+});
+
+test('Formatos guardados: con nombre y validados; elegir uno copia su tamaño; borrarlo deja la pantalla igual', () => {
+  fs.rmSync(path.join(TEST_DATA_DIR, 'formatos.json'), { force: true });
+  const { formats, screenConfig } = loadModules();
+  const library = formats.createFormatLibrary();
+  const led = library.add({ label: '  LED   pista central ', width: 1536, height: 768 });
+  assert.strictEqual(led.label, 'LED pista central');
+  assertCode(() => library.add({ label: 'led PISTA central', width: 10, height: 10 }), 'INVALID_FORMAT');
+  assertCode(() => library.add({ label: 'Otro', width: 10, height: 10 }), 'INVALID_FORMAT');
+  assertCode(() => library.add({ label: '', width: 100, height: 100 }), 'INVALID_FORMAT');
+  assert.strictEqual(formats.createFormatLibrary().list().length, 1, 'Se conserva tras reiniciar');
+
+  const screens = freshScreens();
+  screens.update('pantalla-2', { output: { format: led.id } }, EMPTY_LIBRARY, library.list());
+  assert.deepStrictEqual(screenConfig.resolveOutput(screens.get('pantalla-2').output).width, 1536);
+  // Cambiar el tamaño a mano → personalizado
+  screens.update('pantalla-2', { output: { height: 760 } }, EMPTY_LIBRARY, library.list());
+  assert.strictEqual(screens.get('pantalla-2').output.format, 'custom');
+  // Borrarlo: quien lo usaba pasa a personalizado con el mismo tamaño
+  screens.update('pantalla-2', { output: { format: led.id } }, EMPTY_LIBRARY, library.list());
+  library.remove(led.id);
+  assert.deepStrictEqual(screens.forgetFormat(led.id), ['pantalla-2']);
+  const out = screenConfig.resolveOutput(screens.get('pantalla-2').output);
+  assert.deepStrictEqual([out.format, out.width, out.height], ['custom', 1536, 768]);
+  assertCode(() => library.remove(led.id), 'INVALID_FORMAT');
 });
 
 console.log('\nPORTÁTILES REMOTOS');

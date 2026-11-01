@@ -144,9 +144,10 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
    * @param {string} id
    * @param {Object} changes - Ver screenConfig.applyChanges
    * @param {Object} library - Biblioteca actual (ads.listAds()) para validar nombres
+   * @param {Array}  [formats] - Formatos guardados (formats.js) que se pueden elegir
    * @returns {{ config: Object, previousMatchId: string }} previousMatchId: partido que se veía antes
    */
-  function update(id, changes, library) {
+  function update(id, changes, library, formats = []) {
     const before = effective(id);
     let config = get(id);
     const isObject = changes && typeof changes === 'object' && !Array.isArray(changes);
@@ -158,7 +159,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
       throw appError('INVALID_SCREEN_CONFIG',
         `${config.label} es un espejo de ${get(config.mirrorOf).label}: su contenido se cambia en ${get(config.mirrorOf).label}`);
     }
-    const next = screenConfig.applyChanges(config, rest, { matchIds, library });
+    const next = screenConfig.applyChanges(config, rest, { matchIds, library, formats });
 
     // Otro partido, se pide el marcador o se desactiva la publicidad final: se vuelve al marcador
     if (next.matchId !== config.matchId || !next.endAds.enabled || rest.view === 'score') next.postMatch = null;
@@ -356,6 +357,22 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     return changed;
   }
 
+  /**
+   * Se borró un formato guardado: las pantallas que lo usaban pasan a
+   * «personalizado» con el mismo tamaño (no cambia lo que se ve).
+   * @returns {string[]} Pantallas que cambian
+   */
+  function forgetFormat(formatId) {
+    const changed = [];
+    configs.forEach((config, id) => {
+      if (config.output.format !== formatId) return;
+      configs.set(id, { ...config, output: { ...config.output, format: 'custom' } });
+      changed.push(id);
+    });
+    if (changed.length) persist();
+    return changed;
+  }
+
   // ── Presencia ──────────────────────────────────────────────────
 
   /** extra.remote: nombre del portátil remoto que la muestra (null = este portátil) */
@@ -363,7 +380,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     if (!presence.has(id)) return;
     presence.get(id).set(socketId, {
       remote: extra.remote || null,
-      connectedAt: now(), viewport: null, renderedMatchId: null, renderedVersion: null,
+      connectedAt: now(), viewport: null, window: null, renderedMatchId: null, renderedVersion: null,
       adErrors: [], playing: null, soundBlocked: false,
     });
   }
@@ -384,6 +401,10 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
         height: Math.round(data.viewport.height),
         dpr:    Number.isFinite(data.viewport.dpr) ? data.viewport.dpr : 1,
       };
+    }
+    // Tamaño de la ventana (el monitor): para avisar si el formato LED no cabe
+    if (data.window && Number.isFinite(data.window.width) && Number.isFinite(data.window.height)) {
+      entry.window = { width: Math.round(data.window.width), height: Math.round(data.window.height) };
     }
     if (typeof data.renderedMatchId === 'string' || data.renderedMatchId === null) {
       entry.renderedMatchId = data.renderedMatchId;
@@ -428,6 +449,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     matchActive,
     matchPauseChanged,
     forgetAd,
+    forgetFormat,
     attach,
     detach,
     report,

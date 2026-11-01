@@ -825,3 +825,17 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
 .st-remote-what { font-size: 0.86rem; color: var(--st-soft); }
 .st-remote-empty { font-size: 0.9rem; }
 @media (max-width: 700px) { .st-remote-code { grid-template-columns: 1fr; } }
+
+/* ─────────────────────────────────────────────────────────────────
+   SALIDA: FORMATOS Y RESOLUCIÓN DEL MONITOR
+   ───────────────────────────────────────────────────────────────── */
+.st-save-format { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; width: 100%; }
+.st-save-format .input { flex: 1 1 200px; min-width: 0; }
+.st-monitor-facts { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; font-size: 0.88rem; }
+.st-monitor-facts .hint .icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; color: var(--st-warn); }
+.st-mode-pending { flex-wrap: wrap; }
+.st-mode-actions { display: flex; gap: 8px; margin-left: auto; }
+.st-mode-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; margin: 12px 0; }
+.st-mode { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; background: var(--st-inset); cursor: pointer; }
+.st-mode:hover { background: #0A1F45; }
+.st-mode > span:first-of-type { font-weight: 700; min-width: 120px; font-variant-numeric: tabular-nums; }

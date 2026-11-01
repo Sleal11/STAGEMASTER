@@ -188,6 +188,20 @@
     </form>
   </dialog>
 
+  <!-- ── Diálogo: resoluciones que admite un monitor (Windows) ───── -->
+  <dialog id="dlg-modes" class="st-dialog">
+    <h3 id="dlg-modes-title" class="st-dialog-title">Resolución del monitor</h3>
+    <p id="dlg-modes-sub" class="muted"></p>
+    <p class="st-dialog-message">Solo aparecen los modos que el monitor o la tarjeta emisora admiten (su EDID).
+      Al probar uno, si no pulsas «Mantener» en 15 segundos vuelve solo al anterior.
+      Para un tamaño que no está en la lista (p. ej. 1920 × 1120) mira «Resoluciones» en la ayuda.</p>
+    <div id="dlg-modes-list" class="st-mode-list"></div>
+    <div class="st-dialog-actions">
+      <button type="button" id="dlg-modes-cancel" class="btn btn-ghost">Cancelar</button>
+      <button type="button" id="dlg-modes-ok" class="btn btn-primary">Probar</button>
+    </div>
+  </dialog>
+
   <!-- ── Diálogo: confirmación ───────────────────────────────────── -->
   <dialog id="dlg-confirm" class="st-dialog st-dialog-small">
     <h3 id="dlg-confirm-title" class="st-dialog-title"></h3>

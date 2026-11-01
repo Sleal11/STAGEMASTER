@@ -35,6 +35,8 @@
  *   station:unpair { matchId }                      estación
  *   station:updateScreen { screenId, changes }      estación (ver core/screenConfig.js; mirrorOf: espejo)
  *   station:addScreen                               estación: añade una pantalla (máximo 8)
+ *   station:saveFormat { label, width, height, screenId }  estación: guarda un tamaño con nombre
+ *   station:deleteFormat { formatId }               estación: borra un formato guardado
  *   station:removeScreen { screenId }               estación: quita una pantalla
  *   station:media { screenId, command }             estación: play | pause | resume | stop
  *   station:history { from, to, text, matchId }     estación: partidos terminados (historial)
@@ -43,6 +45,9 @@
  *   station:setMonitor { screenId, monitor }        estación (solo aplicación de escritorio)
  *   station:openScreen { screenId }                 estación (solo aplicación de escritorio)
  *   station:openAdsFolder                           estación (solo aplicación de escritorio)
+ *   station:listModes { screenId }                  estación: modos del monitor de esa pantalla (Windows)
+ *   station:applyMode { screenId, mode }            estación: prueba un modo (vuelve solo en 15 s)
+ *   station:confirmMode / station:revertMode        estación: mantener o deshacer el modo probado
  *   station:remoteCode                              estación: código de enlace nuevo
  *   station:unlinkRemote { remoteId }               estación: desvincula un portátil remoto
  *   station:useAsRemote                             estación: este portátil pasa a modo remoto (escritorio)
@@ -86,8 +91,10 @@ const SYNC_TOLERANCE_MS = 2000;
  *                                   carpetas). null cuando se arranca con `npm start`.
  * @param {Object}  [deps.history] - Historial de partidos (core/history.js)
  * @param {Object}  [deps.remotes] - Portátiles remotos enlazados (core/remotes.js)
+ * @param {Object}  [deps.formats] - Formatos de salida guardados (core/formats.js)
  */
-function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = null, history = null, remotes = null }) {
+function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = null, history = null, remotes = null, formats = null }) {
+  const savedFormats = () => (formats ? formats.list() : []);
   const pinGuard  = auth.createPinGuard();
   const codeGuard = auth.createPinGuard();
   // Portátiles remotos conectados: remoteId → { sockets: Set, address, monitors, screens, lastSeen }
@@ -208,12 +215,34 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       // Pantallas afectadas: ella y sus espejos (que muestran su contenido)
       const affected = screens.withMirrors([screenId]);
       const before   = new Map(affected.map((id) => [id, screens.effective(id).matchId]));
-      screens.update(screenId, changes, ads.listAds());
+      screens.update(screenId, changes, ads.listAds(), savedFormats());
       affected.forEach((id) => {
         const matchChanged = screens.effective(id).matchId !== before.get(id);
         if (matchChanged) joinMatchRoom(id);
         pushOne(id, matchChanged);
       });
+      scheduleStationState();
+    });
+
+    // ── Formatos de salida guardados (tamaños personalizados con nombre) ──
+    handle(socket, 'station:saveFormat', ({ label, width, height, screenId } = {}) => {
+      requireStation(socket);
+      if (!formats) throw appError('FORBIDDEN', 'No disponible');
+      const format = formats.add({ label, width, height });
+      // La pantalla desde la que se guardó pasa a usarlo
+      if (screenId && screens.has(screenId)) {
+        screens.update(screenId, { output: { format: format.id } }, ads.listAds(), savedFormats());
+        pushScreenConfig(screenId, false);
+      }
+      scheduleStationState();
+      return { format };
+    });
+
+    handle(socket, 'station:deleteFormat', ({ formatId } = {}) => {
+      requireStation(socket);
+      if (!formats) throw appError('FORBIDDEN', 'No disponible');
+      formats.remove(formatId);
+      screens.forgetFormat(formatId).forEach((id) => pushScreenConfig(id, false));
       scheduleStationState();
     });
 
@@ -284,6 +313,36 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       desktop.openScreen(screenId);
     });
 
+    // ── Resolución del monitor (aplicación de escritorio en Windows) ──
+    handle(socket, 'station:listModes', ({ screenId } = {}) => {
+      requireStation(socket);
+      requireDesktop();
+      screens.get(screenId);
+      if (!desktop.listModes) throw appError('FORBIDDEN', 'No disponible');
+      return desktop.listModes(screenId);
+    });
+
+    handle(socket, 'station:applyMode', ({ screenId, mode } = {}) => {
+      requireStation(socket);
+      requireDesktop();
+      screens.get(screenId);
+      const valid = mode && ['width', 'height', 'hz'].every((k) => Number.isInteger(mode[k]) && mode[k] > 0 && mode[k] < 16384);
+      if (!valid) throw appError('DISPLAY_MODE', 'Modo de pantalla no válido');
+      return desktop.applyMode(screenId, { width: mode.width, height: mode.height, hz: mode.hz });
+    });
+
+    handle(socket, 'station:confirmMode', () => {
+      requireStation(socket);
+      requireDesktop();
+      return desktop.confirmMode();
+    });
+
+    handle(socket, 'station:revertMode', () => {
+      requireStation(socket);
+      requireDesktop();
+      return desktop.revertMode();
+    });
+
     handle(socket, 'station:openAdsFolder', () => {
       requireStation(socket);
       requireDesktop();
@@ -347,6 +406,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       if (Array.isArray(data.monitors)) {
         entry.monitors = data.monitors.slice(0, 8).map((m) => ({
           label: text(m && m.label), width: Number(m && m.width) || 0, height: Number(m && m.height) || 0,
+          refreshRate: Number(m && m.refreshRate) || null,
         }));
       }
       if (data.screens && typeof data.screens === 'object') {
@@ -732,6 +792,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
           displays: screens.presenceOf(config.id).map((display) => ({
             remote:       display.remote || null,
             viewport:     display.viewport,
+            window:       display.window || null,
             adErrors:     display.adErrors,
             playing:      display.playing,
             soundBlocked: display.soundBlocked,
@@ -741,7 +802,10 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       }),
       ads:     library,
       maxScreens: MAX_SCREENS,
-      outputFormats: Object.entries(OUTPUT_FORMATS).map(([id, format]) => ({ id, ...format })),
+      // Fijos, guardados por el operador y «personalizado»
+      outputFormats: Object.entries(OUTPUT_FORMATS).map(([id, format]) => ({ id, ...format }))
+        .concat(savedFormats().map((f) => ({ ...f, label: `${f.label} · ${f.width} × ${f.height} px`, name: f.label, saved: true })))
+        .concat({ id: 'custom', label: 'Personalizado (ancho × alto)', width: null, height: null }),
       limits:  LIMITS,
       network,
       desktop: desktop ? desktop.getState() : null,
@@ -806,10 +870,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 function handle(socket, eventName, handler) {
   socket.on(eventName, (payload, ack) => {
     const reply = typeof ack === 'function' ? ack : () => {};
-    try {
-      const result = handler(payload && typeof payload === 'object' ? payload : {});
-      reply({ ok: true, ...(result || {}) });
-    } catch (err) {
+    const fail = (err) => {
       if (!err.code) console.error(`[Error] ${eventName}:`, err);
       else console.warn(`[Event] ${eventName} rechazado (${roleLabel(socket)}): ${err.code}`);
       reply({
@@ -817,6 +878,17 @@ function handle(socket, eventName, handler) {
         code:    err.code || 'SERVER_ERROR',
         message: err.code ? err.message : 'Error interno del servidor',
       });
+    };
+    try {
+      const result = handler(payload && typeof payload === 'object' ? payload : {});
+      // Algunas órdenes tardan (p. ej. preguntar a Windows): se responde al terminar
+      if (result && typeof result.then === 'function') {
+        result.then((value) => reply({ ok: true, ...(value || {}) }), fail);
+        return;
+      }
+      reply({ ok: true, ...(result || {}) });
+    } catch (err) {
+      fail(err);
     }
   });
 }

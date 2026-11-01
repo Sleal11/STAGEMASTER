@@ -50,6 +50,30 @@ test('Describe los monitores: portátil primero, resolución real con el escalad
   assert.strictEqual(list[1].key, '2');
 });
 
+test('Diagnóstico de cada monitor: frecuencia (Hz), escalado y nombre (EDID)', () => {
+  const [laptop, led] = describeMonitors([
+    { ...LAPTOP, displayFrequency: 59.94, label: 'Pantalla integrada' },
+    { ...LED_A, displayFrequency: 75, label: 'NOVA LED' },
+  ], 1);
+  assert.deepStrictEqual([laptop.refreshRate, laptop.scale, laptop.name], [60, 1.25, 'Pantalla integrada']);
+  assert.deepStrictEqual([led.refreshRate, led.name], [75, 'NOVA LED']);
+  assert.strictEqual(describeMonitors([LED_B], 3)[0].refreshRate, null, 'Sin dato: null (no se inventa)');
+});
+
+test('Resoluciones de Windows: cada monitor con su dispositivo (principal; resto por tamaño y posición)', () => {
+  const { matchDevices, sortModes } = require('./displayModes');
+  const list = monitors(LAPTOP, LED_A, LED_B);
+  const dev = (device, primary, x, width, height) => ({ device, primary, x, y: 0, current: { width, height, hz: 60 }, modes: [] });
+  const devices = [dev('\\\\.\\DISPLAY3', false, 3840, 1920, 1080), dev('\\\\.\\DISPLAY1', true, 0, 1920, 1080), dev('\\\\.\\DISPLAY2', false, 1920, 1280, 720)];
+  const result = matchDevices(list, devices);
+  assert.strictEqual(result['1'].device, devices[1].device, 'Principal con principal');
+  assert.strictEqual(result['2'].device, devices[2].device, 'Izquierda con izquierda');
+  assert.strictEqual(result['3'].device, devices[0].device);
+  assert.deepStrictEqual(matchDevices(list, [devices[1]]), { 1: devices[1] }, 'Sin pareja: no se adivina');
+  assert.deepStrictEqual(sortModes([{ width: 1280, height: 720, hz: 60 }, { width: 1920, height: 1080, hz: 50 }, { width: 1920, height: 1080, hz: 60 }])
+    .map((m) => `${m.width}x${m.height}@${m.hz}`), ['1920x1080@60', '1920x1080@50', '1280x720@60']);
+});
+
 test('Sin monitores externos: ninguna pantalla se abre sobre la estación', () => {
   const result = resolveAssignments(SCREENS, monitors(LAPTOP), {});
   assert.deepStrictEqual(result, { 'pantalla-1': null, 'pantalla-2': null });

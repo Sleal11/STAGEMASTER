@@ -202,7 +202,8 @@ function createScreenWindows({ prefsFile, urlFor, allowedBase, background, icon,
     /** Lo que ve la estación: monitores, dónde va cada pantalla, ventanas cerradas */
     getState() {
       return {
-        monitors: currentMonitors().map(({ key, label, width, height, primary }) => ({ key, label, width, height, primary })),
+        monitors: currentMonitors().map(({ key, label, width, height, primary, refreshRate, scale, name }) =>
+          ({ key, label, width, height, primary, refreshRate, scale, name })),
         preferences,
         assignments,
         closed: [...closedByUser],
