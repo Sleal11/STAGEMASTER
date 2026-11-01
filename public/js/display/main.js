@@ -12,6 +12,11 @@
  *   5. Informa a la estación ('display:report'): tamaño real, versión
  *      dibujada (sincronización), qué reproduce y qué archivos fallan
  *
+ * VISTA PREVIA (score.html?pantalla=N&vista=previa): la usa la pestaña «En vivo»
+ * de la estación. Recibe y dibuja exactamente lo mismo, pero: sin sonido, sin
+ * informar a la estación (no cuenta como ventana), sin «Identificar» y con el
+ * formato LED ocupando toda la vista (la estación la escala en su tarjeta).
+ *
  * Módulos:
  *   scoreboard.js    marcador          ribbon.js   cinta publicitaria
  *   media-player.js  imágenes y vídeos
@@ -40,6 +45,8 @@ const dom = {
 };
 
 const screenId    = readScreenId();
+const preview     = new URLSearchParams(window.location.search).get('vista') === 'previa';
+if (preview) document.body.classList.add('is-preview');
 // Portátil remoto enlazado: su token viene en el enlace (score.html?pantalla=N#remoto=TOKEN)
 const remoteToken = new URLSearchParams(window.location.hash.slice(1)).get('remoto') || undefined;
 const board    = createScoreboard(dom.display);
@@ -73,7 +80,7 @@ function connectToServer() {
     setTimeout(() => window.location.reload(), 3000);
     return;
   }
-  socket = window.io({ auth: { role: 'display', screenId, remoteToken } });
+  socket = window.io({ auth: preview ? { role: 'preview', screenId } : { role: 'display', screenId, remoteToken } });
 
   socket.on('connect_error', (err) => {
     const code = err.data && err.data.code;
@@ -103,7 +110,7 @@ function connectToServer() {
     board.render(payload.state);
     updateLayout();
   });
-  socket.on('identify', showIdentify);
+  if (!preview) socket.on('identify', showIdentify);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -120,7 +127,8 @@ function applyScreenConfig(next) {
 
   applyOutput();
   ribbon.configure(next.ribbon);
-  player.configure(next.media);
+  // La vista previa nunca suena (la estación puede tener varias a la vez)
+  player.configure(preview ? { ...next.media, sound: false } : next.media);
   schedulePostMatch(next.postMatch);
   updateLayout();
 }
@@ -146,10 +154,13 @@ function schedulePostMatch(postMatch) {
  */
 function applyOutput() {
   if (!config) return;
-  const { width, height, x, y, brightness } = config.output;
+  const { width, height, brightness } = config.output;
+  // Vista previa: el formato LED ocupa toda la vista, en píxeles tal cual
+  const x = preview ? 0 : config.output.x;
+  const y = preview ? 0 : config.output.y;
   // Brillo de la imagen (no el físico de los módulos LED): velo negro encima de todo
   dom.dimmer.style.opacity = String(1 - (brightness || 100) / 100);
-  const dpr   = window.devicePixelRatio || 1;
+  const dpr   = preview ? 1 : (window.devicePixelRatio || 1);
   const fixed = !!(width && height);
   const style = dom.output.style;
   document.body.classList.toggle('is-led', fixed);
@@ -220,7 +231,7 @@ function outputPixels() {
 }
 
 function sendReport() {
-  if (!socket || !socket.connected || !config) return;
+  if (preview || !socket || !socket.connected || !config) return;
   const dpr = window.devicePixelRatio || 1;
   socket.emit('display:report', {
     viewport:        outputPixels(),
@@ -272,7 +283,7 @@ function keepScreenAwake() {
 
 applyLogo();
 connectToServer();
-keepScreenAwake();
+if (!preview) keepScreenAwake();
 
 // Cambio de resolución, de monitor o de escalado: recolocar, reajustar e informar
 let resizeTimer = null;

@@ -682,6 +682,27 @@ test('PORTÁTIL REMOTO: se enlaza con el código, muestra una pantalla por la re
   return `remoto en ${host}`;
 });
 
+test('VISTA PREVIA (pestaña «En vivo»): recibe lo mismo que la pantalla, no cuenta como ventana, no puntúa; solo desde el portátil', async () => {
+  const previa = createDevice('Vista previa 1', { role: 'preview', screenId: 'pantalla-1' });
+  await waitFor(() => previa.screenConfig && previa.states['pista-1'], 'la vista previa recibe su pantalla');
+  assert.strictEqual(previa.screenConfig.matchId, pantalla1.screenConfig.matchId);
+  await action(telefono1, 'pista-1', 'pointA');
+  await waitFor(() => previa.states['pista-1'].version === telefono1.states['pista-1'].version, 'la vista previa sigue el marcador');
+  await sleep(250);
+  assert.strictEqual(estacion.stationState.screens[0].displays.length, 1, 'Solo cuenta la pantalla real');
+  const res = await send(previa, 'matchAction', { matchId: 'pista-1', action: 'pointA', version: previa.states['pista-1'].version });
+  assert.strictEqual(res.code, 'FORBIDDEN');
+  previa.socket.close();
+
+  const lanIp = Object.values(os.networkInterfaces()).flat().find((n) => n && n.family === 'IPv4' && !n.internal);
+  if (!lanIp) return 'sin IP de red para probar el rechazo';
+  const desdeRed = io(`http://${lanIp.address}:${PORT}`, { auth: { role: 'preview', screenId: 'pantalla-1' }, forceNew: true, reconnection: false });
+  const err = await new Promise((resolve) => desdeRed.once('connect_error', resolve));
+  desdeRed.close();
+  assert.strictEqual(err.data.code, 'STATION_LOCAL_ONLY');
+  return `rechazada desde ${lanIp.address}`;
+});
+
 test('Sincronización: la estación ve "al día" o "desincronizada" según lo que dibuja cada pantalla', async () => {
   const p1 = pantalla1.states['pista-1'];
   pantalla1.socket.emit('display:report', {

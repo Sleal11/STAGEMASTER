@@ -22,6 +22,7 @@ import { renderMatches, onMatchClick } from './matches.js';
 import { renderScreens, onScreenClick, onScreenChange, onScreenInput } from './screens.js';
 import { initUploads } from './uploads.js';
 import { renderRemotes, onRemotesClick } from './remotes.js';
+import { renderLive, setLiveVisible } from './live.js';
 import { initHistory, updateCourts, setHistoryVisible, onHistoryChanged } from './history.js';
 
 const $ = (id) => document.getElementById(id);
@@ -63,6 +64,7 @@ function render(state) {
   renderMatches(state);
   renderScreens(state);
   renderRemotes(state);
+  renderLive(state);
   updateCourts(state);
   tick();
 }
@@ -103,15 +105,17 @@ function setConnection(kind, text) {
 // ARRANQUE
 // ─────────────────────────────────────────────────────────────────
 
-/** Panel (partidos y pantallas) ↔ Historial */
+/** Panel (partidos y pantallas) ↔ En vivo ↔ Historial */
 function showView(view) {
   document.querySelectorAll('.st-view-tab').forEach((tab) => {
     tab.classList.toggle('is-active', tab.dataset.view === view);
     tab.setAttribute('aria-selected', tab.dataset.view === view);
   });
   $('view-panel').classList.toggle('hidden', view !== 'panel');
+  $('view-live').classList.toggle('hidden', view !== 'live');
   $('view-history').classList.toggle('hidden', view !== 'history');
   setHistoryVisible(view === 'history');
+  setLiveVisible(view === 'live');
 }
 
 applyLogo();
@@ -128,6 +132,18 @@ $('st-screens').addEventListener('click', onScreenClick);
 $('st-screens').addEventListener('change', onScreenChange);
 $('st-screens').addEventListener('input', onScreenInput);
 $('st-remotes').addEventListener('click', onRemotesClick);
+// En vivo: identificar una pantalla o ir a sus ajustes en el Panel
+$('live-grid').addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  const { screen } = button.dataset;
+  if (button.dataset.action === 'identify') send('station:identify', { screenId: screen }, button);
+  if (button.dataset.action === 'goto') {
+    showView('panel');
+    const card = document.querySelector(`[data-screen-card="${screen}"]`);
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+});
 
 $('st-open-ads').addEventListener('click', (event) => send('station:openAdsFolder', {}, event.currentTarget));
 $('st-help').addEventListener('click', () => window.open('/ayuda.html', 'ayuda', 'width=920,height=820'));

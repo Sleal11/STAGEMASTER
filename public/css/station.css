@@ -859,3 +859,40 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
 
 /* Barras de desplazamiento oscuras (en Windows salían blancas) */
 .station-body, .station-body * { scrollbar-color: var(--st-border-2) transparent; scrollbar-width: thin; }
+
+/* ─────────────────────────────────────────────────────────────────
+   EN VIVO: todas las pantallas de un vistazo
+   ───────────────────────────────────────────────────────────────── */
+.st-view-tab { position: relative; }
+.st-view-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px;
+  padding: 0 6px; border-radius: 999px; background: var(--st-bad); color: #FFFFFF; font-size: 0.75rem; font-weight: 800; }
+.live-intro { margin: -4px 0 16px; font-size: 0.9rem; }
+.live-summary { display: flex; flex-wrap: wrap; gap: 16px; font-weight: 600; font-size: 0.9rem; color: var(--st-soft); }
+.live-summary > span { display: inline-flex; align-items: center; gap: 8px; }
+.live-summary-bad { color: #FCA5A5; }
+.live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 18px; }
+
+.live-tile { --court-color: var(--st-primary); display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 14px; background: var(--st-surface); border: 2px solid var(--st-border); }
+.live-tile.has-problem { border-color: var(--st-bad); box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18); }
+.live-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--court-color); color: #04122B; }
+.live-name { font-family: var(--font-score); font-weight: 700; font-size: 1.35rem; text-transform: uppercase; margin-right: auto; }
+.live-state.ok   { background: #0F5132; }
+.live-state.warn { background: #7A4B00; }
+.live-state.bad  { background: #B91C1C; }
+.live-state.off  { background: rgba(4, 18, 43, 0.85); color: var(--st-muted); }
+
+.live-frame { position: relative; overflow: hidden; background: #000; }
+.live-iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; }
+.live-overlay { position: absolute; inset: auto 0 0 0; padding: 8px 12px; text-align: center; font-weight: 800;
+  font-size: 0.85rem; letter-spacing: 0.02em; color: #FFFFFF; background: rgba(185, 28, 28, 0.9); }
+.live-tile:not(.has-problem) .live-overlay { background: rgba(4, 18, 43, 0.85); color: var(--st-soft); }
+
+.live-info { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; font-size: 0.88rem; }
+.live-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.live-row > span:last-child { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.live-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--st-accent); }
+.live-row .icon { width: 15px; height: 15px; color: var(--st-accent); }
+.live-warn { display: inline-flex; gap: 6px; color: #FCD34D; }
+.live-warn .icon { color: var(--st-warn) !important; }
+.live-actions { display: flex; gap: 8px; padding: 0 14px 14px; margin-top: auto; }

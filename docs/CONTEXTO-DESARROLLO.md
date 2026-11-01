@@ -1,8 +1,8 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.3.1** (2.3.0 + primera
-ronda de retoques estéticos, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
+compactación de la conversación). Estado: **versión 2.4.0** (2.3.0 + retoques
+estéticos y pestaña «En vivo», ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
 ## 1. Qué es
 
@@ -103,8 +103,8 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 
 | Comando | Contenido |
 |---|---|
-| `npm test` | Motor 55 · núcleo 73 · monitores 14 · integración 43 |
-| `npm run test:e2e` | 10 conjuntos, 234 comprobaciones con Chromium y Electron reales: history, pause, brightness, screens, formats, station-ui (versión oculta, formatos, diálogo de resolución, avisos), layout (matriz 4 formatos × 6 estados, incluido «GANADOR»), phone (partido completo), desktop, remote |
+| `npm test` | Motor 55 · núcleo 73 · monitores 14 · integración 44 |
+| `npm run test:e2e` | 11 conjuntos con Chromium y Electron reales: history, pause, brightness, screens, formats, station-ui (versión oculta, formatos, diálogo de resolución, avisos), live (pestaña En vivo), layout (matriz 4 formatos × 6 estados, incluido «GANADOR»), phone (partido completo), desktop, remote |
 | CI (`.github/workflows/stagemaster-windows.yml`) | En Windows: `npm test`, `desktop/displayModes.win.test.js` (resoluciones reales, sin cambiar la pantalla), compilación y publicación del exe |
 
 Notas del entorno de pruebas en la nube: Electron se descarga con
@@ -146,3 +146,17 @@ Ronda 1 (versión 2.3.1):
 5. Los avisos amarillos de las pantallas se ocultan solos a los 10 s y vuelven
    a salir si el problema desaparece y reaparece. (Los mensajes flotantes ya
    desaparecían solos: 4 s, errores 6 s.)
+
+Ronda 2 (versión 2.4.0) — pestaña **«En vivo»** (petición de Santiago: ver qué
+se está viendo en todas las pantallas cuando el moderador no ve las LED):
+- Una tarjeta por pantalla con vista previa en movimiento (`score.html?vista=previa`,
+  rol `preview`: solo localhost, recibe lo mismo que la pantalla, NO cuenta como
+  ventana, no informa, no suena) al tamaño real del formato, escalada.
+- Estado real informado por la pantalla: qué muestra, dónde (monitor, ventana de
+  prueba o portátil remoto), resolución, marcador al día, qué se reproduce, problemas.
+- Aviso rojo en la pestaña con el número de pantallas que no se ven, aunque esté cerrada.
+- Las vistas previas solo existen con la pestaña abierta. «Ajustes» lleva a la tarjeta del Panel.
+- Límite: es una réplica de lo que StageMaster envía; si la LED física está apagada
+  o el cable suelto, no se puede saber sin información del hardware.
+- Archivos: `public/js/station/live.js`, `public/js/display/main.js` (modo previa),
+  `server/realtime/socketServer.js` (rol preview); pruebas `tests/e2e/live.e2e.js`.

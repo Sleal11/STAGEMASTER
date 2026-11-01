@@ -14,6 +14,9 @@
  *   display     Pantalla de score/publicidad (score.html?pantalla=N).
  *               Solo lectura. Desde localhost, o desde la red si trae el token
  *               de un portátil remoto enlazado (auth.remoteToken).
+ *   preview     Vista previa de una pantalla en la estación (pestaña «En vivo»,
+ *               score.html?vista=previa). Solo desde localhost. Recibe lo mismo
+ *               que la pantalla, pero NO cuenta como ventana conectada ni informa.
  *   remote      Portátil en modo «pantalla remota» (aplicación de escritorio).
  *               Se enlaza con el código de la estación; informa de qué
  *               pantallas muestra y en qué monitor. Nunca modifica nada.
@@ -115,7 +118,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 
   io.use((socket, next) => {
     const params = socket.handshake.auth || {};
-    const role   = ['station', 'display', 'controller', 'remote'].includes(params.role) ? params.role : 'controller';
+    const role   = ['station', 'display', 'preview', 'controller', 'remote'].includes(params.role) ? params.role : 'controller';
     const local  = auth.isLocalAddress(socket.handshake.address);
     socket.data.role = role;
 
@@ -138,6 +141,13 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       socket.data.screenId = params.screenId;
       socket.data.remoteId = remote ? remote.id : null;
     }
+    if (role === 'preview') {
+      if (!local) return next(connectionError('STATION_LOCAL_ONLY', 'La vista previa solo se abre en la estación del portátil'));
+      if (!screens.has(params.screenId)) {
+        return next(connectionError('UNKNOWN_SCREEN', `Pantalla desconocida: ${params.screenId}`));
+      }
+      socket.data.screenId = params.screenId;
+    }
     if (role === 'remote') {
       if (!remotes) return next(connectionError('FORBIDDEN', 'Este servidor no admite portátiles remotos'));
       const remote = typeof params.token === 'string' ? remotes.verify(params.token) : null;
@@ -156,6 +166,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 
     if (role === 'station')    onStationConnected(socket);
     if (role === 'display')    onDisplayConnected(socket);
+    if (role === 'preview')    onPreviewConnected(socket);
     if (role === 'controller') onControllerConnected(socket);
     if (role === 'remote')     onRemoteConnected(socket);
 
@@ -498,6 +509,16 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
         return { id, label: config.label, matchLabel: registry.get(config.matchId).label, mirrorOf: mirror };
       }),
     };
+  }
+
+  /** Vista previa: misma sala que la pantalla, sin presencia (no cuenta como ventana) */
+  function onPreviewConnected(socket) {
+    const { screenId } = socket.data;
+    const config = screens.effective(screenId);
+    socket.join(`screen:${screenId}`);
+    socket.join(`match:${config.matchId}`);
+    socket.emit('screenConfig', buildScreenConfig(screenId));
+    socket.emit('matchUpdate', matchPayload(registry.get(config.matchId)));
   }
 
   function onControllerConnected(socket) {
@@ -902,6 +923,7 @@ function connectionError(code, message) {
 function roleLabel(socket) {
   const { role, screenId, matchId, remoteId } = socket.data;
   if (role === 'display') return `Pantalla ${screenId}${remoteId ? ` (${remoteId})` : ''}`;
+  if (role === 'preview') return `Vista previa ${screenId}`;
   if (role === 'remote') return `Portátil remoto ${remoteId || 'sin enlazar'}`;
   if (role === 'station') return 'Estación';
   return matchId ? `Teléfono (${matchId})` : 'Teléfono sin vincular';

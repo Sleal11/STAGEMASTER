@@ -132,7 +132,7 @@ function statusHtml(screen) {
 }
 
 /** Archivos de la lista que se pueden reproducir (están en la carpeta y no fallaron) */
-function playableCount(screen) {
+export function playableCount(screen) {
   const failed = [].concat(...screen.displays.map((d) => d.adErrors)).map(fileNameOf);
   return screen.media.items.filter((name) =>
     !screen.missingAds.includes('pantalla-completa/' + name) && !failed.includes(name)).length;
@@ -457,7 +457,7 @@ function monitorDiagnostics(screen, m, desktop) {
 }
 
 /** Tamaño que ocupa el formato LED (null = todo el monitor) */
-function outputSize(screen, state) {
+export function outputSize(screen, state) {
   const { format, width, height } = screen.output;
   if (format === 'fill') return null;
   const fixed = state.outputFormats.find((f) => f.id === format && !f.saved && f.width);

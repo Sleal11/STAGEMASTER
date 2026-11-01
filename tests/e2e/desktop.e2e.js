@@ -52,6 +52,16 @@ const isScreen = (page, n) => page.url().includes(`/score.html?pantalla=${n}`);
     T.check('La estación la ve conectada «en este portátil»',
       (await S.textContent('[data-screen-card="pantalla-1"] [data-part="status"]')).includes('en este portátil'));
 
+    // ── En vivo (dentro de la aplicación real) ──
+    await S.click('.st-view-tab[data-view="live"]');
+    await S.waitForSelector('[data-live="pantalla-1"] iframe');
+    const preview = S.frames().find((f) => /pantalla=1&vista=previa/.test(f.url()));
+    await preview.waitForSelector('#d-waiting:not(.hidden), #d-board:not(.hidden)');
+    await S.waitForFunction(() => document.querySelector('[data-live="pantalla-1"] .live-info').textContent.includes('ventana de prueba'));
+    T.check('«En vivo» funciona en la aplicación: vista previa y «en una ventana de prueba»', true);
+    T.check('…y la vista previa no abre ventanas ni cuenta como una', app.windows().length === 2);
+    await S.click('.st-view-tab[data-view="panel"]');
+
     // ── Diagnóstico del monitor (lo que dice el sistema: px reales, Hz, escala) ──
     await S.click('[data-screen-card="pantalla-2"] [data-tab="output"]');
     const primaryKey = await S.$eval('[data-screen-card="pantalla-2"] select[data-action="monitor"] option', (o) => o.value);

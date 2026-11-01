@@ -14,6 +14,7 @@
         reproducción, publicidad en la pausa y al terminar, monitor, brillo y
         formato de salida (LED 832×416 / 416×208 / personalizado), resolución
       - Los PORTÁTILES REMOTOS: código de enlace, estado, desvincular
+      - EN VIVO: vista previa y estado de todas las pantallas a la vez
 
     Relación con otros archivos:
       → css/shared.css · css/station.css
@@ -36,6 +37,9 @@
     <nav class="st-views" role="tablist" aria-label="Secciones">
       <button type="button" role="tab" class="st-view-tab is-active" data-view="panel" aria-selected="true">
         <svg class="icon"><use href="img/icons.svg#scoreboard"></use></svg>Panel
+      </button>
+      <button type="button" role="tab" class="st-view-tab" data-view="live" aria-selected="false">
+        <svg class="icon"><use href="img/icons.svg#monitor"></use></svg>En vivo<span id="live-badge" class="st-view-badge hidden"></span>
       </button>
       <button type="button" role="tab" class="st-view-tab" data-view="history" aria-selected="false">
         <svg class="icon"><use href="img/icons.svg#history"></use></svg>Historial
@@ -91,6 +95,19 @@
   </main>
 
   <!-- ── Historial de partidos ───────────────────────────────────── -->
+  <!-- ── En vivo: todas las pantallas y su estado (js/station/live.js) ── -->
+  <main id="view-live" class="st-main hidden">
+    <section class="st-section">
+      <div class="st-section-head">
+        <h2 class="st-section-title">Pantallas en vivo</h2>
+        <div id="live-summary" class="live-summary"></div>
+      </div>
+      <p class="live-intro muted">Vista previa en movimiento de lo que StageMaster envía a cada pantalla y su estado real
+        (lo informa la propia pantalla). Útil si no ves las LED desde tu sitio.</p>
+      <div id="live-grid" class="live-grid"></div>
+    </section>
+  </main>
+
   <main id="view-history" class="st-main hidden">
     <section class="st-section">
       <div class="st-section-head">
