@@ -170,6 +170,7 @@ hacer que `Match.js` elija el motor según el deporte y crear su vista de pantal
 - [`docs/RESOLUCIONES.md`](docs/RESOLUCIONES.md) — resolución del monitor vs formato LED, EDID, el caso 1920×1120.
 - [`docs/BRILLO-LED.md`](docs/BRILLO-LED.md) — brillo de la imagen vs brillo físico de los módulos.
 - [`docs/AUDITORIA-V3.md`](docs/AUDITORIA-V3.md) — auditoría y plan de la versión 3.
+- [`docs/CONTEXTO-DESARROLLO.md`](docs/CONTEXTO-DESARROLLO.md) — estado, forma de trabajar, identidad visual, pendientes y decisiones (para continuar el desarrollo).
 
 Tipografías **Inter** y **Oswald**: SIL Open Font License 1.1 (`public/fonts/LICENSE-*.txt`).
 Iconos basados en **Lucide** (licencia ISC).

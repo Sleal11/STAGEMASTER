@@ -1,0 +1,127 @@
+# StageMaster · Contexto del desarrollo
+
+Resumen para continuar el trabajo sin perder el rumbo (también tras una
+compactación de la conversación). Estado: **versión 2.3.0**, commit `822939e`,
+rama `claude/nice-pasteur-wbpgdz`.
+
+## 1. Qué es
+
+Marcador profesional de pádel para eventos con pantallas LED. Aplicación de
+Windows **portable** (`StageMaster.exe`, Electron) que lleva dentro un servidor
+Node/Express + Socket.IO. Funciona **sin Internet** (red local). Reglas **FIP**
+(Ventaja, Punto de oro, Punto Estrella; tie break a 7, súper tie break a 10).
+
+| Pieza | Dónde | Quién la usa |
+|---|---|---|
+| Estación operadora | `public/station.html` + `js/station/` | El moderador, solo en el portátil |
+| Pantalla de score | `public/score.html?pantalla=N` + `js/display/` | Monitores / LED (o portátil remoto) |
+| Teléfono del árbitro | `public/control.html` + `js/control.js` | Un teléfono por pista (QR + PIN) |
+| Servidor | `server/` (core, realtime, http, sports/padel) | — |
+| Escritorio | `desktop/` (principal, remoto, ventanas, monitores, resoluciones) | — |
+
+Tecnologías fijas (no cambiar por iniciativa propia): Electron 44.9.3,
+electron-builder 26.17.0, Node + Express + Socket.IO, HTML/CSS/JS sin
+frameworks (módulos ES), archivos JSON/JSONL con escritura atómica.
+
+## 2. Forma de trabajar (acordada con Santiago)
+
+- Responder **siempre en español**, paso a paso.
+- Cambios **puntuales y graduales** en la rama `claude/nice-pasteur-wbpgdz`.
+- **No pasar a `main`** hasta el análisis profundo final del proyecto.
+- Cada push publica el exe de prueba (enlace fijo):
+  https://github.com/Sleal11/STAGEMASTER/releases/download/prueba/StageMaster-prueba.exe
+  Comprobar en la estación que se ve la versión y el commit nuevos.
+- Santiago actualiza con **`git pull` + `npm run app`** en Antigravity. No debe
+  usar Commit/Push/Sync. Los exe descargados van **fuera** de la carpeta del
+  proyecto (un commit accidental con el exe de 112 MB bloqueó el Sync).
+- Las etiquetas `v*` (Releases oficiales) las crea Santiago: el push de
+  etiquetas está denegado desde la sesión.
+- Logos de marcas comerciales: solo de prueba, **nunca** en el repositorio.
+- No simular funciones de hardware. Si falta información de hardware, decir
+  exactamente qué hace falta y seguir con lo que no esté bloqueado.
+- Antes de cada push: `npm test` y las pruebas de navegador afectadas.
+
+## 3. Identidad visual (mantener)
+
+- Paleta de la pantalla (`public/css/score.css`): fondo `#041024`, cabecera
+  `#0A2350`, filas `#0C2C63` (borde `#1E4F9C`), sets `#1B5FB8`, **azul claro
+  `#8FD3FF`** (puntos, filetes, set en juego), oro `#FFD54A` (punto de oro),
+  pausa `#FFB020`. Ganador: fila azul más viva `#11408C` + **trofeo azul** (no estrella).
+- Estación (`public/css/station.css`): misma gama de azules, tarjetas con la
+  cabecera del color de su pista.
+- Tipografías: **Oswald** (marcador, títulos) e **Inter** (interfaz).
+- Logo: `public/img/logo-stagemaster.png` (respaldo: texto STAGE**MASTER**).
+- Iconos SVG propios en `public/img/icons.svg` (sprite, estilo Lucide).
+- Pantalla en unidades de contenedor (cqh/cqw): mismo diseño en monitor
+  completo y en LED **XL 832×416** y **pequeña 416×208** (formato pequeño =
+  altura ≤ 300 px: sin títulos de columna, números más grandes).
+- Composición actual: cabecera (logo · **sets** «SET 1 6-3 · SET 2 EN JUEGO» ·
+  indicador · pista) / marcador (2 filas: nombres, sets, games, puntos) /
+  **cinta publicitaria** (19 % del alto; 21 % en LED pequeña) sin separadores,
+  logos sin fondo blanco y logos oscuros pasados a blanco.
+
+## 4. Funcionalidades terminadas (verificadas con pruebas)
+
+Versión 2.x (antes de la V3): 2 partidos, teléfonos con PIN/QR, estación con
+puntuación de respaldo, pausa, finalizar/reiniciar con confirmación, deshacer;
+pantallas con marcador, cinta (imágenes, logos SVG, vídeos cortos, mensajes;
+fundido o desplazamiento) y lista de reproducción (imágenes y vídeos MP4/WEBM);
+publicidad al terminar; subir/borrar publicidad desde la estación (botón o
+arrastrar); formatos LED exactos con escalado de Windows compensado; versión
+visible y aviso si se abre otra versión; recuperación tras cierre o corte de luz.
+
+Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
+
+| Fase | Resultado | Archivos principales |
+|---|---|---|
+| 1 Auditoría | `docs/AUDITORIA-V3.md` | — |
+| 2 Historial | Pestaña Historial: día, rango, pista, jugador, detalle, CSV; sin duplicados; deshacer anula | `server/core/history.js`, `js/station/history.js` |
+| 3 Publicidad en la pausa | Lista durante la pausa; vuelve con el mismo tanteo; opción por pantalla | `server/core/screens.js` (`matchPauseChanged`) |
+| 4 Brillo | Brillo de la **imagen** por pantalla (10-100 %) | `d-dimmer` en `score.html`; `docs/BRILLO-LED.md` |
+| 5 Varias pantallas | Hasta 8, añadir/quitar, **espejos**; **portátiles remotos** (código de 6 cifras, descubrimiento UDP, reconexión, una sola autoridad) | `screens.js`, `remotes.js`, `discovery.js`, `desktop/remote.js`, `desktop/screenWindows.js`; `docs/VARIAS-PANTALLAS.md` |
+| 6 Resoluciones | Formato personalizado y guardado; aviso «no cabe»; diagnóstico (px reales, Hz, escala, EDID); cambiar resolución en Windows con vuelta en 15 s | `formats.js`, `desktop/displayModes.js`; `docs/RESOLUCIONES.md` |
+| 7 Estética | Sets en la cabecera junto al logo; cinta más grande | `score.html`, `score.css`, `scoreboard.js` |
+| 8 Pruebas | Ver sección 6 | `tests/e2e/` |
+| 9 Exe | 2.3.0 compilado y publicado en el enlace de prueba | CI |
+
+## 5. Pendiente / bloqueado
+
+| Tema | Estado | Qué hace falta |
+|---|---|---|
+| Brillo **físico** de los módulos LED | Bloqueado (no se simula) | Marca/modelo del procesador o tarjeta emisora, conexión (USB/serie/red), programa (NovaLCT…), SDK, prueba con el equipo |
+| Ajuste a las LED reales | Sin datos | Tamaño en píxeles de cada LED, resolución de entrada de la tarjeta emisora y posición |
+| Portátiles remotos en el recinto | Probado en simulación y CI | Distancias, si hay cable de red, Wi-Fi propio o del recinto |
+| Prueba con el hardware real | Pendiente | Simulacro (`docs/SIMULACRO-EVENTO.md`) |
+| Opinión de la estética nueva en LED | Pendiente | Santiago |
+| Análisis profundo final + paso a `main` + etiqueta | Cuando Santiago lo pida | — |
+| `.gitignore` de `*.exe` en la raíz | Propuesto, sin hacer | Confirmación de Santiago |
+
+## 6. Pruebas
+
+| Comando | Contenido |
+|---|---|
+| `npm test` | Motor 55 · núcleo 73 · monitores 14 · integración 43 |
+| `npm run test:e2e` | 9 conjuntos, 192 comprobaciones con Chromium y Electron reales: history, pause, brightness, screens, formats, layout (matriz 4 formatos × 5 estados), phone (partido completo), desktop, remote |
+| CI (`.github/workflows/stagemaster-windows.yml`) | En Windows: `npm test`, `desktop/displayModes.win.test.js` (resoluciones reales, sin cambiar la pantalla), compilación y publicación del exe |
+
+Notas del entorno de pruebas en la nube: Electron se descarga con
+`node node_modules/electron/install.js`; sin escritorio se usa Xvfb
+(`Xvfb :99 -screen 0 1920x1080x24 &`, `DISPLAY=:99`). En ese entorno Chromium no
+puede abrir WebSocket hacia la IP de red (la red del contenedor responde 403);
+Socket.IO sigue por HTTP y en una red real no ocurre. Las capturas se guardan
+en `tests/e2e/out/` (no se suben); `out/matriz/` tiene la matriz visual actual.
+
+## 7. Decisiones técnicas que no hay que deshacer
+
+- Una sola autoridad: el servidor del portátil principal. Acciones con versión
+  (`STALE_VERSION`): nunca se aplica un punto sobre un tanteo viejo.
+- Estación solo desde localhost; pantallas desde la red solo con token de
+  portátil enlazado; teléfonos con PIN → token (en disco solo hashes).
+- La publicidad nunca modifica el marcador.
+- Páginas servidas con `no-store`; `/publicidad` con CSP (un SVG no ejecuta código).
+- Historial append-only (JSONL), la última línea de cada partido manda.
+- Los espejos no encadenan; el reproductor de un espejo es el de su origen.
+- Resoluciones de Windows: solo modos del EDID, validación `CDS_TEST`, aplicar
+  sin guardar y vuelta automática; nunca en la pantalla de la estación.
+- El undo del teléfono pide doble toque; un set necesita 2 games de diferencia
+  (con «1 game por set», 1-0 no cierra el set).
