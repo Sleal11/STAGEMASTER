@@ -54,6 +54,10 @@ jobs:
       - name: Pruebas de resoluciones de Windows
         run: node desktop/displayModes.win.test.js
 
+      # Firewall de Windows: diagnóstico y «Permitir teléfonos» (crea y borra las reglas)
+      - name: Pruebas del firewall de Windows
+        run: node desktop/firewall.win.test.js
+
       # Versión exacta dentro del .exe (la estación la muestra: "v2.2.0 · 19c768c")
       - name: Datos de la compilación
         shell: bash

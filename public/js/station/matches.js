@@ -8,7 +8,7 @@
 
 import * as ScoreFormat from '../common/score-format.js';
 import { esc, icon } from '../common/ui.js';
-import { send, findMatch, patch } from './context.js';
+import { ctx, send, findMatch, patch } from './context.js';
 import { confirmDialog, openSetupDialog } from './dialogs.js';
 
 const STATUS = {
@@ -137,8 +137,25 @@ function phoneHtml(match) {
           <button type="button" class="btn btn-ghost btn-sm" data-action="newPin" data-match="${match.id}">${icon('key')}Nuevo PIN</button>
           ${c ? `<button type="button" class="btn btn-ghost btn-sm" data-action="unpair" data-match="${match.id}">${icon('unlink')}Desvincular</button>` : ''}
         </div>
+        ${accessHint()}
       </div>
     </div>`;
+}
+
+/**
+ * Si el QR no abre: en qué Wi-Fi debe estar el teléfono y la dirección para
+ * escribirla a mano (antes estaba en la cabecera de la estación).
+ */
+function accessHint() {
+  const network = ctx.state.network;
+  if (!network.primary) {
+    return `<span class="st-access-hint is-bad">${icon('alert')}El portátil no está conectado a ninguna red: los teléfonos no podrán entrar</span>`;
+  }
+  const check = ctx.state.desktop && ctx.state.desktop.network;
+  const wifi = check && check.wifi ? `la Wi-Fi <strong>«${esc(check.wifi)}»</strong>` : 'la misma Wi-Fi que este portátil';
+  const others = network.addresses.slice(1).map((a) => `${a.address}:${network.port}`);
+  const title = others.length ? ` title="Si no conecta, prueba también: ${esc(others.join(', '))}"` : '';
+  return `<span class="st-access-hint"${title}>${icon('wifi')}<span>Teléfono en ${wifi} · o escribe <strong>${esc(network.primary.address)}:${network.port}</strong></span></span>`;
 }
 
 // ─────────────────────────────────────────────────────────────────

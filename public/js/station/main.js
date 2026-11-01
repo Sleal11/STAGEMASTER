@@ -15,8 +15,8 @@
  */
 
 import { applyLogo } from '../common/brand.js';
-import { esc, icon, elapsed } from '../common/ui.js';
-import { ctx, send, toast } from './context.js';
+import { icon, elapsed } from '../common/ui.js';
+import { ctx, send, toast, patch } from './context.js';
 import { initDialogs } from './dialogs.js';
 import { renderMatches, onMatchClick } from './matches.js';
 import { renderScreens, onScreenClick, onScreenChange, onScreenInput } from './screens.js';
@@ -61,6 +61,7 @@ function render(state) {
   // ratón por el logo y al final de la Ayuda, para comprobar que es la última
   document.querySelector('.st-brand').title = `StageMaster ${state.build.version} · ${state.build.commit}`;
   renderNetwork(state.network);
+  renderPhonesAlert(state);
   renderMatches(state);
   renderScreens(state);
   renderRemotes(state);
@@ -69,16 +70,36 @@ function render(state) {
   tick();
 }
 
-/** Dirección que deben abrir los teléfonos de los árbitros */
+/**
+ * Cabecera: solo avisa si el portátil no tiene red. La dirección para los
+ * teléfonos está junto al QR de cada pista (no hace falta repetirla arriba).
+ */
 function renderNetwork(network) {
-  const el = $('st-network');
-  if (!network.addresses.length) {
-    el.innerHTML = `<span class="st-network-main is-bad">${icon('alert')}El portátil no está conectado a ninguna red: los teléfonos no podrán entrar</span>`;
-    return;
+  patch($('st-network'), network.addresses.length ? ''
+    : `<span class="st-network-main is-bad">${icon('alert')}Sin red: los teléfonos no podrán entrar</span>`);
+}
+
+/**
+ * Aviso si el firewall de Windows no deja entrar a los teléfonos (el QR
+ * abriría «el servidor no responde»), con el botón para arreglarlo.
+ */
+function renderPhonesAlert(state) {
+  const check = state.desktop && state.desktop.network;
+  let html = '';
+  if (check && check.ok === false) {
+    const why = check.blocked
+      ? 'El firewall de Windows está <strong>bloqueando StageMaster</strong>'
+      : check.publicNetwork
+        ? 'La red de este portátil está marcada como <strong>«Pública»</strong> y el firewall de Windows no deja entrar a los teléfonos'
+        : 'Puede que el firewall de Windows <strong>no deje entrar</strong> a los teléfonos';
+    html = `<div class="st-phones-alert">${icon('alert')}<div class="st-phones-alert-text"><strong>Los teléfonos pueden no conectarse.</strong> ` +
+      `${why}: al escanear el QR verían «el servidor no responde». Pulsa <strong>Permitir teléfonos</strong> ` +
+      '(Windows pedirá permiso de administrador una vez; solo se abre a la red local).</div>' +
+      '<div class="st-phones-alert-actions"><button type="button" class="btn btn-primary btn-sm" data-action="allowPhones">' +
+      `${icon('check')}Permitir teléfonos</button><button type="button" class="btn btn-ghost btn-sm" data-action="checkNetwork">` +
+      `${icon('refresh')}Comprobar</button></div></div>`;
   }
-  const others = network.addresses.slice(1).map((a) => esc(a.address));
-  el.innerHTML = `<span class="st-network-main">${icon('wifi')}Teléfonos de árbitro: <strong>${esc(network.primary.controlUrl)}</strong></span>` +
-    (others.length ? `<span class="st-network-alt" title="Si los teléfonos no conectan, prueba con estas direcciones">Otras redes: ${others.join(', ')}</span>` : '');
+  patch($('st-phones-alert'), html);
 }
 
 /** Textos que dependen de la hora: "hace 12 s" y "publicidad en 8 s" */
@@ -132,6 +153,14 @@ $('st-screens').addEventListener('click', onScreenClick);
 $('st-screens').addEventListener('change', onScreenChange);
 $('st-screens').addEventListener('input', onScreenInput);
 $('st-remotes').addEventListener('click', onRemotesClick);
+$('st-phones-alert').addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  if (button.dataset.action === 'allowPhones') {
+    send('station:allowPhones', {}, button).then((res) => { if (res.ok) toast('Listo: los teléfonos ya pueden conectarse'); });
+  }
+  if (button.dataset.action === 'checkNetwork') send('station:checkNetwork', {}, button);
+});
 // En vivo: identificar una pantalla o ir a sus ajustes en el Panel
 $('live-grid').addEventListener('click', (event) => {
   const button = event.target.closest('button[data-action]');

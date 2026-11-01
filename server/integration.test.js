@@ -949,7 +949,29 @@ test('/health responde con el estado de ambos partidos', async () => {
   assert.strictEqual(body.build.version, pkg.version, 'Indica la versión que funciona');
   assert.strictEqual(estacion.stationState.build.version, pkg.version, 'La estación también la ve');
   const page = await fetch(`http://localhost:${PORT}/js/display/ribbon.js`);
-  assert.strictEqual(page.headers.get('cache-control'), 'no-store', 'Las páginas nunca salen de la caché (siempre la versión nueva)');
+  assert.strictEqual(page.headers.get('cache-control'), 'no-cache', 'Las páginas siempre se comprueban (siempre la versión nueva)');
+});
+
+test('Página del árbitro ligera: comprimida, en caché que siempre comprueba si hay versión nueva, tipografías guardadas', async () => {
+  const base = `http://localhost:${PORT}`;
+  const page = await fetch(`${base}/control.html`, { headers: { 'Accept-Encoding': 'gzip' } });
+  assert.strictEqual(page.status, 200);
+  assert.strictEqual(page.headers.get('content-encoding'), 'gzip', 'Texto comprimido');
+  assert.strictEqual(page.headers.get('cache-control'), 'no-cache', 'Siempre comprueba si cambió');
+  const etag = page.headers.get('etag');
+  assert.ok(etag, 'Con ETag');
+  // Petición HTTP simple (como la del navegador del teléfono al volver a la página)
+  const status = await new Promise((resolve, reject) => {
+    require('http').get(`${base}/control.html`, { headers: { 'If-None-Match': etag } }, (res) => { res.resume(); resolve(res.statusCode); })
+      .on('error', reject);
+  });
+  assert.strictEqual(status, 304, 'Si no cambió, respuesta mínima');
+  const font = await fetch(`${base}/fonts/inter-latin-400-normal.woff2`);
+  assert.ok(/immutable/.test(font.headers.get('cache-control')), 'Las tipografías se guardan');
+  const client = await fetch(`${base}/socket.io/socket.io.min.js`);
+  assert.strictEqual(client.status, 200);
+  const html = await (await fetch(`${base}/control.html`)).text();
+  assert.ok(html.includes('/socket.io/socket.io.min.js'), 'Usa el cliente minificado');
 });
 
 test('station.html solo se sirve en el portátil; la raíz lleva a la estación en localhost', async () => {

@@ -29,6 +29,7 @@
  */
 
 const express = require('express');
+const compression = require('compression');
 const http    = require('http');
 const path    = require('path');
 const { Server } = require('socket.io');
@@ -108,12 +109,19 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
       .send('La estación operadora solo puede abrirse en el portátil donde funciona StageMaster.');
   });
 
-  // Páginas de la app: nunca desde la caché. Así, al actualizar StageMaster,
-  // la estación, las pantallas y los teléfonos cargan siempre la versión nueva.
+  // Texto comprimido (páginas, estilos, código): el teléfono del árbitro abre
+  // mucho antes en una Wi-Fi llena. Imágenes y vídeos no se comprimen (ya lo están).
+  app.use(compression());
+
+  // Páginas de la app: el navegador las guarda, pero PREGUNTA SIEMPRE si
+  // cambiaron (no-cache + ETag). Si no cambiaron, la respuesta es mínima (304);
+  // al actualizar StageMaster, todos cargan la versión nueva. Las tipografías
+  // no cambian nunca: se guardan sin preguntar.
   app.use(express.static(path.join(__dirname, '..', 'public'), {
-    etag: false,
-    lastModified: false,
-    setHeaders: (res) => res.set('Cache-Control', 'no-store'),
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, file) => res.set('Cache-Control', /[\\/]fonts[\\/]/.test(file)
+      ? 'public, max-age=31536000, immutable' : 'no-cache'),
   }));
   // La publicidad son archivos que trae el operador: nunca se ejecuta nada de
   // ellos (un SVG con código se muestra como imagen, sin ejecutar su código)

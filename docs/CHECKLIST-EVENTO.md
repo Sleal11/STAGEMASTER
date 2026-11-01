@@ -3,7 +3,8 @@
 ## Antes
 
 - [ ] `StageMaster.exe` copiado en el portátil del evento (y una copia en un USB).
-- [ ] Abierto al menos una vez en ese portátil (aviso de Windows y Firewall ya aceptados).
+- [ ] Abierto al menos una vez en ese portátil (aviso de Windows y Firewall ya aceptados; si sale el
+      aviso rojo de los teléfonos, **Permitir teléfonos**). Un teléfono probado escaneando el QR.
 - [ ] Publicidad subida con **Subir archivos…** (pestañas *Cinta* y *Lista de reproducción*):
       cinta (PNG/logos y vídeos cortos) y pantalla completa (imágenes y vídeos MP4 H.264 en 2:1, ej. 1664 × 832).
 - [ ] Vídeos probados en StageMaster (si alguno no se reproduce, la estación lo avisa).
@@ -53,7 +54,7 @@ Ver el botón **Ayuda** de la estación ("Si algo falla"). Lo más habitual:
 
 | Problema | Solución |
 |---|---|
-| Un teléfono no abre la página | Misma Wi-Fi que el portátil; en Windows la red debe ser **Privada**; Firewall permitido |
+| Un teléfono no abre la página («el servidor no responde») | Misma Wi-Fi que indica la tarjeta de la pista (no datos móviles ni red de invitados); si la estación muestra el aviso rojo, **Permitir teléfonos**; o escribir la dirección que aparece junto al QR |
 | Pantalla "Sin conexión" | **Abrir ventana** en su tarjeta |
 | La LED se ve cortada o con bordes | **Salida → Formato** LED correcto y posición del controlador |
 | Un vídeo no se ve | Convertirlo a MP4 (H.264); la estación indica cuál falla y se salta |

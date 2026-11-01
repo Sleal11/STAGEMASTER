@@ -3,6 +3,59 @@
  * Diseñado para uso táctil: botones grandes, lectura rápida.
  */
 
+/* Teléfono: el texto se ve AL MOMENTO con la letra del sistema y cambia a la
+   de StageMaster cuando llega (en una Wi-Fi lenta, la página no se queda en
+   blanco esperando). Las pantallas LED siguen esperando a su tipografía. */
+@font-face {
+  font-family: 'Inter';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('../fonts/inter-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url('../fonts/inter-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('../fonts/inter-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('../fonts/inter-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url('../fonts/oswald-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('../fonts/oswald-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('../fonts/oswald-latin-700-normal.woff2') format('woff2');
+}
+
 /* ─────────────────────────────────────────────────────────────────
    LAYOUT BASE — Una sola columna, scroll vertical
    ───────────────────────────────────────────────────────────────── */

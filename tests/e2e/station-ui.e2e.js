@@ -12,6 +12,8 @@
  *   - Pestañas sin barra de desplazamiento horizontal
  *   - Diálogo de resolución: X para cerrar, la elegida resaltada, «Probar»
  *   - Los avisos de las pantallas se ocultan solos a los 10 s y vuelven si reaparecen
+ *   - Cabecera sin «Teléfonos de árbitro» y logo sin aplastar; junto al QR, la
+ *     Wi-Fi y la dirección; aviso del firewall de Windows y «Permitir teléfonos»
  */
 
 const fs   = require('fs');
@@ -30,6 +32,9 @@ const MODES = [[1920, 1080, 100], [1920, 1080, 85], [1920, 1080, 60], [1920, 108
   process.env.STAGEMASTER_ADS_DIR  = H.makeAdsDir();
   process.env.STAGEMASTER_DISCOVERY = '0';
   const applied = [];
+  // Diagnóstico de red simulado: firewall bloqueando StageMaster hasta «Permitir teléfonos»
+  let network = { ok: false, rule: false, blocked: true, publicNetwork: false, wifi: 'Club Padel 5G', checkedAt: Date.now() };
+  let allowCalls = 0;
   let notify = () => {};
   const desktop = {
     onChange: (fn) => { notify = fn; },
@@ -39,13 +44,15 @@ const MODES = [[1920, 1080, 100], [1920, 1080, 85], [1920, 1080, 60], [1920, 108
         { key: '2', label: 'Monitor 2', width: 1920, height: 1080, primary: false, refreshRate: 60, scale: 1, name: 'Generic PnP Monitor' },
       ],
       preferences: {}, assignments: { 'pantalla-1': '2', 'pantalla-2': null }, closed: [],
-      adsFolder: process.env.STAGEMASTER_ADS_DIR, canUseAsRemote: true, displayModes: { pending: null },
+      adsFolder: process.env.STAGEMASTER_ADS_DIR, canUseAsRemote: true, displayModes: { pending: null }, network,
     }),
     setScreens: () => {}, setMonitor: () => notify(), openScreen: () => {}, openAdsFolder: () => {}, useAsRemote: () => {},
     listModes: async () => ({ monitor: 'Monitor 2', name: 'Generic PnP Monitor', adapter: 'AMD Radeon(TM) Vega 8 Graphics',
       current: { width: 1920, height: 1080, hz: 60 }, modes: MODES }),
     applyMode: async (screenId, mode) => { applied.push(mode); return { revertAt: Date.now() + 15000 }; },
     confirmMode: async () => {}, revertMode: async () => {},
+    checkNetwork: async () => {},
+    allowPhones: async () => { allowCalls++; network = { ...network, ok: true, rule: true, blocked: false }; notify(); },
   };
   const { startServer } = require('../../server/index');
   const app = await startServer({ ports: [3408], desktop, logHttp: false });
@@ -60,6 +67,32 @@ const MODES = [[1920, 1080, 100], [1920, 1080, 85], [1920, 1080, 60], [1920, 108
     H.watchErrors(S, 'estación', errors);
     await S.goto('http://localhost:3408/station.html');
     await S.waitForSelector('[data-match-card="pista-1"] .pill');
+
+    // ── Cabecera y logo (ventana ancha como la del portátil del evento) ──
+    await S.setViewportSize({ width: 1866, height: 1000 });
+    await H.sleep(300);
+    const top = (await S.textContent('.st-top')).replace(/\s+/g, ' ');
+    T.check('La cabecera ya no muestra «Teléfonos de árbitro»', !top.includes('Teléfonos de árbitro') && !top.includes('control.html'), top.slice(0, 120));
+    const logo = await S.$eval('.st-logo', (el) => {
+      const img = el.querySelector('img');
+      if (!img) return { text: true };
+      const r = img.getBoundingClientRect();
+      return { ratio: r.width / r.height, natural: img.naturalWidth / img.naturalHeight };
+    });
+    T.check('El logo no se aplasta (mantiene su proporción)', logo.text || Math.abs(logo.ratio - logo.natural) < 0.05, JSON.stringify(logo));
+    const viewTabs = await S.$$eval('.st-view-tab', (els) => els.map((e) => e.getBoundingClientRect().height));
+    T.check('«En vivo» cabe en una línea (pestañas de la misma altura)', Math.max(...viewTabs) - Math.min(...viewTabs) < 1, viewTabs.join(','));
+    await S.setViewportSize({ width: 1018, height: 1100 });
+
+    // ── Junto al QR: Wi-Fi y dirección; aviso del firewall ──
+    const hint = await S.textContent('[data-match-card="pista-1"] .st-access-hint');
+    T.check('Junto al QR: en qué Wi-Fi debe estar el teléfono y la dirección para escribirla',
+      hint.includes('Club Padel 5G') && /\d+\.\d+\.\d+\.\d+:3408/.test(hint), hint.trim());
+    await S.waitForSelector('#st-phones-alert .st-phones-alert');
+    T.check('El firewall bloquea StageMaster → aviso claro en el Panel', (await S.textContent('#st-phones-alert')).includes('bloqueando StageMaster'));
+    await S.click('#st-phones-alert [data-action="allowPhones"]');
+    await S.waitForSelector('#st-phones-alert .st-phones-alert', { state: 'detached', timeout: 5000 });
+    T.check('«Permitir teléfonos» lo arregla y el aviso desaparece', allowCalls === 1);
 
     // ── Versión ──
     const header = await S.textContent('.st-top');

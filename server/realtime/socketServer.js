@@ -48,6 +48,7 @@
  *   station:setMonitor { screenId, monitor }        estación (solo aplicación de escritorio)
  *   station:openScreen { screenId }                 estación (solo aplicación de escritorio)
  *   station:openAdsFolder                           estación (solo aplicación de escritorio)
+ *   station:checkNetwork / station:allowPhones      estación: ¿entran los teléfonos? / ajustar firewall (Windows)
  *   station:listModes { screenId }                  estación: modos del monitor de esa pantalla (Windows)
  *   station:applyMode { screenId, mode }            estación: prueba un modo (vuelve solo en 15 s)
  *   station:confirmMode / station:revertMode        estación: mantener o deshacer el modo probado
@@ -352,6 +353,20 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       requireStation(socket);
       requireDesktop();
       return desktop.revertMode();
+    });
+
+    // ── Teléfonos que no conectan: firewall de Windows (aplicación de escritorio) ──
+    handle(socket, 'station:checkNetwork', () => {
+      requireStation(socket);
+      requireDesktop();
+      return desktop.checkNetwork ? desktop.checkNetwork().then(() => ({})) : {};
+    });
+
+    handle(socket, 'station:allowPhones', () => {
+      requireStation(socket);
+      requireDesktop();
+      if (!desktop.allowPhones) throw appError('FORBIDDEN', 'Disponible solo en Windows');
+      return desktop.allowPhones().then(() => ({}));
     });
 
     handle(socket, 'station:openAdsFolder', () => {

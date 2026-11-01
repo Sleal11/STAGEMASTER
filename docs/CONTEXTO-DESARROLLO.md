@@ -1,8 +1,8 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.4.0** (2.3.0 + retoques
-estéticos y pestaña «En vivo», ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
+compactación de la conversación). Estado: **versión 2.4.1** (2.3.0 + retoques
+estéticos, pestaña «En vivo» y teléfonos que no conectaban, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
 ## 1. Qué es
 
@@ -103,9 +103,9 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 
 | Comando | Contenido |
 |---|---|
-| `npm test` | Motor 55 · núcleo 73 · monitores 14 · integración 44 |
+| `npm test` | Motor 55 · núcleo 73 · monitores 14 · integración 45 |
 | `npm run test:e2e` | 11 conjuntos con Chromium y Electron reales: history, pause, brightness, screens, formats, station-ui (versión oculta, formatos, diálogo de resolución, avisos), live (pestaña En vivo), layout (matriz 4 formatos × 6 estados, incluido «GANADOR»), phone (partido completo), desktop, remote |
-| CI (`.github/workflows/stagemaster-windows.yml`) | En Windows: `npm test`, `desktop/displayModes.win.test.js` (resoluciones reales, sin cambiar la pantalla), compilación y publicación del exe |
+| CI (`.github/workflows/stagemaster-windows.yml`) | En Windows: `npm test`, `desktop/displayModes.win.test.js` (resoluciones reales, sin cambiar la pantalla), `desktop/firewall.win.test.js` (diagnóstico y reglas del firewall, que borra al terminar), compilación y publicación del exe |
 
 Notas del entorno de pruebas en la nube: Electron se descarga con
 `node node_modules/electron/install.js`; sin escritorio se usa Xvfb
@@ -121,7 +121,9 @@ en `tests/e2e/out/` (no se suben); `out/matriz/` tiene la matriz visual actual.
 - Estación solo desde localhost; pantallas desde la red solo con token de
   portátil enlazado; teléfonos con PIN → token (en disco solo hashes).
 - La publicidad nunca modifica el marcador.
-- Páginas servidas con `no-store`; `/publicidad` con CSP (un SVG no ejecuta código).
+- Páginas servidas con compresión y `no-cache` + ETag (el navegador las guarda pero
+  pregunta siempre si cambiaron: 304 si no; al actualizar se ve la versión nueva).
+  Tipografías con caché larga. `/publicidad` con CSP (un SVG no ejecuta código).
 - Historial append-only (JSONL), la última línea de cada partido manda.
 - Los espejos no encadenan; el reproductor de un espejo es el de su origen.
 - Resoluciones de Windows: solo modos del EDID, validación `CDS_TEST`, aplicar
@@ -160,3 +162,19 @@ se está viendo en todas las pantallas cuando el moderador no ve las LED):
   o el cable suelto, no se puede saber sin información del hardware.
 - Archivos: `public/js/station/live.js`, `public/js/display/main.js` (modo previa),
   `server/realtime/socketServer.js` (rol preview); pruebas `tests/e2e/live.e2e.js`.
+
+Ronda 3 (versión 2.4.1):
+- Cabecera de la estación sin «Teléfonos de árbitro»: la Wi-Fi del portátil y la
+  dirección para escribir a mano están junto al QR de cada pista. Arriba solo
+  sale un aviso si el portátil no tiene red. El logo ya no se aplasta y las
+  pestañas («En vivo») caben en una línea.
+- QR que no abría («el servidor no responde»): diagnóstico del firewall de
+  Windows al arrancar y cada 2 min (`desktop/firewall.js`: reglas de StageMaster,
+  bloqueos, red pública, Wi-Fi). Si no pueden entrar, aviso rojo en el Panel con
+  **Permitir teléfonos**: pide permiso de administrador (UAC), quita los bloqueos
+  de StageMaster y abre TCP 3000-3005 y UDP 41234 SOLO a la subred local, en
+  cualquier tipo de red. Probado en Windows real en CI.
+- Página del árbitro más ligera: compresión (módulo `compression` de Express),
+  caché con revalidación, cliente Socket.IO minificado y texto visible al momento
+  (font-display swap solo en el teléfono). 1ª visita 372 → 274 KB; siguientes
+  334 → 4 KB. El logo PNG (123 KB) se deja tal cual: comprimirlo cambiaba la marca.

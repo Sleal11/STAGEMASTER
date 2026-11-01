@@ -36,6 +36,7 @@ const {
 
 const { createScreenWindows } = require('./screenWindows');
 const displayModes = require('./displayModes');
+const firewall = require('./firewall');
 const mode = require('./mode');
 const { getBuildInfo, describeBuild } = require('../server/core/buildInfo');
 
@@ -244,6 +245,23 @@ async function revertPendingMode() {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// RED: ¿PUEDEN CONECTARSE LOS TELÉFONOS? (solo Windows; ver firewall.js)
+// ─────────────────────────────────────────────────────────────────
+
+let networkCheck = null;   // último diagnóstico: { ok, rule, blocked, publicNetwork, wifi, checkedAt }
+
+async function checkNetwork() {
+  if (!firewall.supported()) return;
+  try {
+    networkCheck = { ...(await firewall.status()), checkedAt: Date.now() };
+  } catch (err) {
+    console.warn('[Escritorio] No se pudo comprobar el firewall:', err.message);
+    networkCheck = { ok: null, error: err.message, checkedAt: Date.now() };
+  }
+  listeners.forEach((listener) => listener());
+}
+
+// ─────────────────────────────────────────────────────────────────
 // ADAPTADOR PARA EL SERVIDOR (la estación lo usa por Socket.IO)
 // ─────────────────────────────────────────────────────────────────
 
@@ -258,10 +276,28 @@ const desktopAdapter = {
       ...screenWindows.getState(),
       adsFolder: adsDir,
       canUseAsRemote: true,
+      network: firewall.supported() ? networkCheck : null,
       displayModes: displayModes.supported() ? {
         pending: pendingMode && { screenId: pendingMode.screenId, label: pendingMode.label, next: pendingMode.next, previous: pendingMode.previous, revertAt: pendingMode.revertAt },
       } : null,
     };
+  },
+
+  /** Vuelve a comprobar si los teléfonos pueden conectarse */
+  async checkNetwork() {
+    await checkNetwork();
+  },
+
+  /** «Permitir teléfonos»: Windows pide permiso de administrador y se ajusta el firewall */
+  async allowPhones() {
+    try {
+      await firewall.allow();
+    } catch (err) {
+      const { appError } = require('../server/core/errors');
+      throw appError('FIREWALL', err.message);
+    } finally {
+      await checkNetwork();
+    }
   },
 
   /** Modos (ancho × alto @ Hz) que admite el monitor de una pantalla */
@@ -378,6 +414,9 @@ async function start() {
 
   openStationWindow();
   screenWindows.applyLayout();
+  // ¿Podrán entrar los teléfonos? (al arrancar y cada 2 minutos: la red puede cambiar)
+  checkNetwork();
+  setInterval(checkNetwork, 2 * 60 * 1000).unref();
 
   // Monitores conectados/desconectados en caliente
   let layoutTimer = null;

@@ -145,16 +145,18 @@ code   { color: var(--st-soft); font-size: 0.9em; }
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
 }
 
-.st-brand { display: flex; align-items: center; gap: 16px; }
+.st-brand { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
 
 .st-logo {
   --logo-height: 44px;
+  flex-shrink: 0;   /* el logo nunca se aplasta aunque falte espacio en la barra */
   font-family: var(--font-score);
   font-weight: 700;
   font-size: 1.6rem;
   color: #FFFFFF;
 }
 .st-logo span { color: var(--st-accent); }
+.st-logo .brand-logo-img { max-width: none; }
 
 .st-title {
   padding-left: 16px;
@@ -675,7 +677,7 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
 /* ─────────────────────────────────────────────────────────────────
    SECCIONES: Panel ↔ Historial
    ───────────────────────────────────────────────────────────────── */
-.st-views { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--st-inset); }
+.st-views { flex-shrink: 0; display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--st-inset); }
 .st-view-tab {
   display: inline-flex;
   align-items: center;
@@ -690,6 +692,7 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
+.st-view-tab { white-space: nowrap; }   /* «En vivo» en una sola línea */
 .st-view-tab .icon { width: 18px; height: 18px; }
 .st-view-tab:hover:not(.is-active) { background: rgba(143, 211, 255, 0.1); color: #FFFFFF; }
 .st-view-tab.is-active { background: var(--st-accent); color: #04122B; }
@@ -896,3 +899,17 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
 .live-warn { display: inline-flex; gap: 6px; color: #FCD34D; }
 .live-warn .icon { color: var(--st-warn) !important; }
 .live-actions { display: flex; gap: 8px; padding: 0 14px 14px; margin-top: auto; }
+
+/* Junto al QR: Wi-Fi del portátil y dirección para escribirla a mano */
+.st-access-hint { display: inline-flex; align-items: flex-start; gap: 6px; font-size: 0.8rem; color: var(--st-muted); line-height: 1.4; }
+.st-access-hint .icon { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; color: var(--st-accent); }
+.st-access-hint strong { color: var(--st-soft); }
+.st-access-hint.is-bad, .st-access-hint.is-bad .icon { color: #FCA5A5; }
+
+/* Aviso del firewall de Windows (teléfonos que no conectan) */
+#st-phones-alert:empty { display: none; }
+.st-phones-alert { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 22px; padding: 14px 16px;
+  border-radius: 12px; background: #3A1214; border: 2px solid var(--st-bad); }
+.st-phones-alert > .icon { width: 24px; height: 24px; color: #FCA5A5; flex-shrink: 0; }
+.st-phones-alert-text { flex: 1 1 360px; line-height: 1.5; font-size: 0.92rem; color: #FDE2E2; }
+.st-phones-alert-actions { display: flex; gap: 8px; flex-wrap: wrap; }

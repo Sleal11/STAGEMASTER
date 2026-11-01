@@ -64,6 +64,8 @@
   <div id="st-blocked" class="st-blocked hidden"></div>
 
   <main id="view-panel" class="st-main">
+    <!-- Aviso: el firewall de Windows no deja entrar a los teléfonos (main.js) -->
+    <div id="st-phones-alert"></div>
     <section class="st-section">
       <div class="st-section-head">
         <h2 class="st-section-title">Partidos</h2>
@@ -244,7 +246,7 @@
     <div class="st-upload-track"><div class="st-upload-bar" data-part="bar"></div></div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="/socket.io/socket.io.min.js"></script>
   <script type="module" src="js/station/main.js"></script>
 </body>
 </html>
