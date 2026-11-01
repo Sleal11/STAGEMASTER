@@ -45,7 +45,7 @@ en **otros portátiles** de la red, con marcador, cinta publicitaria y vídeos,
 | **Subir fotos y vídeos** (botón o arrastrar desde el Explorador) y borrarlos | Pestañas *Cinta* y *Lista de reproducción* |
 | **Publicidad al terminar el partido** (activable, tras X s de resultado) y **en la pausa** (vuelve al marcador al reanudar) | Pestaña *Contenido* |
 | **Añadir / quitar pantallas** (hasta 8) y **espejos** (igual que otra pantalla, con salida propia) | Sección *Pantallas* · pestaña *Contenido* |
-| **Formato de salida**: monitor completo, LED XL 832×416, LED pequeño 416×208 o **personalizado** (guardable con nombre), con posición; **brillo de la imagen** | Pestaña *Salida* |
+| **Formato de salida**: monitor completo o **personalizado** con el tamaño exacto de la LED (ej. 832×416, 416×208; guardable con nombre), con posición; **brillo de la imagen** | Pestaña *Salida* |
 | **Diagnóstico del monitor** (px reales, Hz, escalado) y **cambiar su resolución** con vuelta automática (Windows) | Pestaña *Salida* |
 | **Portátiles remotos**: pantallas en otro portátil por la red (código de enlace) | Sección *Portátiles remotos* |
 | **Historial de partidos**: buscar por día, rango, pista o jugador; detalle; exportar CSV | Pestaña *Historial* |
@@ -84,7 +84,7 @@ También queda en **Actions** → la ejecución → **Artifacts** → `StageMast
 | `npm run test:desktop` | Qué pantalla va en qué monitor (conectar/desconectar monitores) |
 | `npm run test:integration` | Servidor real + estación + 2 teléfonos + pantallas virtuales: reproductor, publicidad final y en la pausa, historial, varias pantallas y espejos, portátil remoto por la IP de red, resoluciones, QR, escritorio |
 | `node desktop/displayModes.win.test.js` | Resoluciones de Windows en un Windows real (se ejecuta en GitHub Actions) |
-| `npm run test:e2e` | Navegador y aplicación de escritorio reales (Playwright + Electron): historial, pausa, brillo, pantallas/espejos, formatos, matriz visual 4 formatos × 5 estados, partido completo desde el teléfono, modo principal y portátil remoto. Requiere Chromium de Playwright y `node node_modules/electron/install.js`; en Linux sin escritorio, Xvfb |
+| `npm run test:e2e` | Navegador y aplicación de escritorio reales (Playwright + Electron): historial, pausa, brillo, pantallas/espejos, formatos, detalles de la estación (diálogo de resolución, avisos), matriz visual 4 formatos × 6 estados, partido completo desde el teléfono, modo principal y portátil remoto. Requiere Chromium de Playwright y `node node_modules/electron/install.js`; en Linux sin escritorio, Xvfb |
 
 ---
 

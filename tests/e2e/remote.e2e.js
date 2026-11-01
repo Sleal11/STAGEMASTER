@@ -97,7 +97,9 @@ const score = (page) => page.evaluate(() =>
     await ui.screenshot({ path: `${H.OUT}/remoto-control.png` });
 
     // ── Corte del principal: la imagen se mantiene y se reconecta sola ──
-    // (a partir de aquí el navegador avisa en consola de los fallos de red provocados)
+    // (a partir de aquí el navegador avisa en consola de los fallos de red provocados;
+    // al volver el servidor, la sesión anterior ya no existe: responde 400 y la
+    // pantalla se reconecta con una nueva, que es lo que se comprueba después)
     const realErrors = errors.filter((e) => !SANDBOX_WS.test(e));
     const mark = errors.length;
     const before = await score(D);
@@ -122,7 +124,7 @@ const score = (page) => page.evaluate(() =>
       (await ui.textContent('#rm-pair-msg')).includes('desvincul'));
     st2.close();
     T.check('Sin errores de JavaScript (antes del corte provocado)', realErrors.length === 0, realErrors.join(' | '));
-    const unexpected = errors.slice(mark).filter((e) => !/ERR_CONNECTION_REFUSED|WebSocket connection|ERR_CONNECTION_RESET/.test(e));
+    const unexpected = errors.slice(mark).filter((e) => !/ERR_CONNECTION_REFUSED|WebSocket connection|ERR_CONNECTION_RESET|status of 400 \(Bad Request\)/.test(e));
     T.check('Durante el corte, solo avisos de red (ningún error de la aplicación)', unexpected.length === 0, unexpected.join(' | '));
   } catch (err) {
     T.check('La prueba se completa sin excepciones', false, err.message.split('\n')[0]);

@@ -1,8 +1,8 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.3.0**, commit `822939e`,
-rama `claude/nice-pasteur-wbpgdz`.
+compactación de la conversación). Estado: **versión 2.3.1** (2.3.0 + primera
+ronda de retoques estéticos, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
 ## 1. Qué es
 
@@ -30,7 +30,8 @@ frameworks (módulos ES), archivos JSON/JSONL con escritura atómica.
 - **No pasar a `main`** hasta el análisis profundo final del proyecto.
 - Cada push publica el exe de prueba (enlace fijo):
   https://github.com/Sleal11/STAGEMASTER/releases/download/prueba/StageMaster-prueba.exe
-  Comprobar en la estación que se ve la versión y el commit nuevos.
+  La versión ya no se muestra en la interfaz (por estética): se comprueba
+  pasando el ratón por el logo de la estación o al final de la Ayuda.
 - Santiago actualiza con **`git pull` + `npm run app`** en Antigravity. No debe
   usar Commit/Push/Sync. Los exe descargados van **fuera** de la carpeta del
   proyecto (un commit accidental con el exe de 112 MB bloqueó el Sync).
@@ -53,7 +54,9 @@ frameworks (módulos ES), archivos JSON/JSONL con escritura atómica.
 - Logo: `public/img/logo-stagemaster.png` (respaldo: texto STAGE**MASTER**).
 - Iconos SVG propios en `public/img/icons.svg` (sprite, estilo Lucide).
 - Pantalla en unidades de contenedor (cqh/cqw): mismo diseño en monitor
-  completo y en LED **XL 832×416** y **pequeña 416×208** (formato pequeño =
+  completo y en LED **XL 832×416** y **pequeña 416×208**. En la estación el
+  formato es «Monitor completo», «Personalizado» (ancho × alto) o uno guardado;
+  LED XL / pequeño siguen existiendo en el servidor por compatibilidad (formato pequeño =
   altura ≤ 300 px: sin títulos de columna, números más grandes).
 - Composición actual: cabecera (logo · **sets** «SET 1 6-3 · SET 2 EN JUEGO» ·
   indicador · pista) / marcador (2 filas: nombres, sets, games, puntos) /
@@ -101,7 +104,7 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 | Comando | Contenido |
 |---|---|
 | `npm test` | Motor 55 · núcleo 73 · monitores 14 · integración 43 |
-| `npm run test:e2e` | 9 conjuntos, 192 comprobaciones con Chromium y Electron reales: history, pause, brightness, screens, formats, layout (matriz 4 formatos × 5 estados), phone (partido completo), desktop, remote |
+| `npm run test:e2e` | 10 conjuntos, 234 comprobaciones con Chromium y Electron reales: history, pause, brightness, screens, formats, station-ui (versión oculta, formatos, diálogo de resolución, avisos), layout (matriz 4 formatos × 6 estados, incluido «GANADOR»), phone (partido completo), desktop, remote |
 | CI (`.github/workflows/stagemaster-windows.yml`) | En Windows: `npm test`, `desktop/displayModes.win.test.js` (resoluciones reales, sin cambiar la pantalla), compilación y publicación del exe |
 
 Notas del entorno de pruebas en la nube: Electron se descarga con
@@ -125,3 +128,21 @@ en `tests/e2e/out/` (no se suben); `out/matriz/` tiene la matriz visual actual.
   sin guardar y vuelta automática; nunca en la pantalla de la estación.
 - El undo del teléfono pide doble toque; un set necesita 2 games de diferencia
   (con «1 game por set», 1-0 no cierra el set).
+
+## 8. Retoques estéticos (rondas pedidas por Santiago)
+
+Ronda 1 (versión 2.3.1):
+1. «GANADOR» cabe entre las dos filas (separador 8cqh, etiqueta 5cqh); la matriz
+   visual lo comprueba en todos los formatos.
+2. Sin números de versión en la interfaz (cabecera de la estación, «v351» de
+   los partidos, ventana del portátil remoto). Se consultan pasando el ratón por
+   el logo o al final de la Ayuda.
+3. Formato: solo «Monitor completo», guardados y «Personalizado». LED XL /
+   pequeño siguen en el servidor (compatibilidad) y se muestran como
+   personalizado con el mismo tamaño.
+4. Diálogo de resolución: X en la esquina (sin «Cancelar»), la resolución elegida
+   resaltada con marca y repetida junto a «Probar»; barras de desplazamiento
+   oscuras; las pestañas ya no muestran la barra blanca (pasan a otra línea si no caben).
+5. Los avisos amarillos de las pantallas se ocultan solos a los 10 s y vuelven
+   a salir si el problema desaparece y reaparece. (Los mensajes flotantes ya
+   desaparecían solos: 4 s, errores 6 s.)

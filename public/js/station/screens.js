@@ -222,7 +222,44 @@ function warningsHtml(screen) {
   if (screen.endAds.enabled && playableCount(screen) === 0) {
     warnings.push('Publicidad al terminar activada, pero la lista de reproducción está vacía: al terminar se seguirá viendo el resultado.');
   }
-  return warnings.map((w) => `<div class="st-warning">${icon('alert')}<span>${w}</span></div>`).join('');
+  return visibleWarnings(screen.id, warnings)
+    .map(({ text, leaving }) => `<div class="st-warning${leaving ? ' is-leaving' : ''}">${icon('alert')}<span>${text}</span></div>`).join('');
+}
+
+// ── Avisos que se ocultan solos ──────────────────────────────────
+// Cada aviso se ve WARNING_MS y se desvanece. Si deja de aplicarse y más tarde
+// vuelve (o aparece otro distinto), se muestra de nuevo.
+const WARNING_MS = 10000;
+const FADE_MS    = 600;
+const warningSince = new Map();   // 'pantalla|texto' → cuándo apareció
+let warningTimer = null;
+
+function visibleWarnings(screenId, texts) {
+  const now = Date.now();
+  const prefix = screenId + '|';
+  const current = new Set(texts.map((t) => prefix + t));
+  [...warningSince.keys()].forEach((key) => {
+    if (key.startsWith(prefix) && !current.has(key)) warningSince.delete(key);
+  });
+  const visible = [];
+  texts.forEach((text) => {
+    const key = prefix + text;
+    if (!warningSince.has(key)) warningSince.set(key, now);
+    const age = now - warningSince.get(key);
+    if (age < WARNING_MS) visible.push({ text, leaving: age >= WARNING_MS - FADE_MS });
+  });
+  scheduleWarningRedraw(now);
+  return visible;
+}
+
+/** Vuelve a dibujar justo cuando un aviso debe empezar a desvanecerse o desaparecer */
+function scheduleWarningRedraw(now) {
+  const next = [...warningSince.values()]
+    .flatMap((since) => [since + WARNING_MS - FADE_MS, since + WARNING_MS])
+    .filter((t) => t > now)
+    .sort((a, b) => a - b)[0];
+  clearTimeout(warningTimer);
+  if (next) warningTimer = setTimeout(() => { if (ctx.state) renderScreens(ctx.state); }, next - now + 20);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -351,11 +388,15 @@ function outputPanel(screen, state) {
     monitor = field('Monitor', `<span class="muted">Abre <code>/score.html?pantalla=${screen.id.replace('pantalla-', '')}</code> en el monitor y pulsa F11.</span>`);
   }
 
-  const { format } = screen.output;
+  // Formatos: monitor completo, guardados y personalizado. Los fijos LED XL / pequeño
+  // ya no se ofrecen (con «Personalizado» no hacen falta): una pantalla que los
+  // usa se muestra como personalizada con su mismo tamaño
+  const isFixedLed = (id) => state.outputFormats.some((f) => f.id === id && !f.saved && f.width);
+  const format = isFixedLed(screen.output.format) ? 'custom' : screen.output.format;
   const fixed = format !== 'fill';
   const saved = state.outputFormats.filter((f) => f.saved);
   const option = (f) => `<option value="${esc(f.id)}"${f.id === format ? ' selected' : ''}>${esc(f.label)}</option>`;
-  const formats = state.outputFormats.filter((f) => !f.saved && f.id !== 'custom').map(option).join('') +
+  const formats = state.outputFormats.filter((f) => !f.saved && f.id !== 'custom' && !f.width).map(option).join('') +
     (saved.length ? `<optgroup label="Guardados">${saved.map(option).join('')}</optgroup>` : '') +
     option(state.outputFormats.find((f) => f.id === 'custom'));
   const preset = saved.find((f) => f.id === format);
@@ -375,7 +416,7 @@ function outputPanel(screen, state) {
       `${number('outputW', screen.id, screen.output.width, state.limits.width, '')} × ${number('outputH', screen.id, screen.output.height, state.limits.height, 'píxeles')}` +
       `<div class="st-save-format"><input class="input" type="text" maxlength="40" placeholder="Nombre (ej. LED pista central)" data-role="formatName" data-screen="${screen.id}">` +
       `<button type="button" class="btn btn-secondary btn-sm" data-action="saveFormat" data-screen="${screen.id}">${icon('check')}Guardar formato</button></div>`,
-    'Ancho × alto de la pantalla LED. Guárdalo con un nombre para usarlo en otras pantallas.') : '') +
+    'Ancho × alto de la pantalla LED (ej. 832 × 416 o 416 × 208). Guárdalo con un nombre para usarlo en otras pantallas.') : '') +
     (fixed ? field('Posición', `X ${number('outputX', screen.id, screen.output.x, state.limits.offset, '')}` +
       ` Y ${number('outputY', screen.id, screen.output.y, state.limits.offset, 'píxeles')}`,
     'Píxel del monitor donde empieza la pantalla LED (normalmente 0, 0).') : '');
@@ -540,20 +581,37 @@ function openModesDialog(screen, button) {
     document.getElementById('dlg-modes-title').textContent = `Resolución de ${res.monitor}`;
     document.getElementById('dlg-modes-sub').textContent =
       `${res.name || 'Monitor'}${res.adapter ? ' · ' + res.adapter : ''} · ahora ${res.current.width} × ${res.current.height} · ${res.current.hz} Hz`;
-    document.getElementById('dlg-modes-list').innerHTML = res.modes.map((m, i) =>
+    const list = document.getElementById('dlg-modes-list');
+    list.innerHTML = res.modes.map((m, i) =>
       `<label class="st-mode"><input type="radio" name="mode" value="${i}"${same(m) ? ' checked' : ''}>` +
-      `<span>${m.width} × ${m.height}</span><span class="muted">${m.hz} Hz</span>` +
+      `<span class="st-mode-check" aria-hidden="true">${icon('check')}</span>` +
+      `<span class="st-mode-size">${m.width} × ${m.height}</span><span class="muted">${m.hz} Hz</span>` +
       `${same(m) ? '<span class="pill">Actual</span>' : ''}${m.width === 1920 && m.height === 1080 && m.hz === 60 ? '<span class="pill info">Recomendado para LED</span>' : ''}</label>`).join('');
     const ok = document.getElementById('dlg-modes-ok');
-    const close = () => { ok.onclick = null; dialog.close(); };
-    document.getElementById('dlg-modes-cancel').onclick = close;
+    const choice = document.getElementById('dlg-modes-choice');
+    const selected = () => {
+      const checked = list.querySelector('input[name="mode"]:checked');
+      return checked && res.modes[Number(checked.value)];
+    };
+    // La elegida se resalta en la lista y se repite junto a «Probar»
+    const showChoice = () => {
+      const mode = selected();
+      choice.textContent = !mode ? '' : same(mode) ? 'Elegida: la actual' : `Elegida: ${mode.width} × ${mode.height} · ${mode.hz} Hz`;
+      ok.disabled = !mode || same(mode);
+    };
+    list.onchange = showChoice;
+    showChoice();
+    const close = () => { ok.onclick = null; list.onchange = null; dialog.close(); };
+    document.getElementById('dlg-modes-close').onclick = close;
     ok.onclick = () => {
-      const checked = dialog.querySelector('input[name="mode"]:checked');
-      const mode = checked && res.modes[Number(checked.value)];
+      const mode = selected();
       if (!mode || same(mode)) { close(); return; }
       send('station:applyMode', { screenId: screen.id, mode }, ok).then((r) => { if (r.ok) close(); });
     };
+    // La actual, visible al abrir (la lista puede ser larga)
+    const current = list.querySelector('input:checked');
     dialog.showModal();
+    if (current) current.closest('.st-mode').scrollIntoView({ block: 'center' });
   });
 }
 

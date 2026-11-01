@@ -31,8 +31,8 @@
 3. [ ] Abrir **StageMaster**. Las pantallas se abren solas en los monitores externos.
 4. [ ] En la estación, **Identificar** cada pantalla. Si alguna está en el monitor
        equivocado, cambiarla en **Salida → Monitor**.
-5. [ ] Pantallas LED: en **Salida → Formato** elegir **LED XL 832 × 416** o **LED pequeño
-       416 × 208** y comprobar con **Identificar** que la LED muestra el tamaño correcto.
+5. [ ] Pantallas LED: en **Salida → Formato** elegir **Personalizado** con el tamaño de la LED
+       (ej. 832 × 416 o 416 × 208; o un formato guardado) y comprobar con **Identificar** que la LED muestra el tamaño correcto.
 6. [ ] **Configurar partido** en cada pista; en cada pantalla elegir su partido,
        la **Cinta** y la **Lista de reproducción**.
 7. [ ] Decidir la **publicidad en la pausa** y **al terminar el partido** (pestaña Contenido).

@@ -56,8 +56,9 @@ function connectToServer() {
 
 function render(state) {
   $('st-open-ads').classList.toggle('hidden', !state.desktop);
-  // Versión que está funcionando: para comprobar que es la última de prueba
-  $('st-build').textContent = `v${state.build.version} · ${state.build.commit}`;
+  // Versión que está funcionando: no se muestra (estética); se ve al pasar el
+  // ratón por el logo y al final de la Ayuda, para comprobar que es la última
+  document.querySelector('.st-brand').title = `StageMaster ${state.build.version} · ${state.build.commit}`;
   renderNetwork(state.network);
   renderMatches(state);
   renderScreens(state);

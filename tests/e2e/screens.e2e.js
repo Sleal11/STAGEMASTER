@@ -66,7 +66,16 @@ const score = (page) => page.evaluate(() =>
 
     // Formato propio del espejo
     await S.click('[data-screen-card="pantalla-3"] [data-tab="output"]');
-    await S.selectOption('[data-screen-card="pantalla-3"] select[data-action="format"]', 'led-sm');
+    // Formato propio: Personalizado 416 × 208 (tamaño de una LED pequeña)
+    const c3 = '[data-screen-card="pantalla-3"]';
+    await S.selectOption(`${c3} select[data-action="format"]`, 'custom');
+    await S.waitForSelector(`${c3} input[data-action="outputW"]`);
+    await S.fill(`${c3} input[data-action="outputW"]`, '416');
+    await S.press(`${c3} input[data-action="outputW"]`, 'Tab');
+    await H.waitFor(() => st.state.screens.find((x) => x.id === 'pantalla-3').output.width === 416, 'ancho 416');
+    await S.fill(`${c3} input[data-action="outputH"]`, '208');
+    await S.press(`${c3} input[data-action="outputH"]`, 'Tab');
+    await H.waitFor(() => st.state.screens.find((x) => x.id === 'pantalla-3').output.height === 208, 'alto 208');
     await D3.waitForFunction(() => document.body.classList.contains('is-led'));
     const box3 = await D3.$eval('#output', (el) => [el.clientWidth, el.clientHeight].join('x'));
     T.check('El espejo tiene su propio formato (416 × 208) y el origen no cambia',

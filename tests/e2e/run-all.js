@@ -14,7 +14,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const SUITES = ['history', 'pause', 'brightness', 'screens', 'formats', 'layout', 'phone', 'desktop', 'remote'];
+const SUITES = ['history', 'pause', 'brightness', 'screens', 'formats', 'station-ui', 'layout', 'phone', 'desktop', 'remote'];
 
 const results = SUITES.map((name) => {
   const started = Date.now();
@@ -22,7 +22,7 @@ const results = SUITES.map((name) => {
   const output = (run.stdout || '') + (run.stderr || '');
   const total = (output.match(/TOTAL: .*/) || ['sin resumen'])[0];
   const ok = run.status === 0;
-  console.log(`${ok ? '✅' : '❌'}  ${name.padEnd(11)} ${total}  (${Math.round((Date.now() - started) / 1000)} s)`);
+  console.log(`${ok ? '✅' : '❌'}  ${name.padEnd(12)} ${total}  (${Math.round((Date.now() - started) / 1000)} s)`);
   if (!ok) console.log(output.split('\n').filter((l) => l.includes('❌')).map((l) => '      ' + l.trim()).join('\n'));
   return ok;
 });

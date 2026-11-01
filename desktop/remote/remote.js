@@ -18,7 +18,8 @@
 
   function render(state) {
     current = state;
-    $('rm-build').textContent = state.build ? 'v' + state.build.version : '';
+    // Versión: no se muestra; se ve al pasar el ratón por el logo
+    $('rm-brand').title = state.build ? `StageMaster ${state.build.version} · ${state.build.commit}` : '';
     const connected = state.status === 'connected';
     $('rm-dot').className = 'dot ' + (connected ? 'ok' : state.paired ? 'warn' : '');
     $('rm-conn').textContent = {
@@ -43,7 +44,7 @@
       found.innerHTML = state.discovered.map((s) => {
         const active = chosen && chosen.address === s.address && chosen.port === s.port;
         return `<button type="button" class="btn btn-secondary${active ? ' is-active' : ''}" data-address="${esc(s.address)}" data-port="${s.port}">` +
-          `StageMaster en «${esc(s.name)}» · ${esc(s.address)}:${s.port}${s.version ? ' · v' + esc(s.version) : ''}</button>`;
+          `StageMaster en «${esc(s.name)}» · ${esc(s.address)}:${s.port}</button>`;
       }).join('');
       // Un solo principal en la red: elegido directamente
       if (!chosen && state.discovered.length === 1 && !$('rm-address').value) {

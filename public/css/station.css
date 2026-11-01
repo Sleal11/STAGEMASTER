@@ -165,14 +165,6 @@ code   { color: var(--st-soft); font-size: 0.9em; }
   white-space: nowrap;
 }
 
-.st-build {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--st-muted);
-}
 
 .st-network {
   flex: 1;
@@ -402,6 +394,9 @@ details.st-backup .st-actions { margin-top: 10px; }
   border: 1px solid rgba(245, 158, 11, 0.7);
   font-size: 0.85rem;
 }
+.st-warning { animation: fadeIn 300ms ease; }
+.st-warning.is-leaving { animation: stWarningOut 600ms ease forwards; }   /* se oculta solo a los 10 s (screens.js) */
+@keyframes stWarningOut { from { opacity: 1; } to { opacity: 0; } }
 .st-warning .icon { width: 16px; height: 16px; color: var(--st-warn); flex-shrink: 0; margin-top: 1px; }
 [data-part="warnings"] { display: flex; flex-direction: column; gap: 8px; }
 [data-part="warnings"]:empty { display: none; }
@@ -409,8 +404,8 @@ details.st-backup .st-actions { margin-top: 10px; }
 /* ── Pestañas ───────────────────────────────────────────────────── */
 .tabs {
   display: flex;
+  flex-wrap: wrap;   /* si no caben en una línea, pasan a la siguiente (sin barra de desplazamiento) */
   gap: 2px;
-  overflow-x: auto;
   border-bottom: 1px solid var(--st-border);
 }
 
@@ -835,7 +830,32 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
 .st-monitor-facts .hint .icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; color: var(--st-warn); }
 .st-mode-pending { flex-wrap: wrap; }
 .st-mode-actions { display: flex; gap: 8px; margin-left: auto; }
-.st-mode-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; margin: 12px 0; }
-.st-mode { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; background: var(--st-inset); cursor: pointer; }
+.st-mode-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; margin: 12px 0; padding-right: 4px; }
+.st-mode-list:focus, .st-mode-list:focus-visible { outline: none; }
+.st-mode { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; background: var(--st-inset);
+  border: 2px solid transparent; cursor: pointer; transition: background 120ms, border-color 120ms; }
 .st-mode:hover { background: #0A1F45; }
-.st-mode > span:first-of-type { font-weight: 700; min-width: 120px; font-variant-numeric: tabular-nums; }
+.st-mode input { position: absolute; opacity: 0; pointer-events: none; }   /* el círculo nativo no se ve bien */
+.st-mode-check { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 22px; height: 22px;
+  border-radius: 50%; border: 2px solid var(--st-border-2); color: transparent; }
+.st-mode-check .icon { width: 14px; height: 14px; }
+.st-mode-size { font-weight: 700; min-width: 120px; font-variant-numeric: tabular-nums; }
+/* La resolución elegida: borde y fondo de acento, con su marca */
+.st-mode:has(input:checked) { background: #133A7A; border-color: var(--st-accent); }
+.st-mode:has(input:checked) .st-mode-check { background: var(--st-accent); border-color: var(--st-accent); color: #04122B; }
+.st-mode:has(input:focus-visible) { outline: 2px solid var(--st-accent); outline-offset: 2px; }
+.st-mode:has(input:checked) .pill.info { background: var(--st-primary); }
+.st-mode-choice { margin-right: auto; align-self: center; font-weight: 600; color: var(--st-soft); }
+
+/* Botón X de cerrar en la esquina de un diálogo */
+.st-dialog { position: relative; }
+.st-dialog-close { position: absolute; top: 14px; right: 14px; display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%; background: transparent; color: var(--st-soft); cursor: pointer;
+  transition: background 120ms, color 120ms; }
+.st-dialog-close:hover { background: rgba(143, 211, 255, 0.14); color: #FFFFFF; }
+.st-dialog-close:focus-visible { outline: 2px solid var(--st-accent); }
+.st-dialog-close .icon { width: 20px; height: 20px; }
+.st-dialog-close + .st-dialog-title { padding-right: 40px; }
+
+/* Barras de desplazamiento oscuras (en Windows salían blancas) */
+.station-body, .station-body * { scrollbar-color: var(--st-border-2) transparent; scrollbar-width: thin; }

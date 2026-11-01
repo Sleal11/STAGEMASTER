@@ -31,7 +31,7 @@
   <header class="st-top">
     <div class="st-brand">
       <div class="st-logo" data-brand-logo>STAGE<span>MASTER</span></div>
-      <div class="st-title">Estación operadora <span id="st-build" class="st-build" title="Versión de StageMaster que está funcionando"></span></div>
+      <div class="st-title">Estación operadora</div>
     </div>
     <nav class="st-views" role="tablist" aria-label="Secciones">
       <button type="button" role="tab" class="st-view-tab is-active" data-view="panel" aria-selected="true">
@@ -192,6 +192,9 @@
 
   <!-- ── Diálogo: resoluciones que admite un monitor (Windows) ───── -->
   <dialog id="dlg-modes" class="st-dialog">
+    <button type="button" id="dlg-modes-close" class="st-dialog-close" aria-label="Cerrar" title="Cerrar">
+      <svg class="icon"><use href="img/icons.svg#close"></use></svg>
+    </button>
     <h3 id="dlg-modes-title" class="st-dialog-title">Resolución del monitor</h3>
     <p id="dlg-modes-sub" class="muted"></p>
     <p class="st-dialog-message">Solo aparecen los modos que el monitor o la tarjeta emisora admiten (su EDID).
@@ -199,7 +202,7 @@
       Para un tamaño que no está en la lista (p. ej. 1920 × 1120) mira «Resoluciones» en la ayuda.</p>
     <div id="dlg-modes-list" class="st-mode-list"></div>
     <div class="st-dialog-actions">
-      <button type="button" id="dlg-modes-cancel" class="btn btn-ghost">Cancelar</button>
+      <span id="dlg-modes-choice" class="st-mode-choice"></span>
       <button type="button" id="dlg-modes-ok" class="btn btn-primary">Probar</button>
     </div>
   </dialog>

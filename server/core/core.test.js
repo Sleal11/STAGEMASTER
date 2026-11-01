@@ -613,7 +613,7 @@ test('La configuración de pantallas se conserva tras reiniciar', () => {
   assert.strictEqual(again.matchId, 'pista-1');
   assert.strictEqual(again.ribbon.motion, 'scroll');
   assert.strictEqual(again.ribbon.speed, 'slow');
-  assert.deepStrictEqual(again.output, { format: 'led-sm', x: 32, y: 0, brightness: 100, width: 832, height: 416 });
+  assert.deepStrictEqual(again.output, { format: 'led-sm', x: 32, y: 0, brightness: 100, width: 416, height: 208 });
   assert.deepStrictEqual(again.endAds, { enabled: true, delay: 20 });
 });
 
@@ -857,9 +857,17 @@ test('Formato personalizado: ancho × alto a mano, validado; la pantalla lo reci
     { format: 'custom', width: 1536, height: 768, x: 10, y: 20, brightness: 100 });
   [{ width: 8 }, { width: 9000 }, { height: 5000 }, { width: 100.5 }, { format: 'f-00000000' }].forEach((output) =>
     assertCode(() => screens.update('pantalla-1', { output }, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG'));
-  // Los formatos fijos no cambian de tamaño aunque la pantalla guarde otro personalizado
+  // Los formatos fijos copian su tamaño: al pasar a personalizado (lo que hace la
+  // estación, que ya no los ofrece por separado) la pantalla queda igual
   screens.update('pantalla-1', { output: { format: 'led-sm' } }, EMPTY_LIBRARY);
   assert.strictEqual(screenConfig.resolveOutput(screens.get('pantalla-1').output).width, 416);
+  screens.update('pantalla-1', { output: { format: 'custom' } }, EMPTY_LIBRARY);
+  assert.deepStrictEqual([screens.get('pantalla-1').output.width, screens.get('pantalla-1').output.height], [416, 208]);
+  // Cambiar el tamaño de un formato fijo lo convierte en personalizado (nunca se ignora el cambio)
+  screens.update('pantalla-1', { output: { format: 'led-xl' } }, EMPTY_LIBRARY);
+  screens.update('pantalla-1', { output: { width: 900 } }, EMPTY_LIBRARY);
+  const out = screenConfig.resolveOutput(screens.get('pantalla-1').output);
+  assert.deepStrictEqual([out.format, out.width, out.height], ['custom', 900, 416]);
 });
 
 test('Formatos guardados: con nombre y validados; elegir uno copia su tamaño; borrarlo deja la pantalla igual', () => {

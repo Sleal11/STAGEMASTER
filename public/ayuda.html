@@ -19,6 +19,7 @@
     table { width: 100%; border-collapse: collapse; margin-top: 6px; }
     td { padding: 8px 10px; border-bottom: 1px solid #1E4F9C; vertical-align: top; color: #DCEBFA; }
     td:first-child { width: 34%; font-weight: 700; color: #fff; }
+    .version { margin-top: 36px; font-size: 0.8rem; color: #7D99BE; text-align: center; }
     .tip { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: #0C2C63; border-left: 4px solid #8FD3FF; }
   </style>
 </head>
@@ -66,7 +67,7 @@
     <tr><td>Contenido</td><td><strong>Origen</strong>: propio o <strong>igual que otra pantalla</strong> (espejo: lo mismo y a la vez, con su propio monitor, formato y brillo; ej. una LED a cada lado de la pista). Qué partido muestra (varias pantallas pueden mostrar el mismo), la <strong>publicidad en la pausa</strong> y la <strong>publicidad al terminar</strong>: al acabar el partido se ve el resultado unos segundos y después la lista de reproducción. Vuelve al marcador con <strong>Volver al marcador</strong>, al empezar otro partido o al deshacer el último punto.</td></tr>
     <tr><td>Cinta</td><td>Activar o quitar la cinta, elegir imágenes, logos (PNG, JPG o SVG; el fondo blanco se quita solo) y vídeos cortos (siempre sin sonido), escribir mensajes (uno por línea y <strong>Aplicar mensajes</strong>) y su movimiento: <strong>cambia cada X segundos</strong> (un vídeo se ve entero) o <strong>desplazamiento continuo</strong> (lenta, normal o rápida).</td></tr>
     <tr><td>Lista de reproducción</td><td>Imágenes y vídeos a pantalla completa (en orden alfabético), segundos de cada imagen y si los vídeos llevan sonido.</td></tr>
-    <tr><td>Salida</td><td>En qué <strong>monitor</strong> se ve (con su resolución real, Hz y escalado), el <strong>brillo de la imagen</strong> y el <strong>formato</strong>: monitor completo, <strong>LED XL 832 × 416</strong>, <strong>LED pequeño 416 × 208</strong> o <strong>personalizado</strong> (ancho × alto, que puedes <strong>guardar</strong> con un nombre), con su posición (normalmente 0, 0). En Windows, <strong>Cambiar resolución del monitor…</strong> ofrece solo los modos que admite; si no pulsas <strong>Mantener</strong> en 15 s, vuelve solo al anterior.</td></tr>
+    <tr><td>Salida</td><td>En qué <strong>monitor</strong> se ve (con su resolución real, Hz y escalado), el <strong>brillo de la imagen</strong> y el <strong>formato</strong>: <strong>monitor completo</strong> o <strong>personalizado</strong> con el tamaño exacto de la LED (ancho × alto, p. ej. 832 × 416 o 416 × 208, que puedes <strong>guardar</strong> con un nombre), con su posición (normalmente 0, 0). En Windows, <strong>Cambiar resolución del monitor…</strong> ofrece solo los modos que admite; si no pulsas <strong>Mantener</strong> en 15 s, vuelve solo al anterior.</td></tr>
   </table>
 
   <h2><svg class="icon"><use href="img/icons.svg#upload"></use></svg>5 · Añadir publicidad (fotos y vídeos)</h2>
@@ -93,13 +94,20 @@
     <tr><td>El teléfono de un árbitro deja de funcionar</td><td>Otro teléfono escanea el QR, escribe el PIN y confirma "reemplazar". O puntúa desde la estación.</td></tr>
     <tr><td>Pantalla "Sin conexión"</td><td>Pulsa <strong>Abrir ventana</strong>.</td></tr>
     <tr><td>Pantalla en el monitor equivocado</td><td>Cámbiala en la pestaña <strong>Salida</strong>. Si eliges el monitor de la otra pantalla, se intercambian.</td></tr>
-    <tr><td>La LED muestra solo una parte o con bordes</td><td>En <strong>Salida</strong>, elige el formato LED (o uno personalizado con su tamaño exacto) y ajusta la posición al píxel donde empieza la LED en el controlador. Si la estación avisa «no cabe en el monitor», revisa el tamaño, la posición o la resolución del monitor.</td></tr>
+    <tr><td>La LED muestra solo una parte o con bordes</td><td>En <strong>Salida</strong>, elige el formato <strong>Personalizado</strong> con su tamaño exacto (o uno guardado) y ajusta la posición al píxel donde empieza la LED en el controlador. Si la estación avisa «no cabe en el monitor», revisa el tamaño, la posición o la resolución del monitor.</td></tr>
     <tr><td>La LED parpadea</td><td>Pon el monitor a <strong>1920 × 1080 a 60 Hz</strong> (Salida → Cambiar resolución del monitor…). Una resolución que no está en la lista (p. ej. 1920 × 1120) hay que crearla antes en la tarjeta emisora o en la tarjeta gráfica.</td></tr>
     <tr><td>Portátil remoto «Reconectando…»</td><td>Revisa el cable o la Wi-Fi y que StageMaster siga abierto en el principal. La red de invitados de un recinto suele aislar los equipos: usa una red propia.</td></tr>
     <tr><td>Un anuncio o vídeo no se ve</td><td>La estación indica cuál y se salta. Usa PNG/JPG y vídeos MP4 (H.264) o WEBM; los .mov del iPhone conviértelos a MP4.</td></tr>
     <tr><td>Se cerró StageMaster o se fue la luz</td><td>Vuelve a abrirlo: partidos, PIN, teléfonos y pantallas se recuperan solos.</td></tr>
     <tr><td>Alguien vio un PIN</td><td><strong>Nuevo PIN</strong> (el teléfono ya vinculado sigue funcionando).</td></tr>
   </table>
+  <p id="version" class="version"></p>
 </main>
+<script>
+  // Versión que está funcionando (para comprobar que es la última); no se muestra en la estación
+  fetch('/health').then((r) => r.json()).then((h) => {
+    document.getElementById('version').textContent = 'StageMaster ' + h.build.version + ' · ' + h.build.commit;
+  }).catch(() => {});
+</script>
 </body>
 </html>

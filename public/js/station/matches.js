@@ -53,7 +53,7 @@ function cardHtml(match) {
   return `
     <header class="st-card-head">
       <span class="st-card-name">${esc(match.label)}</span>
-      <span class="pill ${status.kind}">${status.text}${state ? ` · v${state.version}` : ''}</span>
+      <span class="pill ${status.kind}">${status.text}</span>
     </header>
     <div class="st-card-body">
       ${scoreHtml(state)}

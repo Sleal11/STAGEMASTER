@@ -147,6 +147,7 @@ function normalizeSaved(saved, base) {
     width:  pick(o.width, inRange(LIMITS.width), 832),
     height: pick(o.height, inRange(LIMITS.height), 416),
   };
+  copyFixedSize(config.output);
   config.playback      = pick(saved.playback, oneOf(PLAYBACK), 'playing');
   config.playId        = pick(saved.playId, Number.isInteger, 0);
   config.postMatch     = saved.postMatch && typeof saved.postMatch.key === 'string' &&
@@ -252,19 +253,34 @@ function applyChanges(config, changes, { matchIds, library, formats = [] }) {
       // Formato guardado: la pantalla copia su tamaño (si se borra, sigue igual como personalizado)
       const preset = formats.find((f) => f.id === output.format);
       if (preset) Object.assign(next.output, { width: preset.width, height: preset.height });
+      copyFixedSize(next.output);
     }
     if (output.width  !== undefined) next.output.width  = integer(output.width, LIMITS.width, 'Ancho');
     if (output.height !== undefined) next.output.height = integer(output.height, LIMITS.height, 'Alto');
-    // Cambiar el tamaño a mano de un formato guardado lo convierte en personalizado
-    if ((output.width !== undefined || output.height !== undefined) && PRESET_ID.test(next.output.format)) {
-      const preset = formats.find((f) => f.id === next.output.format);
-      if (!preset || preset.width !== next.output.width || preset.height !== next.output.height) next.output.format = 'custom';
+    // Cambiar el tamaño a mano de un formato guardado o fijo (LED XL / pequeño) lo convierte en personalizado
+    if (output.width !== undefined || output.height !== undefined) {
+      const fixed = OUTPUT_FORMATS[next.output.format];
+      const preset = PRESET_ID.test(next.output.format) && formats.find((f) => f.id === next.output.format);
+      const size = fixed && fixed.width ? fixed : preset;
+      if ((fixed && fixed.width) || PRESET_ID.test(next.output.format)) {
+        if (!size || size.width !== next.output.width || size.height !== next.output.height) next.output.format = 'custom';
+      }
     }
     if (output.x      !== undefined) next.output.x      = integer(output.x, LIMITS.offset, 'Posición X');
     if (output.y      !== undefined) next.output.y      = integer(output.y, LIMITS.offset, 'Posición Y');
     if (output.brightness !== undefined) next.output.brightness = integer(output.brightness, LIMITS.brightness, 'Brillo de la imagen');
   }
   return next;
+}
+
+/**
+ * Los formatos fijos (LED XL / pequeño) copian su tamaño en width/height: así,
+ * al pasar a «Personalizado» (la estación ya no los ofrece por separado), la
+ * pantalla conserva exactamente el mismo tamaño.
+ */
+function copyFixedSize(output) {
+  const fixed = OUTPUT_FORMATS[output.format];
+  if (fixed && fixed.width) Object.assign(output, { width: fixed.width, height: fixed.height });
 }
 
 /**

@@ -31,6 +31,7 @@ const STATES = [
   { name: 'supertb', label: 'Súper tie-break, nombres largos, punto de oro', current: 'SUPER TB', done: 2 },
   { name: 'pausa', label: 'En pausa', current: 'SET 2', done: 1, badge: 'PAUSA' },
   { name: 'final', label: 'Terminado', done: 2, badge: 'FINALIZADO' },
+  { name: 'ganador', label: 'Ganado 2-0 (fila del ganador y «GANADOR»)', done: 2, badge: 'FINALIZADO', winner: true },
 ];
 
 const OUT = path.join(H.OUT, 'matriz');
@@ -72,6 +73,9 @@ fs.mkdirSync(OUT, { recursive: true });
         }
         if (s.badge) T.check(`${tag}: indicador «${s.badge}»`, r.badge.includes(s.badge), r.badge);
         T.check(`${tag}: nada se sale de la caja ni se solapa con el logo`, r.overflow.length === 0, r.overflow.join(', '));
+        if (s.winner && r.label) {
+          T.check(`${tag}: «GANADOR» cabe entre las dos filas (no invade ninguna)`, r.label.fits, r.label.detail);
+        }
         T.check(`${tag}: los nombres caben`, r.namesFit, r.names);
         T.check(`${tag}: cinta ${Math.round(f.ribbon * 100)} % del alto`, Math.abs(r.ribbonRatio - f.ribbon) < 0.012, (r.ribbonRatio * 100).toFixed(1) + ' %');
         await page.screenshot({ path: path.join(OUT, `${f.name}-${s.name}.png`) });
@@ -97,8 +101,9 @@ async function prepare(st, s) {
   const game = async (side) => { for (let i = 0; i < 4; i++) await st.act('pista-1', side === 'A' ? 'pointA' : 'pointB'); };
   for (let set = 0; set < (s.done || 0); set++) {
     // Sets alternos (6-0 para A, 0-6 para B) → súper tie-break en el tercero
-    for (let g = 0; g < 6; g++) await game(set % 2 === 0 ? 'A' : 'B');
+    for (let g = 0; g < 6; g++) await game(set % 2 === 0 || s.winner ? 'A' : 'B');
   }
+  if (s.winner) return;   // 2-0: el partido termina solo
   if (s.name === 'final') {
     await st.act('pista-1', 'finishMatch');
     return;
@@ -129,6 +134,15 @@ function measure() {
   const right = document.querySelector('.d-header-right').getBoundingClientRect();
   chips.forEach((c) => { if (c.rect.right > right.left + 1) overflow.push('chip encima de la pista: ' + c.text); });
   const names = [...document.querySelectorAll('.d-name-line')];
+  const labelEl = document.getElementById('d-divider-label');
+  let label = null;
+  if (labelEl.textContent && getComputedStyle(labelEl).display !== 'none') {
+    const l = labelEl.getBoundingClientRect();
+    const a = document.getElementById('row-a').getBoundingClientRect();
+    const b = document.getElementById('row-b').getBoundingClientRect();
+    label = { fits: l.top >= a.bottom - 0.5 && l.bottom <= b.top + 0.5,
+      detail: `fila 1 acaba en ${a.bottom.toFixed(1)}, etiqueta ${l.top.toFixed(1)}–${l.bottom.toFixed(1)}, fila 2 empieza en ${b.top.toFixed(1)}` };
+  }
   const ribbon = document.getElementById('d-ribbon');
   return {
     chips: chips.map((c) => ({ text: c.text })),
@@ -137,6 +151,7 @@ function measure() {
     overflow,
     namesFit: names.every((n) => n.scrollWidth <= n.clientWidth + 1),
     names: names.map((n) => `${n.textContent} (${n.scrollWidth}/${n.clientWidth})`).join(' · '),
+    label,
     ribbonRatio: ribbon.classList.contains('hidden') ? 0 : ribbon.getBoundingClientRect().height / box.height,
   };
 }
