@@ -151,6 +151,7 @@ function createDevice(nombre, auth, host = 'localhost') {
   socket.on('controllerSession', (s) => { device.session = s; device.revoked = null; });
   socket.on('controllerRevoked', (r) => { device.revoked = r; device.session = null; });
   socket.on('identify', () => { device.identified++; });
+  socket.on('screenRemoved', () => { device.removed = true; });
   socket.on('historyChanged', () => { device.historyChanged = (device.historyChanged || 0) + 1; });
   dispositivos.push(device);
   return device;
@@ -539,6 +540,60 @@ test('Identificar pantalla: solo la elegida recibe la orden', async () => {
   await send(estacion, 'station:identify', { screenId: 'pantalla-2' });
   await waitFor(() => pantalla2.identified === 1, 'identificación de la pantalla 2');
   assert.strictEqual(pantalla1.identified, 0);
+});
+
+test('VARIAS PANTALLAS: añadir una 3ª, hacerla espejo de la 1 (mismo contenido, salida propia) y quitarla', async () => {
+  let res = await send(telefono1, 'station:addScreen', {});
+  assert.strictEqual(res.code, 'FORBIDDEN', 'Un teléfono no puede añadir pantallas');
+  res = await send(estacion, 'station:addScreen', {});
+  assert.ok(res.ok, res.message);
+  assert.strictEqual(res.screenId, 'pantalla-3');
+  await waitFor(() => estacion.stationState.screens.length === 3, 'la estación ve 3 pantallas');
+  const pantalla3 = await connectDisplay(3);
+
+  // Contenido propio: Pista 2. Después, espejo de la Pantalla 1 (Pista 1) con formato LED propio
+  await send(estacion, 'station:updateScreen', { screenId: 'pantalla-3', changes: { matchId: 'pista-2' } });
+  await waitFor(() => pantalla3.screenConfig.matchId === 'pista-2', 'pantalla 3 en la pista 2');
+  res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-3', changes: { mirrorOf: 'pantalla-1', output: { format: 'led-xl' } } });
+  assert.ok(res.ok, res.message);
+  await waitFor(() => pantalla3.screenConfig.matchId === 'pista-1' && pantalla3.states['pista-1'], 'el espejo muestra la pista 1');
+  assert.strictEqual(pantalla3.screenConfig.output.format, 'led-xl');
+  assert.strictEqual(pantalla1.screenConfig.output.format, 'fill', 'La salida del origen no cambia');
+  const state3 = () => estacion.stationState.screens.find((s) => s.id === 'pantalla-3');
+  await waitFor(() => state3().mirrorOf === 'pantalla-1', 'la estación ve el espejo');
+  assert.strictEqual(state3().matchLabel, 'Pista 1');
+
+  // Un punto en la Pista 1 llega al origen y al espejo; la Pista 2 ya no le llega
+  await action(telefono1, 'pista-1', 'pointB');
+  await waitFor(() => pantalla3.states['pista-1'].version === telefono1.states['pista-1'].version &&
+                      pantalla1.states['pista-1'].version === telefono1.states['pista-1'].version, 'origen y espejo al día');
+  const antes = pantalla3.updates['pista-2'] || 0;
+  await action(telefono2, 'pista-2', 'pointB');
+  await sleep(150);
+  assert.strictEqual(pantalla3.updates['pista-2'] || 0, antes);
+
+  // La cinta del origen se ve en el espejo; el espejo no se configura por su cuenta
+  await send(estacion, 'station:updateScreen', { screenId: 'pantalla-1', changes: { ribbon: { texts: ['Gracias a Bar Central'] } } });
+  await waitFor(() => pantalla3.screenConfig.ribbon.texts[0] === 'Gracias a Bar Central', 'cinta en el espejo');
+  res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-3', changes: { ribbon: { texts: ['otra'] } } });
+  assert.strictEqual(res.code, 'INVALID_SCREEN_CONFIG');
+
+  // El reproductor del espejo es el del origen: los dos empiezan la lista a la vez
+  await send(estacion, 'station:media', { screenId: 'pantalla-3', command: 'play' });
+  await waitFor(() => pantalla1.screenConfig.view === 'media' && pantalla3.screenConfig.view === 'media', 'origen y espejo en la lista');
+  assert.strictEqual(pantalla1.screenConfig.media.playId, pantalla3.screenConfig.media.playId);
+  await send(estacion, 'station:media', { screenId: 'pantalla-1', command: 'stop' });
+  await waitFor(() => pantalla3.screenConfig.view === 'score', 'el espejo vuelve al marcador');
+  await send(estacion, 'station:updateScreen', { screenId: 'pantalla-1', changes: { ribbon: { texts: [] } } });
+
+  // Quitar la pantalla 3: su ventana se entera y se desconecta; quedan 2
+  res = await send(estacion, 'station:removeScreen', { screenId: 'pantalla-3' });
+  assert.ok(res.ok, res.message);
+  await waitFor(() => pantalla3.removed && !pantalla3.socket.connected, 'la ventana de la pantalla 3 se apaga');
+  await waitFor(() => estacion.stationState.screens.length === 2, 'la estación ve 2 pantallas');
+  res = await send(estacion, 'station:removeScreen', { screenId: 'pantalla-3' });
+  assert.strictEqual(res.code, 'UNKNOWN_SCREEN');
+  return '3 pantallas · espejo sincronizado · quitada';
 });
 
 test('Sincronización: la estación ve "al día" o "desincronizada" según lo que dibuja cada pantalla', async () => {

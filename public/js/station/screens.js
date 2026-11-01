@@ -5,8 +5,13 @@
  *   Estado      conexión, tamaño real, si el marcador está al día, Identificar
  *   En pantalla Marcador | Publicidad y vídeos, y el reproductor
  *               (Pausar / Reanudar / Detener) con lo que se está viendo
- *   Pestañas    Contenido (partido y publicidad al terminar) · Cinta ·
- *               Lista de reproducción · Salida (monitor y formato LED)
+ *   Pestañas    Contenido (partido, espejo y publicidad automática) · Cinta ·
+ *               Lista de reproducción · Salida (monitor, brillo y formato LED)
+ *   Quitar      (si hay más de una pantalla)
+ *
+ * Un ESPEJO muestra lo mismo que su pantalla origen: sus pestañas de
+ * contenido solo dicen de dónde lo toma; su salida (monitor, formato, brillo)
+ * es propia. El reproductor de un espejo controla el de su origen.
  *
  * Los controles de las pestañas solo se redibujan si cambió su configuración
  * y nunca mientras el moderador está escribiendo en ellos.
@@ -29,17 +34,34 @@ const activeTab = {};   // pantalla → pestaña abierta
 
 export function renderScreens(state) {
   const container = document.getElementById('st-screens');
-  state.screens.forEach((screen) => {
+  // Pantallas quitadas (en esta estación o en otra ventana): fuera su tarjeta
+  container.querySelectorAll('[data-screen-card]').forEach((card) => {
+    if (!state.screens.some((s) => s.id === card.dataset.screenCard)) card.remove();
+  });
+  const addButton = document.getElementById('st-add-screen');
+  if (addButton) addButton.disabled = state.screens.length >= (state.maxScreens || 8);
+
+  state.screens.forEach((screen, index) => {
     let card = container.querySelector(`[data-screen-card="${screen.id}"]`);
     if (!card) {
       card = createCard(screen);
-      container.appendChild(card);
+      // En su sitio (Pantalla 1, 2, 3…), también si se añade una intermedia
+      container.insertBefore(card, container.children[index] || null);
     }
     const match = findMatch(screen.matchId);
+    const source = screen.mirrorOf && findScreen(screen.mirrorOf);
     card.style.setProperty('--court-color', match.color);
     card.querySelector('.st-card-name').textContent = screen.label;
-    card.querySelector('[data-part="chip"]').textContent = 'Muestra ' + screen.matchLabel;
+    const chip = card.querySelector('[data-part="chip"]');
+    chip.textContent = (source ? `Espejo de ${source.label} · ` : 'Muestra ') + screen.matchLabel;
+    chip.classList.toggle('mirror', !!source);
+    patch(card.querySelector('[data-part="remove"]'), state.screens.length > 1
+      ? `<button type="button" class="icon-btn" data-action="removeScreen" data-screen="${screen.id}" title="Quitar ${esc(screen.label)}" aria-label="Quitar ${esc(screen.label)}">${icon('trash')}</button>`
+      : '');
     patch(card.querySelector('[data-part="status"]'), statusHtml(screen));
+    // Botones Marcador / Publicidad aparte: no se redibujan con cada avance de la lista
+    // (un clic justo durante un redibujado se perdería)
+    patch(card.querySelector('[data-part="segment"]'), segmentHtml(screen));
     patch(card.querySelector('[data-part="live"]'), liveHtml(screen));
     patch(card.querySelector('[data-part="warnings"]'), warningsHtml(screen));
 
@@ -60,10 +82,14 @@ function createCard(screen) {
   card.className = 'st-card st-screen';
   card.dataset.screenCard = screen.id;
   card.innerHTML = `
-    <header class="st-card-head"><span class="st-card-name"></span><span class="pill" data-part="chip"></span></header>
+    <header class="st-card-head"><span class="st-card-name"></span>
+      <span class="st-card-tools"><span class="pill" data-part="chip"></span><span data-part="remove"></span></span></header>
     <div class="st-card-body">
       <div data-part="status"></div>
-      <div data-part="live"></div>
+      <div class="st-live">
+        <div class="segmented segmented-lg" role="group" aria-label="Qué se ve en la pantalla" data-part="segment"></div>
+        <div data-part="live"></div>
+      </div>
       <div class="tabs" role="tablist">
         ${TABS.map((t) => `<button type="button" role="tab" class="tab" data-tab="${t.id}" data-screen="${screen.id}">${icon(t.icon)}${t.label}</button>`).join('')}
       </div>
@@ -117,8 +143,6 @@ function liveHtml(screen) {
   const hasList   = playableCount(screen) > 0;
   const showsAt   = postMatch ? postMatch.since + screen.endAds.delay * 1000 : 0;
   const mediaOn   = media || (postMatch && serverNow() >= showsAt);
-  const segment = (view, iconName, text) =>
-    `<button type="button" class="${screen.view === view && !postMatch && !pause ? 'is-active' : ''}" data-action="view" data-view="${view}" data-screen="${screen.id}">${icon(iconName)}${text}</button>`;
   const btn = (command, iconName, text, cls) =>
     `<button type="button" class="btn ${cls} btn-sm" data-action="media" data-command="${command}" data-screen="${screen.id}">${icon(iconName)}${text}</button>`;
 
@@ -144,12 +168,15 @@ function liveHtml(screen) {
       ' Vuelve al marcador al empezar otro partido o al deshacer el último punto.</span></div>';
   }
 
-  return `<div class="st-live">
-      <div class="segmented segmented-lg" role="group" aria-label="Qué se ve en la pantalla">
-        ${segment('score', 'scoreboard', 'Marcador')}${segment('media', 'list', 'Publicidad y vídeos')}
-      </div>
-      ${banner}${transport}
-    </div>`;
+  return banner + transport;
+}
+
+/** Marcador | Publicidad y vídeos (ninguno resaltado durante la publicidad automática) */
+function segmentHtml(screen) {
+  const none = !!screen.postMatch || (!!screen.pauseMedia && screen.view !== 'media');
+  const segment = (view, iconName, text) =>
+    `<button type="button" class="${screen.view === view && !none ? 'is-active' : ''}" data-action="view" data-view="${view}" data-screen="${screen.id}">${icon(iconName)}${text}</button>`;
+  return segment('score', 'scoreboard', 'Marcador') + segment('media', 'list', 'Publicidad y vídeos');
 }
 
 function nowPlaying(screen, playing, hasList, afterMatch) {
@@ -188,6 +215,7 @@ function warningsHtml(screen) {
 // ─────────────────────────────────────────────────────────────────
 
 function panelHtml(tab, screen, state) {
+  if (screen.mirrorOf && tab !== 'output') return mirrorPanel(tab, screen, state);
   switch (tab) {
     case 'ribbon': return ribbonPanel(screen, state);
     case 'media':  return mediaPanel(screen, state);
@@ -206,10 +234,37 @@ const toggle = (action, screenId, checked, text) =>
 const number = (action, screenId, value, [min, max], suffix) =>
   `<input class="input input-number" type="number" min="${min}" max="${max}" value="${value}" data-action="${action}" data-screen="${screenId}"> ${suffix}`;
 
+/**
+ * "Contenido": propio o igual que otra pantalla. Solo se ofrecen pantallas
+ * originales (sin cadenas); una pantalla con espejos no puede ser espejo.
+ */
+function mirrorField(screen, state) {
+  const mirrors = state.screens.filter((s) => s.mirrorOf === screen.id);
+  if (mirrors.length) {
+    return field('Origen', `<span class="muted">${icon('mirror')} Propio · ${esc(mirrors.map((m) => m.label).join(', '))} ` +
+      `${mirrors.length > 1 ? 'son espejos' : 'es espejo'} de esta pantalla</span>`);
+  }
+  const options = [['', 'Propio (se elige abajo)']].concat(state.screens
+    .filter((s) => s.id !== screen.id && !s.mirrorOf).map((s) => [s.id, `Igual que ${s.label} (espejo)`]));
+  return field('Origen', `<select class="input" data-action="mirror" data-screen="${screen.id}">${options.map(([v, t]) =>
+    `<option value="${v}"${v === (screen.mirrorOf || '') ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`,
+  'Un espejo muestra exactamente lo mismo que otra pantalla (marcador, cinta y publicidad, sincronizados) con su propio monitor y formato.');
+}
+
+function mirrorPanel(tab, screen, state) {
+  const source = findScreen(screen.mirrorOf);
+  const where = { content: 'el partido y la publicidad automática', ribbon: 'la cinta', media: 'la lista de reproducción' }[tab];
+  const note = `<div class="st-mirror-note">${icon('mirror')}<span>${esc(screen.label)} es un espejo de <strong>${esc(source ? source.label : screen.mirrorOf)}</strong>: ` +
+    `${where} se cambia${tab === 'content' ? 'n' : ''} en ${esc(source ? source.label : 'la pantalla origen')}. ` +
+    'Su monitor, formato y brillo están en «Salida».</span></div>';
+  return note + (tab === 'content' ? mirrorField(screen, state) : '');
+}
+
 function contentPanel(screen, state) {
   const options = state.matches.map((m) =>
     `<option value="${m.id}"${m.id === screen.matchId ? ' selected' : ''}>${esc(m.label)}</option>`).join('');
-  return field('Partido', `<select class="input" data-action="match" data-screen="${screen.id}">${options}</select>`) +
+  return mirrorField(screen, state) +
+    field('Partido', `<select class="input" data-action="match" data-screen="${screen.id}">${options}</select>`) +
     field('En la pausa', toggle('pauseAds', screen.id, screen.pauseAds.enabled, 'Mostrar la lista de reproducción mientras el partido está en pausa')) +
     field('Al terminar', toggle('endAds', screen.id, screen.endAds.enabled, 'Mostrar la lista de reproducción al terminar el partido')) +
     (screen.endAds.enabled ? field('Resultado',
@@ -270,7 +325,7 @@ function outputPanel(screen, state) {
       .concat([['auto', 'Automático (primer monitor libre)'], ['window', 'Ventana de prueba'], ['none', 'No mostrar']]);
     monitor = field('Monitor', `<select class="input" data-action="monitor" data-screen="${screen.id}">${options.map(([v, t]) =>
       `<option value="${esc(v)}"${v === current ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`,
-    'Si eliges el monitor de la otra pantalla, se intercambian.');
+    'Si eliges el monitor de otra pantalla, se intercambian.');
   } else {
     monitor = field('Monitor', `<span class="muted">Abre <code>/score.html?pantalla=${screen.id.replace('pantalla-', '')}</code> en el monitor y pulsa F11.</span>`);
   }
@@ -342,6 +397,9 @@ export function onScreenClick(event) {
     case 'identify':
       send('station:identify', { screenId }, el);
       break;
+    case 'removeScreen':
+      removeScreen(screen, el);
+      break;
     case 'openScreen':
       if (ctx.state.desktop) send('station:openScreen', { screenId }, el);
       else {
@@ -371,6 +429,15 @@ export function onScreenClick(event) {
   }
 }
 
+/** Quitar una pantalla: su ventana se cierra; sus espejos siguen mostrando lo mismo */
+function removeScreen(screen, button) {
+  const mirrors = ctx.state.screens.filter((s) => s.mirrorOf === screen.id).map((s) => s.label);
+  const extra = mirrors.length ? ` ${mirrors.join(', ')} dejará${mirrors.length > 1 ? 'n' : ''} de ser espejo y seguirá${mirrors.length > 1 ? 'n' : ''} mostrando lo mismo.` : '';
+  confirmDialog(`¿Quitar ${screen.label}?`,
+    `Se cierra su ventana y se borra su configuración (cinta, lista, formato).${extra}`, 'Quitar pantalla')
+    .then((ok) => { if (ok) send('station:removeScreen', { screenId: screen.id }, button).then((res) => { if (res.ok) toast(`${screen.label} quitada`); }); });
+}
+
 /** Pasar a "Publicidad y vídeos" oculta el marcador: con partido en juego, se confirma */
 function changeView(screen, view, button) {
   if (view === screen.view && !screen.postMatch && !screen.pauseMedia) return;
@@ -397,6 +464,7 @@ export function onScreenChange(event) {
 
   switch (el.dataset.action) {
     case 'match':          update(screenId, { matchId: el.value }); break;
+    case 'mirror':         update(screenId, { mirrorOf: el.value || null }); break;
     case 'monitor':        send('station:setMonitor', { screenId, monitor: el.value }); break;
     case 'format':         update(screenId, { output: { format: el.value } }); break;
     case 'outputX':        update(screenId, { output: { x: value } }); break;

@@ -215,7 +215,14 @@ code   { color: var(--st-soft); font-size: 0.9em; }
   padding: 20px 24px 48px;
 }
 
-.st-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.st-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
+.st-section-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.st-card-tools { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pill.mirror { background: #133A7A; color: var(--st-accent); }
+.st-mirror-note { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; margin-bottom: 10px;
+  border-radius: var(--st-radius); background: var(--st-inset); border: 1px dashed var(--st-border-2);
+  color: var(--st-soft); font-size: 0.85rem; line-height: 1.45; }
+.st-mirror-note .icon { flex: none; margin-top: 2px; color: var(--st-accent); }
 
 .st-section-title {
   font-size: 0.85rem;
@@ -358,6 +365,9 @@ details.st-backup .st-actions { margin-top: 10px; }
   border-radius: var(--st-radius);
   background: var(--st-inset);
 }
+
+.st-live > [data-part="live"] { display: flex; flex-direction: column; gap: 10px; }
+.st-live > [data-part="live"]:empty { display: none; }
 
 .st-transport { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .st-now {
@@ -544,6 +554,9 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
 .icon-btn .icon { width: 16px; height: 16px; }
 .icon-btn:hover { background: rgba(239, 68, 68, 0.15); color: #FCA5A5; }
 .icon-btn:focus-visible { outline: 2px solid var(--st-accent); }
+/* Quitar pantalla: sobre el color de la pista, como las etiquetas */
+.st-card-head .icon-btn { border-radius: 999px; background: rgba(4, 18, 43, 0.85); color: #FFFFFF; }
+.st-card-head .icon-btn:hover { background: var(--st-bad); color: #FFFFFF; }
 
 /* Zona para soltar archivos (arrastrar desde el Explorador de Windows) */
 .dropzone {

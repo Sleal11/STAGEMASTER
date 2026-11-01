@@ -449,6 +449,78 @@ test('Dos pantallas pueden mostrar el MISMO partido', () => {
   assert.strictEqual(screens.get('pantalla-1').matchId, screens.get('pantalla-2').matchId);
 });
 
+test('Pantallas dinámicas: añadir (hasta 8, primer número libre), quitar (queda al menos una) y se guardan', () => {
+  const screens = freshScreens();
+  const p3 = screens.add();
+  assert.strictEqual(p3.id, 'pantalla-3');
+  assert.strictEqual(p3.label, 'Pantalla 3');
+  assert.strictEqual(p3.matchId, 'pista-1', 'Sin pista 3: muestra la primera');
+  for (let i = 4; i <= 8; i++) screens.add();
+  assertCode(() => screens.add(), 'SCREEN_LIMIT');
+  screens.remove('pantalla-2');
+  assert.strictEqual(screens.add().id, 'pantalla-2', 'Reutiliza el número libre');
+  screens.remove('pantalla-5');
+  assert.deepStrictEqual(screens.ids(), ['pantalla-1', 'pantalla-2', 'pantalla-3', 'pantalla-4', 'pantalla-6', 'pantalla-7', 'pantalla-8']);
+  assertCode(() => screens.remove('pantalla-5'), 'UNKNOWN_SCREEN');
+  const again = loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'] });
+  assert.deepStrictEqual(again.ids(), screens.ids(), 'Se conserva tras reiniciar');
+  ['pantalla-2', 'pantalla-3', 'pantalla-4', 'pantalla-6', 'pantalla-7', 'pantalla-8'].forEach((id) => again.remove(id));
+  assertCode(() => again.remove('pantalla-1'), 'INVALID_ACTION');
+});
+
+test('Espejo: muestra el contenido de su origen con su propia salida; sin cadenas; al quitar el origen sigue igual', () => {
+  const clock = { t: 1000 };
+  const screens = freshScreens(clock);
+  screens.add();
+  screens.update('pantalla-1', { view: 'media', ribbon: { enabled: false } }, EMPTY_LIBRARY);
+  screens.update('pantalla-2', { mirrorOf: 'pantalla-1', output: { format: 'led-xl' } }, EMPTY_LIBRARY);
+  const mirror = screens.effective('pantalla-2');
+  assert.strictEqual(mirror.matchId, 'pista-1');
+  assert.strictEqual(mirror.view, 'media');
+  assert.strictEqual(mirror.ribbon.enabled, false);
+  assert.strictEqual(mirror.output.format, 'led-xl', 'Salida propia');
+  assert.strictEqual(screens.effective('pantalla-1').output.format, 'fill');
+  assert.deepStrictEqual(screens.withMirrors(['pantalla-1']), ['pantalla-1', 'pantalla-2']);
+
+  // Su contenido se cambia en el origen; el reproductor también es el del origen
+  assertCode(() => screens.update('pantalla-2', { view: 'score' }, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG');
+  const playId = screens.get('pantalla-1').playId;
+  screens.command('pantalla-2', 'play');
+  assert.strictEqual(screens.get('pantalla-1').playId, playId + 1);
+  assert.strictEqual(screens.effective('pantalla-2').playId, playId + 1, 'Origen y espejo, sincronizados');
+
+  // Sin cadenas ni bucles
+  assertCode(() => screens.update('pantalla-3', { mirrorOf: 'pantalla-2' }, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG');
+  assertCode(() => screens.update('pantalla-1', { mirrorOf: 'pantalla-3' }, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG');
+  assertCode(() => screens.update('pantalla-3', { mirrorOf: 'pantalla-3' }, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG');
+  assertCode(() => screens.update('pantalla-3', { mirrorOf: 'pantalla-9' }, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG');
+  // Un cambio inválido junto al espejo: no se guarda nada
+  assertCode(() => screens.update('pantalla-3', { mirrorOf: 'pantalla-1', output: { brightness: 1 } }, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG');
+  assert.strictEqual(screens.get('pantalla-3').mirrorOf, null);
+
+  // Publicidad automática: solo se activa en el origen (el espejo la ve por él)
+  screens.update('pantalla-1', { view: 'score', endAds: { enabled: true } }, EMPTY_LIBRARY);
+  assert.deepStrictEqual(screens.matchFinished('pista-1', '7'), ['pantalla-1']);
+  assert.ok(screens.effective('pantalla-2').postMatch, 'El espejo también muestra la publicidad final');
+
+  // Se conserva tras reiniciar
+  const again = loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'] });
+  assert.strictEqual(again.get('pantalla-2').mirrorOf, 'pantalla-1');
+
+  // Quitar el origen: el espejo pasa a independiente mostrando lo mismo
+  const { released } = screens.remove('pantalla-1');
+  assert.deepStrictEqual(released, ['pantalla-2']);
+  const freed = screens.get('pantalla-2');
+  assert.strictEqual(freed.mirrorOf, null);
+  assert.strictEqual(freed.endAds.enabled, true);
+  assert.strictEqual(freed.output.format, 'led-xl');
+
+  // Volver a independiente conserva lo que mostraba
+  screens.update('pantalla-3', { mirrorOf: 'pantalla-2' }, EMPTY_LIBRARY);
+  screens.update('pantalla-3', { mirrorOf: null }, EMPTY_LIBRARY);
+  assert.strictEqual(screens.get('pantalla-3').endAds.enabled, true);
+});
+
 test('Validación de pantalla: partido, vista, tiempos, formato y posición inválidos se rechazan', () => {
   const screens = freshScreens();
   [

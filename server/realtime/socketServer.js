@@ -29,7 +29,9 @@
  *   resetMatch { matchId, version }                 teléfono vinculado / estación
  *   station:newPin { matchId }                      estación
  *   station:unpair { matchId }                      estación
- *   station:updateScreen { screenId, changes }      estación (ver core/screenConfig.js)
+ *   station:updateScreen { screenId, changes }      estación (ver core/screenConfig.js; mirrorOf: espejo)
+ *   station:addScreen                               estación: añade una pantalla (máximo 8)
+ *   station:removeScreen { screenId }               estación: quita una pantalla
  *   station:media { screenId, command }             estación: play | pause | resume | stop
  *   station:history { from, to, text, matchId }     estación: partidos terminados (historial)
  *   station:identify { screenId }                   estación
@@ -45,6 +47,7 @@
  *   controllerRevoked { reason, message }           teléfono que pierde el permiso
  *   screenConfig { ... }                            pantalla
  *   identify { label }                              pantalla
+ *   screenRemoved                                   pantalla que el operador ha quitado
  *   stationState { matches, screens, ads, network } estación
  *   historyChanged                                  estación: se guardó o anuló un partido del historial
  */
@@ -56,6 +59,7 @@ const ads               = require('../core/ads');
 const { getQrSvg }      = require('../core/network');
 const { getBuildInfo }  = require('../core/buildInfo');
 const { OUTPUT_FORMATS, LIMITS, resolveOutput } = require('../core/screenConfig');
+const { MAX_SCREENS }   = require('../core/screens');
 
 /** Tiempo tras el que una pantalla que no ha dibujado la última versión se considera desincronizada */
 const SYNC_TOLERANCE_MS = 2000;
@@ -75,6 +79,9 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 
   // La aplicación de escritorio avisa cuando cambian los monitores o las ventanas
   if (desktop) desktop.onChange(() => scheduleStationState());
+  // …y sabe qué pantallas existen (abre una ventana por pantalla)
+  const tellDesktopScreens = () => { if (desktop && desktop.setScreens) desktop.setScreens(screens.ids()); };
+  tellDesktopScreens();
 
   // Teléfonos conectados por partido: matchId → { sockets: Set, lastSeen }
   const controllerPresence = new Map(registry.ids().map((id) => [id, { sockets: new Set(), lastSeen: null }]));
@@ -172,14 +179,35 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 
     handle(socket, 'station:updateScreen', ({ screenId, changes } = {}) => {
       requireStation(socket);
-      const { config, previousMatchId } = screens.update(screenId, changes, ads.listAds());
-      const matchChanged = config.matchId !== previousMatchId;
-      if (matchChanged) {
-        // La pantalla pasa a mostrar otro partido: cambia de sala
-        io.in(`screen:${screenId}`).socketsLeave(`match:${previousMatchId}`);
-        io.in(`screen:${screenId}`).socketsJoin(`match:${config.matchId}`);
-      }
-      pushScreenConfig(screenId, matchChanged);
+      // Pantallas afectadas: ella y sus espejos (que muestran su contenido)
+      const affected = screens.withMirrors([screenId]);
+      const before   = new Map(affected.map((id) => [id, screens.effective(id).matchId]));
+      screens.update(screenId, changes, ads.listAds());
+      affected.forEach((id) => {
+        const matchChanged = screens.effective(id).matchId !== before.get(id);
+        if (matchChanged) joinMatchRoom(id);
+        pushOne(id, matchChanged);
+      });
+      scheduleStationState();
+    });
+
+    handle(socket, 'station:addScreen', () => {
+      requireStation(socket);
+      const config = screens.add();
+      tellDesktopScreens();
+      scheduleStationState();
+      return { screenId: config.id };
+    });
+
+    handle(socket, 'station:removeScreen', ({ screenId } = {}) => {
+      requireStation(socket);
+      const { released } = screens.remove(screenId);
+      // Sus ventanas se apagan (la aplicación de escritorio las cierra)
+      io.to(`screen:${screenId}`).emit('screenRemoved');
+      io.in(`screen:${screenId}`).disconnectSockets(true);
+      // Sus espejos siguen mostrando lo mismo, ya como pantallas independientes
+      released.forEach((id) => pushOne(id, false));
+      tellDesktopScreens();
       scheduleStationState();
     });
 
@@ -197,14 +225,15 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     handle(socket, 'station:media', ({ screenId, command } = {}) => {
       requireStation(socket);
       screens.command(screenId, command);
-      pushScreenConfig(screenId, false);
+      // En un espejo manda su origen: se actualizan el origen y todos sus espejos
+      pushScreenConfig(screens.sourceId(screenId), false);
       scheduleStationState();
     });
 
     handle(socket, 'station:identify', ({ screenId } = {}) => {
       requireStation(socket);
-      const { label } = screens.get(screenId);
-      io.to(`screen:${screenId}`).emit('identify', { label });
+      const { label, mirrorOf } = screens.get(screenId);
+      io.to(`screen:${screenId}`).emit('identify', { label, mirrorOf: mirrorOf ? screens.get(mirrorOf).label : null });
     });
 
     handle(socket, 'station:refreshAds', () => {
@@ -237,7 +266,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 
     // ── Pantalla: informe tras dibujar ───────────────────────────
     socket.on('display:report', (data) => {
-      if (socket.data.role !== 'display') return;
+      if (socket.data.role !== 'display' || !screens.has(socket.data.screenId)) return;
       screens.report(socket.data.screenId, socket.id, data);
       scheduleStationState();
     });
@@ -261,7 +290,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 
   function onDisplayConnected(socket) {
     const { screenId } = socket.data;
-    const config = screens.get(screenId);
+    const config = screens.effective(screenId);
     screens.attach(screenId, socket.id);
     socket.join(`screen:${screenId}`);
     socket.join(`match:${config.matchId}`);
@@ -425,9 +454,9 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       ? screens.matchFinished(match.id, String(match.version))
       : (finishedNow ? [] : screens.matchActive(match.id));
     changed.forEach((screenId) => {
-      pushScreenConfig(screenId, false);
+      pushScreenConfig(screenId, false);   // y a sus espejos
       // La estación muestra "en X s" y después "mostrando publicidad": refrescar al empezar
-      setTimeout(scheduleStationState, screens.get(screenId).endAds.delay * 1000 + 200);
+      setTimeout(scheduleStationState, screens.effective(screenId).endAds.delay * 1000 + 200);
     });
     // Pausa: publicidad mientras dura (cada pausa tiene su identificador)
     const pauseKey = state && state.paused ? `${match.uid}:${match.pausedSince}` : null;
@@ -458,7 +487,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
 
   /** Lo que necesita una pantalla para dibujarse (URLs resueltas, sin datos internos) */
   function buildScreenConfig(screenId) {
-    const config  = screens.get(screenId);
+    const config  = screens.effective(screenId);   // un espejo: contenido de su origen
     const match   = registry.get(config.matchId);
     const library = ads.listAds();
     const ribbon  = ads.resolve('banner', config.ribbon.items, library);
@@ -481,17 +510,28 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     };
   }
 
-  /** Envía su configuración a una pantalla (y el marcador, si cambió de partido) */
   /** La carpeta de publicidad cambió: las pantallas y la estación se actualizan */
   function refreshAds() {
-    screens.list().forEach((screen) => pushScreenConfig(screen.id, false));
+    screens.ids().forEach((id) => pushOne(id, false));
     scheduleStationState();
   }
 
+  /** Envía su configuración a una pantalla y a sus espejos (y el marcador, si cambió de partido) */
   function pushScreenConfig(screenId, withMatch = true) {
-    const config = screens.get(screenId);
+    screens.withMirrors([screenId]).forEach((id) => pushOne(id, withMatch));
+  }
+
+  function pushOne(screenId, withMatch) {
+    const config = screens.effective(screenId);
     io.to(`screen:${screenId}`).emit('screenConfig', buildScreenConfig(screenId));
     if (withMatch) io.to(`screen:${screenId}`).emit('matchUpdate', matchPayload(registry.get(config.matchId)));
+  }
+
+  /** Las ventanas de una pantalla pasan a la sala del partido que muestra ahora */
+  function joinMatchRoom(screenId) {
+    const room = io.in(`screen:${screenId}`);
+    room.socketsLeave(registry.ids().map((id) => `match:${id}`));
+    room.socketsJoin(`match:${screens.effective(screenId).matchId}`);
   }
 
   // ── Estado para la estación (agrupado: como mucho 1 envío cada 100 ms) ──
@@ -530,7 +570,8 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
           },
         };
       }),
-      screens: screens.list().map((config) => {
+      // Un espejo se ve con el contenido de su origen (y mirrorOf indica cuál)
+      screens: screens.ids().map((id) => screens.effective(id)).map((config) => {
         const match = registry.get(config.matchId);
         return {
           ...config,
@@ -547,6 +588,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
         };
       }),
       ads:     library,
+      maxScreens: MAX_SCREENS,
       outputFormats: Object.entries(OUTPUT_FORMATS).map(([id, format]) => ({ id, ...format })),
       limits:  LIMITS,
       network,

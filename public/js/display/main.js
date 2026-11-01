@@ -76,8 +76,19 @@ function connectToServer() {
   socket.on('connect_error', (err) => {
     if (err.data && err.data.code === 'UNKNOWN_SCREEN') {
       dom.waitingCourt.textContent = 'Pantalla no válida';
-      console.error('[Pantalla] ' + err.message + '. Usa score.html?pantalla=1 o ?pantalla=2');
+      console.error('[Pantalla] ' + err.message + '. Usa score.html?pantalla=N con una pantalla de la estación');
     }
+  });
+  // El operador quitó esta pantalla en la estación: no se reconecta
+  socket.on('screenRemoved', () => {
+    socket.io.opts.reconnection = false;
+    config = null;
+    player.setActive(false);
+    ribbon.setActive(false);
+    [dom.board, dom.ribbon, dom.media, dom.standby].forEach((el) => el.classList.add('hidden'));
+    dom.waiting.classList.remove('hidden');
+    dom.waitingCourt.textContent = 'Pantalla quitada en la estación';
+    dom.waiting.querySelector('.d-waiting-text').textContent = 'Esta ventana ya se puede cerrar';
   });
   socket.on('screenConfig', applyScreenConfig);
   socket.on('matchUpdate', (payload) => {
@@ -223,9 +234,10 @@ function showIdentify(data) {
   dom.identify.innerHTML = '';
   [
     [data.label.toUpperCase(), 'd-identify-title'],
+    data.mirrorOf ? ['Espejo de ' + data.mirrorOf, 'd-identify-sub'] : null,
     ['Muestra: ' + (config ? config.matchLabel : '—'), 'd-identify-sub'],
     [width + ' × ' + height + ' px', 'd-identify-sub'],
-  ].forEach(([text, className]) => {
+  ].filter(Boolean).forEach(([text, className]) => {
     const div = document.createElement('div');
     div.className = className;
     div.textContent = text;

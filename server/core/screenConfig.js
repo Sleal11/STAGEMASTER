@@ -5,6 +5,8 @@
  *
  * Una pantalla guarda (data/screens.json):
  *
+ *   mirrorOf  null, o la pantalla de la que es ESPEJO (toma de ella el contenido:
+ *             partido, vista, cinta, lista y publicidad automática; ver screens.js)
  *   matchId   Partido que muestra
  *   view      'score'  marcador (con cinta publicitaria si está activa)
  *             'media'  lista de reproducción a pantalla completa (imágenes y vídeos)
@@ -63,6 +65,7 @@ function defaultConfig({ id, label, matchId }) {
   return {
     id,
     label,
+    mirrorOf: null,
     matchId,
     view:   'score',
     ribbon: { enabled: true, items: [], texts: [], motion: 'rotate', interval: 10, speed: 'normal', cleanLogos: true },
@@ -109,6 +112,7 @@ function normalizeSaved(saved, base) {
   const r = saved.ribbon || {}, m = saved.media || {}, e = saved.endAds || {}, o = saved.output || {};
   const pa = saved.pauseAds || {};
 
+  config.mirrorOf = typeof saved.mirrorOf === 'string' && /^pantalla-\d+$/.test(saved.mirrorOf) ? saved.mirrorOf : null;
   config.matchId = pick(saved.matchId, oneOf(base.matchIds), config.matchId);
   config.view    = pick(saved.view, oneOf(VIEWS), config.view);
   config.ribbon  = {

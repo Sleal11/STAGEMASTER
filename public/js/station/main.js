@@ -127,6 +127,11 @@ $('st-screens').addEventListener('input', onScreenInput);
 
 $('st-open-ads').addEventListener('click', (event) => send('station:openAdsFolder', {}, event.currentTarget));
 $('st-help').addEventListener('click', () => window.open('/ayuda.html', 'ayuda', 'width=920,height=820'));
+$('st-add-screen').addEventListener('click', (event) => {
+  send('station:addScreen', {}, event.currentTarget).then((res) => {
+    if (res.ok) toast(`${res.screenId.replace('pantalla-', 'Pantalla ')} añadida: elige su monitor en «Salida»`);
+  });
+});
 $('st-refresh-ads').addEventListener('click', (event) => {
   send('station:refreshAds', {}, event.currentTarget).then((res) => {
     if (res.ok) {

@@ -12,6 +12,10 @@
  *
  * Este módulo añade:
  *   - Guardado en disco (data/screens.json) y valores por defecto
+ *   - Lista DINÁMICA: se añaden y quitan pantallas (de 1 a MAX_SCREENS)
+ *   - ESPEJOS: una pantalla puede mostrar exactamente lo mismo que otra
+ *     (mismo partido, misma publicidad, mismo instante de la lista) con su
+ *     propio formato de salida. Ej.: dos LED a cada lado de la pista.
  *   - Comandos del reproductor: play / pause / resume / stop
  *   - Publicidad al terminar el partido (se activa UNA vez por final)
  *   - Publicidad mientras el partido está en pausa (vuelve al marcador al reanudar)
@@ -33,6 +37,16 @@ const DEFAULT_SCREENS = [
 ];
 
 const MEDIA_COMMANDS = ['play', 'pause', 'resume', 'stop'];
+const MAX_SCREENS    = 8;
+
+/**
+ * Lo que un espejo toma de su pantalla origen. Lo demás (id, nombre, formato
+ * de salida y brillo) es propio de cada pantalla.
+ */
+const CONTENT_FIELDS = ['matchId', 'view', 'ribbon', 'media', 'endAds', 'pauseAds', 'playback', 'playId',
+  'postMatch', 'lastFinishKey', 'pauseMedia', 'pauseDismissed'];
+
+const screenNumber = (id) => Number(String(id).replace('pantalla-', ''));
 
 /**
  * @param {Object}   options
@@ -42,16 +56,39 @@ const MEDIA_COMMANDS = ['play', 'pause', 'resume', 'stop'];
  */
 function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.now }) {
   const store = createStore('screens.json', { validate: (data) => Array.isArray(data.screens) });
-  const saved = (store.load() || { screens: [] }).screens;
+  const saved = (store.load() || { screens: [] }).screens
+    .filter((s) => s && /^pantalla-[1-9]\d*$/.test(s.id) && screenNumber(s.id) <= MAX_SCREENS);
 
-  // Por defecto, la pantalla N muestra el partido N (o el primero si no existe)
-  const configs = new Map(screens.map((screen, index) => {
-    const base = { ...screen, matchId: matchIds[index] || matchIds[0], matchIds };
-    return [screen.id, screenConfig.normalizeSaved(saved.find((s) => s.id === screen.id), base)];
-  }));
+  // Las pantallas guardadas (si el operador añadió o quitó alguna) o las de por defecto
+  const initial = saved.length
+    ? saved.map((s) => ({ id: s.id, label: `Pantalla ${screenNumber(s.id)}` }))
+    : screens;
 
+  const configs  = new Map();
   // Presencia: pantalla → (socketId → datos de la ventana conectada)
-  const presence = new Map(screens.map((screen) => [screen.id, new Map()]));
+  const presence = new Map();
+  initial.forEach((screen) => {
+    configs.set(screen.id, screenConfig.normalizeSaved(saved.find((s) => s.id === screen.id), baseFor(screen)));
+    presence.set(screen.id, new Map());
+  });
+  // Espejos rotos (su origen ya no existe o también es espejo): pasan a ser independientes
+  configs.forEach((config, id) => {
+    const source = config.mirrorOf && configs.get(config.mirrorOf);
+    if (config.mirrorOf && (!source || source.mirrorOf || config.mirrorOf === id)) configs.set(id, { ...config, mirrorOf: null });
+  });
+  sortConfigs();
+
+  /** Por defecto, la pantalla N muestra el partido N (o el primero si no existe) */
+  function baseFor({ id, label }) {
+    return { id, label, matchId: matchIds[screenNumber(id) - 1] || matchIds[0], matchIds };
+  }
+
+  /** Orden: Pantalla 1, 2, 3… */
+  function sortConfigs() {
+    const sorted = [...configs.entries()].sort((a, b) => screenNumber(a[0]) - screenNumber(b[0]));
+    configs.clear();
+    sorted.forEach(([id, config]) => configs.set(id, config));
+  }
 
   function persist() {
     store.save({ screens: [...configs.values()] });
@@ -69,21 +106,64 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     return config;
   }
 
+  /** Pantalla de la que toma el contenido (ella misma si no es espejo) */
+  function sourceId(id) {
+    return get(id).mirrorOf || id;
+  }
+
+  /**
+   * Configuración que de verdad se ve: la propia, con el contenido de su
+   * origen si es un espejo.
+   */
+  function effective(id) {
+    const config = get(id);
+    if (!config.mirrorOf) return config;
+    const source = get(config.mirrorOf);
+    const merged = { ...config };
+    CONTENT_FIELDS.forEach((field) => { merged[field] = source[field]; });
+    return merged;
+  }
+
+  /** Espejos de una pantalla */
+  function mirrorsOf(id) {
+    return [...configs.values()].filter((c) => c.mirrorOf === id).map((c) => c.id);
+  }
+
+  /** La pantalla y sus espejos: todas las que cambian cuando cambia su contenido */
+  function withMirrors(ids) {
+    const all = new Set();
+    ids.forEach((id) => { all.add(id); mirrorsOf(id).forEach((m) => all.add(m)); });
+    return [...all];
+  }
+
   /**
    * Cambia la configuración de una pantalla (validada en screenConfig.js).
+   *   mirrorOf: 'pantalla-N' la convierte en espejo de otra; null, en independiente
+   *             (conserva el contenido que estaba mostrando).
+   * Un espejo solo cambia su salida; su contenido se cambia en la pantalla origen.
    * @param {string} id
    * @param {Object} changes - Ver screenConfig.applyChanges
    * @param {Object} library - Biblioteca actual (ads.listAds()) para validar nombres
-   * @returns {{ config: Object, previousMatchId: string }}
+   * @returns {{ config: Object, previousMatchId: string }} previousMatchId: partido que se veía antes
    */
   function update(id, changes, library) {
-    const config = get(id);
-    const next   = screenConfig.applyChanges(config, changes, { matchIds, library });
+    const before = effective(id);
+    let config = get(id);
+    const isObject = changes && typeof changes === 'object' && !Array.isArray(changes);
+    // Primero se valida todo; solo se guarda si todos los cambios son válidos
+    if (isObject && changes.mirrorOf !== undefined) config = mirrorChange(id, changes.mirrorOf);
+    const rest = isObject ? { ...changes } : changes;   // no es un objeto: applyChanges lo rechaza
+    if (isObject) delete rest.mirrorOf;
+    if (isObject && config.mirrorOf && CONTENT_FIELDS.some((field) => rest[field] !== undefined)) {
+      throw appError('INVALID_SCREEN_CONFIG',
+        `${config.label} es un espejo de ${get(config.mirrorOf).label}: su contenido se cambia en ${get(config.mirrorOf).label}`);
+    }
+    const next = screenConfig.applyChanges(config, rest, { matchIds, library });
 
     // Otro partido, se pide el marcador o se desactiva la publicidad final: se vuelve al marcador
-    if (next.matchId !== config.matchId || !next.endAds.enabled || changes.view === 'score') next.postMatch = null;
+    if (next.matchId !== config.matchId || !next.endAds.enabled || rest.view === 'score') next.postMatch = null;
     if (next.matchId !== config.matchId || !next.pauseAds.enabled) next.pauseMedia = null;
-    if (changes.view === 'score' && config.pauseMedia) {
+    if (rest.view === 'score' && config.pauseMedia) {
       next.pauseMedia = null;
       next.pauseDismissed = config.pauseMedia.key;
     }
@@ -93,7 +173,62 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
       next.playback = 'playing';
       next.playId   = config.playId + 1;
     }
-    return { config: set(id, next), previousMatchId: config.matchId };
+    set(id, next);
+    return { config: effective(id), previousMatchId: before.matchId };
+  }
+
+  /**
+   * Configuración de la pantalla como espejo de otra (o independiente con
+   * null), sin guardarla todavía. Sin cadenas: el origen no puede ser espejo,
+   * y una pantalla con espejos no puede convertirse en espejo.
+   */
+  function mirrorChange(id, target) {
+    const config = get(id);
+    if (target === null || target === '') {
+      if (!config.mirrorOf) return config;
+      // Pasa a ser independiente mostrando lo mismo que mostraba
+      return { ...effective(id), mirrorOf: null };
+    }
+    const fail = (message) => { throw appError('INVALID_SCREEN_CONFIG', message); };
+    if (typeof target !== 'string' || !configs.has(target)) fail('Pantalla origen inexistente');
+    if (target === id) fail('Una pantalla no puede ser espejo de sí misma');
+    if (get(target).mirrorOf) fail(`${get(target).label} ya es un espejo: elige la pantalla original`);
+    if (mirrorsOf(id).length) fail(`${config.label} tiene espejos: no puede ser espejo de otra`);
+    return { ...config, mirrorOf: target };
+  }
+
+  /**
+   * Añade una pantalla (la primera numeración libre: Pantalla 3, 4…).
+   * @returns {Object} Configuración nueva
+   */
+  function add() {
+    if (configs.size >= MAX_SCREENS) {
+      throw appError('SCREEN_LIMIT', `Como máximo ${MAX_SCREENS} pantallas`);
+    }
+    let n = 1;
+    while (configs.has(`pantalla-${n}`)) n += 1;
+    const id = `pantalla-${n}`;
+    configs.set(id, screenConfig.defaultConfig(baseFor({ id, label: `Pantalla ${n}` })));
+    presence.set(id, new Map());
+    sortConfigs();
+    persist();
+    return get(id);
+  }
+
+  /**
+   * Quita una pantalla (siempre queda al menos una). Sus espejos pasan a ser
+   * independientes y siguen mostrando lo mismo.
+   * @returns {{ removed: Object, released: string[] }} released: espejos liberados
+   */
+  function remove(id) {
+    const config = get(id);
+    if (configs.size <= 1) throw appError('INVALID_ACTION', 'Tiene que quedar al menos una pantalla');
+    const released = mirrorsOf(id);
+    released.forEach((mirrorId) => configs.set(mirrorId, { ...effective(mirrorId), mirrorOf: null }));
+    configs.delete(id);
+    presence.delete(id);
+    persist();
+    return { removed: config, released };
   }
 
   /**
@@ -104,6 +239,8 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
    *   stop    Vuelve al marcador (también termina la publicidad de fin de partido)
    */
   function command(id, name) {
+    // En un espejo, el reproductor es el de su origen (se ven sincronizados)
+    id = sourceId(id);
     const config = get(id);
     if (!MEDIA_COMMANDS.includes(name)) throw appError('INVALID_ACTION', `Comando desconocido: ${name}`);
 
@@ -143,7 +280,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     const key = `${matchId}:${finishKey}`;
     const changed = [];
     configs.forEach((config, id) => {
-      if (config.matchId !== matchId || config.lastFinishKey === key) return;
+      if (config.mirrorOf || config.matchId !== matchId || config.lastFinishKey === key) return;
       const next = { ...config, lastFinishKey: key };
       // Solo si está activada AHORA; activarla después no dispara un final pasado
       if (config.endAds.enabled && config.view === 'score') {
@@ -166,7 +303,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
   function matchActive(matchId) {
     const changed = [];
     configs.forEach((config, id) => {
-      if (config.matchId === matchId && config.postMatch) {
+      if (!config.mirrorOf && config.matchId === matchId && config.postMatch) {
         configs.set(id, { ...config, postMatch: null });
         changed.push(id);
       }
@@ -185,7 +322,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
   function matchPauseChanged(matchId, pauseKey) {
     const changed = [];
     configs.forEach((config, id) => {
-      if (config.matchId !== matchId) return;
+      if (config.mirrorOf || config.matchId !== matchId) return;
       let next = null;
       if (!pauseKey) {
         if (config.pauseMedia || config.pauseDismissed) next = { ...config, pauseMedia: null, pauseDismissed: null };
@@ -222,6 +359,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
   // ── Presencia ──────────────────────────────────────────────────
 
   function attach(id, socketId) {
+    if (!presence.has(id)) return;
     presence.get(id).set(socketId, {
       connectedAt: now(), viewport: null, renderedMatchId: null, renderedVersion: null,
       adErrors: [], playing: null, soundBlocked: false,
@@ -273,9 +411,16 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
 
   return {
     get,
+    effective,
+    sourceId,
+    mirrorsOf,
+    withMirrors,
     has:  (id) => configs.has(id),
+    ids:  () => [...configs.keys()],
     list: () => [...configs.values()],
     update,
+    add,
+    remove,
     command,
     matchFinished,
     matchActive,
@@ -288,4 +433,4 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
   };
 }
 
-module.exports = { createScreenManager, DEFAULT_SCREENS, MEDIA_COMMANDS };
+module.exports = { createScreenManager, DEFAULT_SCREENS, MEDIA_COMMANDS, MAX_SCREENS, CONTENT_FIELDS };

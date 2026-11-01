@@ -32,7 +32,8 @@ const { getBuildInfo, describeBuild } = require('../server/core/buildInfo');
 
 const BUILD = getBuildInfo();
 
-const SCREEN_IDS = ['pantalla-1', 'pantalla-2'];
+// Pantallas que existen: las dice el servidor (la estación puede añadir y quitar)
+let screenIds = ['pantalla-1', 'pantalla-2'];
 const BACKGROUND = '#041024';
 const ICON       = path.join(__dirname, 'icon.png');
 
@@ -167,14 +168,14 @@ function currentMonitors() {
 /** Calcula dónde va cada pantalla y abre, mueve o cierra sus ventanas */
 function applyLayout() {
   const list = currentMonitors();
-  assignments = monitors.resolveAssignments(SCREEN_IDS, list, preferences);
+  assignments = monitors.resolveAssignments(screenIds, list, preferences);
   const stuck = monitors.stickAutoAssignments(preferences, assignments);
   if (JSON.stringify(stuck) !== JSON.stringify(preferences)) {
     preferences = stuck;
     savePreferences(preferences);
   }
 
-  SCREEN_IDS.forEach((screenId) => {
+  screenIds.forEach((screenId) => {
     const target  = assignments[screenId];
     const current = screenWindows.get(screenId);
 
@@ -344,10 +345,23 @@ const desktopAdapter = {
     };
   },
 
+  /** El servidor indica qué pantallas existen (al arrancar y al añadir o quitar una) */
+  setScreens(ids) {
+    const removed = screenIds.filter((id) => !ids.includes(id));
+    screenIds = ids.slice();
+    removed.forEach((id) => {
+      closeScreenWindow(id);
+      closedByUser.delete(id);
+      delete preferences[id];   // si se vuelve a añadir, empieza en "automático"
+    });
+    if (removed.length) savePreferences(preferences);
+    if (baseUrl) applyLayout();   // al arrancar, la primera colocación la hace start()
+  },
+
   /** El operador elige monitor para una pantalla ('auto', id, 'window', 'none') */
   setMonitor(screenId, value) {
     try {
-      preferences = monitors.choosePreference(SCREEN_IDS, currentMonitors(), preferences, screenId, value);
+      preferences = monitors.choosePreference(screenIds, currentMonitors(), preferences, screenId, value);
     } catch (err) {
       const { appError } = require('../server/core/errors');
       throw appError('INVALID_MONITOR', 'Ese monitor ya no está conectado');
@@ -361,7 +375,7 @@ const desktopAdapter = {
   openScreen(screenId) {
     closedByUser.delete(screenId);
     if (!assignments[screenId]) {
-      preferences = monitors.choosePreference(SCREEN_IDS, currentMonitors(), preferences, screenId, 'window');
+      preferences = monitors.choosePreference(screenIds, currentMonitors(), preferences, screenId, 'window');
       savePreferences(preferences);
     }
     applyLayout();
