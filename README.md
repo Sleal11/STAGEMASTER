@@ -1,10 +1,11 @@
 # StageMaster · Marcador profesional de pádel
 
 Aplicación para Windows que convierte un **portátil** en la estación de un
-evento de pádel: **hasta 2 partidos simultáneos**, **1 o 2 pantallas**
-(monitores o pantallas LED de **832×416** y **416×208**) con marcador, cinta
-publicitaria y vídeos, y un **teléfono de árbitro** por partido. Funciona
-**sin Internet**: solo necesita una red Wi-Fi para los teléfonos.
+evento de pádel: **2 partidos simultáneos**, **hasta 8 pantallas** (monitores
+o pantallas LED de **832×416**, **416×208** o tamaño personalizado), también
+en **otros portátiles** de la red, con marcador, cinta publicitaria y vídeos,
+**historial de partidos** y un **teléfono de árbitro** por partido. Funciona
+**sin Internet**: solo necesita una red local para los teléfonos y portátiles.
 
 ```
  📱 Árbitro Pista 1 ─┐                         ┌─ cable ─► 📺 Pantalla 1 (LED / monitor)
@@ -42,8 +43,12 @@ publicitaria y vídeos, y un **teléfono de árbitro** por partido. Funciona
 | **Cinta publicitaria**: imágenes, logos, vídeos cortos y mensajes, fundido o desplazamiento continuo | Pestaña *Cinta* |
 | **Lista de reproducción**: imágenes y vídeos MP4/WEBM en bucle, con o sin sonido | Pestaña *Lista de reproducción* |
 | **Subir fotos y vídeos** (botón o arrastrar desde el Explorador) y borrarlos | Pestañas *Cinta* y *Lista de reproducción* |
-| **Publicidad al terminar el partido** (activable, tras X s de resultado) | Pestaña *Contenido* |
-| **Formato de salida**: monitor completo, LED XL 832×416 o LED pequeño 416×208 (píxeles exactos, con posición) | Pestaña *Salida* |
+| **Publicidad al terminar el partido** (activable, tras X s de resultado) y **en la pausa** (vuelve al marcador al reanudar) | Pestaña *Contenido* |
+| **Añadir / quitar pantallas** (hasta 8) y **espejos** (igual que otra pantalla, con salida propia) | Sección *Pantallas* · pestaña *Contenido* |
+| **Formato de salida**: monitor completo, LED XL 832×416, LED pequeño 416×208 o **personalizado** (guardable con nombre), con posición; **brillo de la imagen** | Pestaña *Salida* |
+| **Diagnóstico del monitor** (px reales, Hz, escalado) y **cambiar su resolución** con vuelta automática (Windows) | Pestaña *Salida* |
+| **Portátiles remotos**: pantallas en otro portátil por la red (código de enlace) | Sección *Portátiles remotos* |
+| **Historial de partidos**: buscar por día, rango, pista o jugador; detalle; exportar CSV | Pestaña *Historial* |
 
 ## Para desarrollo
 
@@ -77,7 +82,9 @@ También queda en **Actions** → la ejecución → **Artifacts** → `StageMast
 | `npm run test:engine` | Reglas del pádel (motor puro) y 4000 acciones aleatorias |
 | `npm run test:server` | Partidos, versiones, pausa, PIN/tokens, pantallas, cinta, lista de reproducción, publicidad al terminar, formatos LED, migración |
 | `npm run test:desktop` | Qué pantalla va en qué monitor (conectar/desconectar monitores) |
-| `npm run test:integration` | Servidor real + estación + 2 teléfonos + 2 pantallas virtuales: reproductor, publicidad final (una sola vez), subir/borrar publicidad, vídeo por rangos, QR, escritorio |
+| `npm run test:integration` | Servidor real + estación + 2 teléfonos + pantallas virtuales: reproductor, publicidad final y en la pausa, historial, varias pantallas y espejos, portátil remoto por la IP de red, resoluciones, QR, escritorio |
+| `node desktop/displayModes.win.test.js` | Resoluciones de Windows en un Windows real (se ejecuta en GitHub Actions) |
+| `npm run test:e2e` | Navegador y aplicación de escritorio reales (Playwright + Electron): historial, pausa, brillo, pantallas/espejos, formatos, matriz visual 4 formatos × 5 estados, partido completo desde el teléfono, modo principal y portátil remoto. Requiere Chromium de Playwright y `node node_modules/electron/install.js`; en Linux sin escritorio, Xvfb |
 
 ---
 
@@ -104,15 +111,23 @@ También queda en **Actions** → la ejecución → **Artifacts** → `StageMast
 
 ```
 desktop/
-├── main.js              Aplicación: arranca el servidor, abre estación y pantallas, monitores
-└── monitors.js          Qué pantalla va en qué monitor (lógica pura, probada)
+├── main.js              Modo principal: servidor, estación, pantallas, resolución de monitores
+├── remote.js · remote/  Modo «pantalla remota»: enlace con el principal y ventana de control
+├── screenWindows.js     Ventanas de las pantallas en los monitores (común a los dos modos)
+├── monitors.js          Qué pantalla va en qué monitor (lógica pura, probada)
+├── displayModes.js      Resoluciones reales de Windows (EnumDisplaySettings / ChangeDisplaySettingsEx)
+└── mode.js              Modo de este portátil (principal / remoto)
 server/
 ├── index.js             startServer(): HTTP, páginas, publicidad
 ├── core/
 │   ├── Match.js         Un partido: marcador, versión, pausa, protecciones, PIN, teléfono
 │   ├── matchRegistry.js Las pistas (instancias de Match)
 │   ├── screenConfig.js  Configuración de una pantalla: valores, límites, validación, migración
-│   ├── screens.js       Pantallas: guardado, reproductor, publicidad al terminar, presencia
+│   ├── screens.js       Pantallas: lista dinámica, espejos, reproductor, publicidad automática, presencia
+│   ├── history.js       Historial de partidos terminados (archivo JSONL, sin duplicados)
+│   ├── formats.js       Formatos de salida guardados por el operador
+│   ├── remotes.js       Portátiles remotos enlazados (código, tokens)
+│   ├── discovery.js     Anuncio UDP para encontrar el portátil principal en la red
 │   ├── ads.js           Biblioteca de publicidad (imágenes y vídeos, nombres seguros)
 │   ├── auth.js          PIN, tokens, límite de intentos, solo-localhost
 │   ├── network.js       Dirección para los teléfonos y códigos QR
@@ -133,8 +148,9 @@ publicidad/              Ejemplos (imagen y vídeo 2:1, cinta) que se copian a D
 build/                   Iconos del .exe y logo original (fuente de diseño)
 ```
 
-**Roles:** estación (solo en el portátil), pantalla (solo en el portátil, solo
-lectura) y teléfono (vinculado a UNA pista con PIN → token). Cada actualización
+**Roles:** estación (solo en el portátil), pantalla (solo lectura; en el
+portátil o en un portátil remoto enlazado con código → token), portátil remoto
+(solo muestra) y teléfono (vinculado a UNA pista con PIN → token). Cada actualización
 de un partido se envía solo a la sala de ese partido. La publicidad nunca
 modifica el marcador: el servidor solo avisa a las pantallas cuando un partido
 termina o vuelve a jugarse. Detalles de red, sincronización y seguridad:
@@ -150,6 +166,10 @@ hacer que `Match.js` elija el motor según el deporte y crear su vista de pantal
 - [`docs/CHECKLIST-EVENTO.md`](docs/CHECKLIST-EVENTO.md) — día del evento.
 - [`docs/SIMULACRO-EVENTO.md`](docs/SIMULACRO-EVENTO.md) — prueba completa con el equipo real.
 - [`docs/RED-Y-COMUNICACION.md`](docs/RED-Y-COMUNICACION.md) — Wi-Fi vs Bluetooth, red, sincronización, seguridad.
+- [`docs/VARIAS-PANTALLAS.md`](docs/VARIAS-PANTALLAS.md) — varias pantallas, espejos y portátiles remotos: requisitos de red y distancias.
+- [`docs/RESOLUCIONES.md`](docs/RESOLUCIONES.md) — resolución del monitor vs formato LED, EDID, el caso 1920×1120.
+- [`docs/BRILLO-LED.md`](docs/BRILLO-LED.md) — brillo de la imagen vs brillo físico de los módulos.
+- [`docs/AUDITORIA-V3.md`](docs/AUDITORIA-V3.md) — auditoría y plan de la versión 3.
 
 Tipografías **Inter** y **Oswald**: SIL Open Font License 1.1 (`public/fonts/LICENSE-*.txt`).
 Iconos basados en **Lucide** (licencia ISC).

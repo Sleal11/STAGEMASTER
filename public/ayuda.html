@@ -25,7 +25,7 @@
 <body>
 <main>
   <h1>StageMaster · Ayuda</h1>
-  <p class="intro">Marcador de pádel para hasta 2 partidos y 2 pantallas (monitores o pantallas LED). Funciona sin Internet: solo necesita Wi-Fi para los teléfonos de los árbitros.</p>
+  <p class="intro">Marcador de pádel para 2 partidos y hasta 8 pantallas (monitores o pantallas LED), también en otros portátiles. Funciona sin Internet: solo necesita una red local para los teléfonos de los árbitros y los portátiles remotos.</p>
 
   <h2><svg class="icon"><use href="img/icons.svg#check"></use></svg>Antes del evento</h2>
   <ol>
@@ -39,9 +39,10 @@
   <ol>
     <li>En cada pista pulsa <strong>Configurar partido…</strong>: jugadores (uno por casilla), games, sets, puntuación, desempate y quién saca. Pulsa <strong>Iniciar partido</strong>.</li>
     <li><strong>Puntuación</strong> (reglamento FIP): <strong>Ventaja</strong> · <strong>Punto de oro</strong>, el PRIMER 40-40 lo decide el siguiente punto · <strong>Punto Estrella</strong> (FIP 2026), se juega ventaja en el 1.er y el 2.º 40-40 y el TERCERO lo decide el siguiente punto. En los dos casos la pantalla avisa con <strong>PUNTO DE ORO</strong>.</li>
-    <li><strong>Pausar</strong> (lesión, lluvia…): la pantalla muestra EN PAUSA y no se puede puntuar hasta <strong>Reanudar</strong>. Deshacer sigue disponible.</li>
+    <li><strong>Pausar</strong> (lesión, lluvia…): no se puede puntuar hasta <strong>Reanudar</strong> (deshacer sigue disponible). Las pantallas muestran la <strong>lista de reproducción</strong> mientras dura la pausa y vuelven al marcador, con el mismo tanteo, al reanudar (si la lista está vacía o la opción está desactivada, se ve el marcador con EN PAUSA).</li>
     <li><strong>Finalizar</strong> termina el partido con el marcador actual; <strong>Reiniciar</strong> lo vuelve a 0. Ambos piden confirmación.</li>
     <li>Si falla el teléfono de un árbitro, abre <strong>Puntuar desde la estación</strong> en la tarjeta de la pista.</li>
+    <li><strong>Historial</strong> (arriba): todos los partidos terminados, del más reciente al más antiguo. Busca por día, por rango de fechas, por pista o por jugador; pulsa uno para ver el detalle o <strong>Exportar</strong> a Excel (CSV). Un partido sin terminar no se guarda.</li>
   </ol>
 
   <h2><svg class="icon"><use href="img/icons.svg#phone"></use></svg>2 · Teléfonos de los árbitros</h2>
@@ -56,14 +57,16 @@
     <tr><td>Marcador</td><td>El partido, con la <strong>cinta publicitaria</strong> abajo si está activa. Sin partido, se ve la lista de reproducción (o "Próximo partido").</td></tr>
     <tr><td>Publicidad y vídeos</td><td>La <strong>lista de reproducción</strong> a pantalla completa, en bucle. Con <strong>Pausar</strong>, <strong>Reanudar</strong> y <strong>Detener</strong> (vuelve al marcador). Si hay un partido en juego, pide confirmación.</td></tr>
     <tr><td>Identificar</td><td>Muestra "PANTALLA 1" en grande, con su tamaño real en píxeles.</td></tr>
+    <tr><td>Añadir pantalla</td><td>Hasta 8. La papelera de su tarjeta la quita (pide confirmación).</td></tr>
   </table>
+  <p class="tip">Arriba del marcador, junto al logo, se ven los sets: los terminados y el <strong>SET EN JUEGO</strong> resaltado.</p>
 
   <h2><svg class="icon"><use href="img/icons.svg#sliders"></use></svg>4 · Pestañas de cada pantalla</h2>
   <table>
-    <tr><td>Contenido</td><td>Qué partido muestra (las dos pantallas pueden mostrar el mismo) y la <strong>publicidad al terminar</strong>: al acabar el partido se ve el resultado unos segundos y después la lista de reproducción. Vuelve al marcador con <strong>Volver al marcador</strong>, al empezar otro partido o al deshacer el último punto.</td></tr>
+    <tr><td>Contenido</td><td><strong>Origen</strong>: propio o <strong>igual que otra pantalla</strong> (espejo: lo mismo y a la vez, con su propio monitor, formato y brillo; ej. una LED a cada lado de la pista). Qué partido muestra (varias pantallas pueden mostrar el mismo), la <strong>publicidad en la pausa</strong> y la <strong>publicidad al terminar</strong>: al acabar el partido se ve el resultado unos segundos y después la lista de reproducción. Vuelve al marcador con <strong>Volver al marcador</strong>, al empezar otro partido o al deshacer el último punto.</td></tr>
     <tr><td>Cinta</td><td>Activar o quitar la cinta, elegir imágenes, logos (PNG, JPG o SVG; el fondo blanco se quita solo) y vídeos cortos (siempre sin sonido), escribir mensajes (uno por línea y <strong>Aplicar mensajes</strong>) y su movimiento: <strong>cambia cada X segundos</strong> (un vídeo se ve entero) o <strong>desplazamiento continuo</strong> (lenta, normal o rápida).</td></tr>
     <tr><td>Lista de reproducción</td><td>Imágenes y vídeos a pantalla completa (en orden alfabético), segundos de cada imagen y si los vídeos llevan sonido.</td></tr>
-    <tr><td>Salida</td><td>En qué <strong>monitor</strong> se ve y el <strong>formato</strong>: monitor completo, <strong>LED XL 832 × 416</strong> o <strong>LED pequeño 416 × 208</strong>, con su posición (normalmente 0, 0).</td></tr>
+    <tr><td>Salida</td><td>En qué <strong>monitor</strong> se ve (con su resolución real, Hz y escalado), el <strong>brillo de la imagen</strong> y el <strong>formato</strong>: monitor completo, <strong>LED XL 832 × 416</strong>, <strong>LED pequeño 416 × 208</strong> o <strong>personalizado</strong> (ancho × alto, que puedes <strong>guardar</strong> con un nombre), con su posición (normalmente 0, 0). En Windows, <strong>Cambiar resolución del monitor…</strong> ofrece solo los modos que admite; si no pulsas <strong>Mantener</strong> en 15 s, vuelve solo al anterior.</td></tr>
   </table>
 
   <h2><svg class="icon"><use href="img/icons.svg#upload"></use></svg>5 · Añadir publicidad (fotos y vídeos)</h2>
@@ -75,13 +78,24 @@
     <li>También puedes copiarlos a mano con <strong>Carpeta de publicidad</strong> (carpetas <strong>banner</strong> y <strong>pantalla-completa</strong>) y pulsar <strong>Actualizar publicidad</strong>.</li>
   </ol>
 
+  <h2><svg class="icon"><use href="img/icons.svg#monitor"></use></svg>6 · Pantallas en otro portátil (pistas lejos)</h2>
+  <ol>
+    <li>Conecta los dos portátiles a la <strong>misma red</strong> (mejor por cable de red; no hace falta Internet).</li>
+    <li>En el portátil de la pista lejana abre StageMaster y, en <strong>Portátiles remotos</strong>, pulsa <strong>Usar este portátil como pantalla remota</strong>.</li>
+    <li>Elige este portátil en la lista (o escribe su dirección), escribe el <strong>código de enlace</strong> que ves aquí en <strong>Portátiles remotos</strong> y pulsa <strong>Enlazar</strong>.</li>
+    <li>En el portátil remoto, elige qué pantalla va en cada monitor. Todo lo demás se cambia desde aquí.</li>
+  </ol>
+  <p class="tip">Si se corta la red, la pantalla remota mantiene la imagen y se reconecta sola. <strong>Desvincular</strong> la apaga al momento.</p>
+
   <h2><svg class="icon"><use href="img/icons.svg#alert"></use></svg>Si algo falla</h2>
   <table>
     <tr><td>Teléfono "desconectado"</td><td>Espera unos segundos: se reconecta solo. Comprueba que está en la misma Wi-Fi.</td></tr>
     <tr><td>El teléfono de un árbitro deja de funcionar</td><td>Otro teléfono escanea el QR, escribe el PIN y confirma "reemplazar". O puntúa desde la estación.</td></tr>
     <tr><td>Pantalla "Sin conexión"</td><td>Pulsa <strong>Abrir ventana</strong>.</td></tr>
     <tr><td>Pantalla en el monitor equivocado</td><td>Cámbiala en la pestaña <strong>Salida</strong>. Si eliges el monitor de la otra pantalla, se intercambian.</td></tr>
-    <tr><td>La LED muestra solo una parte o con bordes</td><td>En <strong>Salida</strong>, elige el formato LED y ajusta la posición al píxel donde empieza la LED en el controlador.</td></tr>
+    <tr><td>La LED muestra solo una parte o con bordes</td><td>En <strong>Salida</strong>, elige el formato LED (o uno personalizado con su tamaño exacto) y ajusta la posición al píxel donde empieza la LED en el controlador. Si la estación avisa «no cabe en el monitor», revisa el tamaño, la posición o la resolución del monitor.</td></tr>
+    <tr><td>La LED parpadea</td><td>Pon el monitor a <strong>1920 × 1080 a 60 Hz</strong> (Salida → Cambiar resolución del monitor…). Una resolución que no está en la lista (p. ej. 1920 × 1120) hay que crearla antes en la tarjeta emisora o en la tarjeta gráfica.</td></tr>
+    <tr><td>Portátil remoto «Reconectando…»</td><td>Revisa el cable o la Wi-Fi y que StageMaster siga abierto en el principal. La red de invitados de un recinto suele aislar los equipos: usa una red propia.</td></tr>
     <tr><td>Un anuncio o vídeo no se ve</td><td>La estación indica cuál y se salta. Usa PNG/JPG y vídeos MP4 (H.264) o WEBM; los .mov del iPhone conviértelos a MP4.</td></tr>
     <tr><td>Se cerró StageMaster o se fue la luz</td><td>Vuelve a abrirlo: partidos, PIN, teléfonos y pantallas se recuperan solos.</td></tr>
     <tr><td>Alguien vio un PIN</td><td><strong>Nuevo PIN</strong> (el teléfono ya vinculado sigue funcionando).</td></tr>

@@ -75,3 +75,20 @@ Fecha: noviembre de 2026 · Punto de partida: `v2.2.0 · e469fef` (rama `claude/
 7. Estética
 8. Pruebas generales (unitarias, integración, navegador y app empaquetada)
 9. `.exe` (versión de prueba en el enlace fijo)
+
+## 5. Resultado (versión 2.3.0)
+
+| Fase | Resultado | Pendiente / depende de vosotros |
+|---|---|---|
+| 2 · Historial | Pestaña *Historial*: guardado al terminar, sin duplicados, deshacer anula; búsqueda por día, rango, pista y jugador; detalle; CSV | — |
+| 3 · Publicidad en la pausa | Lista de reproducción durante la pausa; vuelve al marcador con el mismo tanteo; opción por pantalla; «Volver al marcador» respeta esa pausa | — |
+| 4 · Brillo | Brillo de la **imagen** por pantalla (10-100 %) | Brillo **físico**: marca/modelo del procesador LED, conexión, programa y SDK (`docs/BRILLO-LED.md`) |
+| 5 · Varias pantallas | Hasta 8, añadir/quitar, **espejos**; **portátiles remotos** con código de enlace, descubrimiento en la red, reconexión y una sola autoridad | Distancias y tipo de red del recinto (`docs/VARIAS-PANTALLAS.md`) |
+| 6 · Resoluciones | Formato personalizado y guardado; aviso si no cabe; diagnóstico (px reales, Hz, escala, EDID); cambio de resolución en Windows con vuelta automática (probado en Windows real) | Tamaño exacto de cada LED, tarjeta emisora y su resolución de entrada (`docs/RESOLUCIONES.md`) |
+| 7 · Estética | Sets en la cabecera junto al logo; cinta 19 % / 21 % | Opinión sobre el resultado en vuestras LED |
+| 8 · Pruebas | `npm test` (motor 55, núcleo 73, monitores 14, integración 43) + `npm run test:e2e` (9 conjuntos, 192 comprobaciones con navegador y Electron reales) + prueba de Windows en CI | Simulacro con el equipo real (`docs/SIMULACRO-EVENTO.md`) |
+
+Riesgos de la sección 2 resueltos: pantallas fijas (ahora dinámicas), `DISPLAY_LOCAL_ONLY` (pantallas
+remotas con token), sin hora de inicio (ahora `startedAt`), pausa sin publicidad, formatos cerrados,
+sin diagnóstico de Hz y pruebas e2e fuera del repositorio. Sigue igual: los avisos de `npm audit` solo
+afectan a electron-builder (herramienta de compilación, no va dentro del .exe).

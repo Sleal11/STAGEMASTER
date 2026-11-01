@@ -8,14 +8,18 @@
       cinta (PNG/logos y vídeos cortos) y pantalla completa (imágenes y vídeos MP4 H.264 en 2:1, ej. 1664 × 832).
 - [ ] Vídeos probados en StageMaster (si alguno no se reproduce, la estación lo avisa).
 - [ ] Jugadores y formato de cada partido preparados.
-- [ ] Comprobado que el portátil admite **dos salidas de vídeo** a la vez (HDMI + USB-C/DisplayPort o dock).
-- [ ] Tamaño de cada pantalla LED anotado (XL 832 × 416 / pequeña 416 × 208) y en qué píxel empieza
-      en el controlador de la LED (normalmente 0, 0).
+- [ ] Comprobado que el portátil tiene **una salida de vídeo por pantalla** (HDMI + USB-C/DisplayPort o dock).
+- [ ] Tamaño de cada pantalla LED anotado (XL 832 × 416 / pequeña 416 × 208 / otro: formato
+      **personalizado** guardado con nombre) y en qué píxel empieza en el controlador (normalmente 0, 0).
+- [ ] Monitor de cada LED a **1920 × 1080 a 60 Hz** (Salida → Resolución; ver `docs/RESOLUCIONES.md`).
+- [ ] Pistas lejos del portátil: **portátil remoto** ya enlazado con el código y red probada
+      (cable de red mejor que Wi-Fi; ver `docs/VARIAS-PANTALLAS.md`).
 
 ## Material
 
 - [ ] Portátil + cargador
 - [ ] Cables para cada pantalla (y el del controlador LED)
+- [ ] Portátiles remotos + cargadores, cable de red / switch (si hay pistas lejos)
 - [ ] 2 teléfonos de árbitro + cargadores (y uno de respaldo)
 - [ ] Ratón y regleta
 - [ ] Altavoces o salida de audio (solo si los vídeos llevan sonido)
@@ -31,7 +35,10 @@
        416 × 208** y comprobar con **Identificar** que la LED muestra el tamaño correcto.
 6. [ ] **Configurar partido** en cada pista; en cada pantalla elegir su partido,
        la **Cinta** y la **Lista de reproducción**.
-7. [ ] Decidir si se activa **Publicidad al terminar el partido** (pestaña Contenido).
+7. [ ] Decidir la **publicidad en la pausa** y **al terminar el partido** (pestaña Contenido).
+       Si dos LED deben verse igual, la segunda como **espejo** (Contenido → Origen).
+7b. [ ] Portátiles remotos: abrir StageMaster en cada uno; en la estación, *Portátiles remotos*
+       debe mostrarlos **Conectados** y qué pantalla muestra cada uno.
 8. [ ] Cada árbitro (bloqueo automático "Nunca", modo avión + Wi-Fi) escanea el
        **QR** de su pista y escribe el **PIN**. La estación debe mostrar
        "conectado" en las dos pistas.
@@ -51,4 +58,6 @@ Ver el botón **Ayuda** de la estación ("Si algo falla"). Lo más habitual:
 | La LED se ve cortada o con bordes | **Salida → Formato** LED correcto y posición del controlador |
 | Un vídeo no se ve | Convertirlo a MP4 (H.264); la estación indica cuál falla y se salta |
 | Se cerró StageMaster / corte de luz | Volver a abrirlo: todo se recupera solo |
+| La LED parpadea | Monitor a 1920 × 1080 a 60 Hz (Salida → Cambiar resolución del monitor…) |
+| Portátil remoto «Reconectando…» | Cable o Wi-Fi y StageMaster abierto en el principal; la pantalla mantiene la imagen |
 | Diagnóstico de red | En el teléfono, abrir `http://IP-DEL-PORTÁTIL:3000/health` → debe responder `"ok":true` |
