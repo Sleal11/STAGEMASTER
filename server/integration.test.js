@@ -704,7 +704,7 @@ test('Publicidad al terminar: se activa UNA vez por final, solo en las pantallas
   await send(estacion, 'station:updateScreen', { screenId: 'pantalla-2', changes: { matchId: 'pista-2' } });
 });
 
-test('Pausa: el partido no admite puntos hasta reanudarlo; las pantallas lo muestran', async () => {
+test('Pausa: el partido no admite puntos hasta reanudarlo; las pantallas pasan a la publicidad y vuelven', async () => {
   let res = await action(telefono1, 'pista-1', 'pause');
   assert.strictEqual(res.code, 'INVALID_ACTION', 'Un partido terminado no se pausa');
 
@@ -716,10 +716,14 @@ test('Pausa: el partido no admite puntos hasta reanudarlo; las pantallas lo mues
 
   res = await action(telefono1, 'pista-1', 'pointA');
   assert.strictEqual(res.code, 'MATCH_PAUSED');
+  await waitFor(() => pantalla1.screenConfig.pauseMedia === true, 'la pantalla 1 pasa a la publicidad');
+  const scoreInPause = JSON.stringify(pantalla1.states['pista-1'].players);
   await waitFor(() => estacion.stationState.matches[0].state.version === telefono1.states['pista-1'].version, 'estación al día');
   res = await send(estacion, 'matchAction', { matchId: 'pista-1', action: 'resume', version: estacion.stationState.matches[0].state.version });
   assert.ok(res.ok, res.message);
   await waitFor(() => telefono1.states['pista-1'].paused === false, 'reanudado');
+  await waitFor(() => pantalla1.screenConfig.pauseMedia === false, 'vuelve al marcador al reanudar');
+  assert.strictEqual(JSON.stringify(pantalla1.states['pista-1'].players), scoreInPause, 'El marcador no cambió con la pausa');
   assert.ok((await action(telefono1, 'pista-1', 'pointA')).ok);
 });
 

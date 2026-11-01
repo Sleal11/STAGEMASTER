@@ -112,26 +112,32 @@ function playableCount(screen) {
 function liveHtml(screen) {
   const media     = screen.view === 'media';
   const postMatch = screen.postMatch;
+  const pause     = !!screen.pauseMedia && !media;
   const playing   = screen.displays[0] && screen.displays[0].playing;
   const hasList   = playableCount(screen) > 0;
   const showsAt   = postMatch ? postMatch.since + screen.endAds.delay * 1000 : 0;
   const mediaOn   = media || (postMatch && serverNow() >= showsAt);
   const segment = (view, iconName, text) =>
-    `<button type="button" class="${screen.view === view && !postMatch ? 'is-active' : ''}" data-action="view" data-view="${view}" data-screen="${screen.id}">${icon(iconName)}${text}</button>`;
+    `<button type="button" class="${screen.view === view && !postMatch && !pause ? 'is-active' : ''}" data-action="view" data-view="${view}" data-screen="${screen.id}">${icon(iconName)}${text}</button>`;
   const btn = (command, iconName, text, cls) =>
     `<button type="button" class="btn ${cls} btn-sm" data-action="media" data-command="${command}" data-screen="${screen.id}">${icon(iconName)}${text}</button>`;
 
   let transport = '';
-  if (media || postMatch) {
-    const pause = !hasList ? '' : screen.playback === 'paused'
+  if (media || postMatch || pause) {
+    const auto = (postMatch || pause) && !media;   // publicidad automática (fin o pausa del partido)
+    const pauseBtn = !hasList ? '' : screen.playback === 'paused'
       ? btn('resume', 'play', 'Reanudar', 'btn-warn') : btn('pause', 'pause', 'Pausar', 'btn-secondary');
     transport = `<div class="st-transport">
-        ${pause}${btn('stop', 'stop', postMatch && !media ? 'Volver al marcador' : 'Detener', 'btn-secondary')}
-        <span class="st-now">${nowPlaying(screen, playing, hasList, postMatch && !media)}</span>
+        ${pauseBtn}${btn('stop', 'stop', auto ? 'Volver al marcador' : 'Detener', 'btn-secondary')}
+        <span class="st-now">${nowPlaying(screen, playing, hasList, auto)}</span>
       </div>`;
   }
   let banner = '';
-  if (postMatch && !media) {
+  if (pause) {
+    banner = `<div class="st-banner">${icon('pause')}<span>Partido en pausa: ` +
+      (hasList ? 'mostrando la publicidad.' : 'la lista de reproducción está vacía, se ve el marcador con «EN PAUSA».') +
+      ' Vuelve al marcador solo al reanudar el partido.</span></div>';
+  } else if (postMatch && !media) {
     const what = !hasList ? 'la lista de reproducción está vacía, se sigue viendo el resultado.'
       : mediaOn ? 'mostrando la publicidad.' : `publicidad en <strong data-tick-until="${showsAt}"></strong>.`;
     banner = `<div class="st-banner">${icon('clock')}<span>Fin del partido: ${what}` +
@@ -204,6 +210,7 @@ function contentPanel(screen, state) {
   const options = state.matches.map((m) =>
     `<option value="${m.id}"${m.id === screen.matchId ? ' selected' : ''}>${esc(m.label)}</option>`).join('');
   return field('Partido', `<select class="input" data-action="match" data-screen="${screen.id}">${options}</select>`) +
+    field('En la pausa', toggle('pauseAds', screen.id, screen.pauseAds.enabled, 'Mostrar la lista de reproducción mientras el partido está en pausa')) +
     field('Al terminar', toggle('endAds', screen.id, screen.endAds.enabled, 'Mostrar la lista de reproducción al terminar el partido')) +
     (screen.endAds.enabled ? field('Resultado',
       number('endDelay', screen.id, screen.endAds.delay, state.limits.delay, 'segundos con el resultado antes de la publicidad')) : '');
@@ -362,7 +369,7 @@ export function onScreenClick(event) {
 
 /** Pasar a "Publicidad y vídeos" oculta el marcador: con partido en juego, se confirma */
 function changeView(screen, view, button) {
-  if (view === screen.view && !screen.postMatch) return;
+  if (view === screen.view && !screen.postMatch && !screen.pauseMedia) return;
   if (view === 'score') {
     send('station:media', { screenId: screen.id, command: 'stop' }, button);
     return;
@@ -391,6 +398,7 @@ export function onScreenChange(event) {
     case 'outputX':        update(screenId, { output: { x: value } }); break;
     case 'outputY':        update(screenId, { output: { y: value } }); break;
     case 'endAds':         update(screenId, { endAds: { enabled: el.checked } }); break;
+    case 'pauseAds':       update(screenId, { pauseAds: { enabled: el.checked } }); break;
     case 'endDelay':       update(screenId, { endAds: { delay: value } }); break;
     case 'ribbonEnabled':  update(screenId, { ribbon: { enabled: el.checked } }); break;
     case 'ribbonInterval': update(screenId, { ribbon: { interval: value } }); break;

@@ -153,7 +153,8 @@ function applyOutput() {
 
 /**
  *   Lista de reproducción  si la vista es "Publicidad y vídeos", si terminó
- *                          el partido (con la opción activada) o si no hay partido
+ *                          el partido o está en pausa (con la opción activada),
+ *                          o si no hay partido
  *   Logo                   vista "Publicidad y vídeos" sin nada reproducible
  *                          (nunca una pantalla en negro)
  *   Marcador (+ cinta)     en los demás casos; sin partido, "Próximo partido"
@@ -162,7 +163,7 @@ function updateLayout() {
   if (!config) return;
   const hasMatch   = board.hasMatch();
   const hasItems   = config.media.items.length > 0;
-  const wantsMedia = config.view === 'media' || (postMatchReady && !!config.postMatch) || !hasMatch;
+  const wantsMedia = config.view === 'media' || (postMatchReady && !!config.postMatch) || config.pauseMedia || !hasMatch;
 
   player.setActive(wantsMedia && hasItems);
   const showMedia   = wantsMedia && hasItems && player.hasPlayable();

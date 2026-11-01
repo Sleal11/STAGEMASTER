@@ -429,6 +429,11 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       // La estación muestra "en X s" y después "mostrando publicidad": refrescar al empezar
       setTimeout(scheduleStationState, screens.get(screenId).endAds.delay * 1000 + 200);
     });
+    // Pausa: publicidad mientras dura (cada pausa tiene su identificador)
+    const pauseKey = state && state.paused ? `${match.uid}:${match.pausedSince}` : null;
+    screens.matchPauseChanged(match.id, pauseKey)
+      .filter((screenId) => !changed.includes(screenId))
+      .forEach((screenId) => pushScreenConfig(screenId, false));
 
     scheduleStationState();
     // Segunda revisión pasada la tolerancia: detecta pantallas que no dibujaron la versión nueva
@@ -470,6 +475,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       media:      { ...config.media, items: media.items, playback: config.playback, playId: config.playId },
       // Tiempo restante (no la hora): así no importa si el reloj de la pantalla va desajustado
       postMatch:  postMatch && { remainingMs: Math.max(0, postMatch.since + endAds.delay * 1000 - Date.now()) },
+      pauseMedia: !!config.pauseMedia,
       output:     resolveOutput(config.output),
       missingAds: ribbon.missing.concat(media.missing),
     };

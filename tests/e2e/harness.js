@@ -75,6 +75,8 @@ async function station(port) {
   };
   st.act = async (id, action) => {
     await waitFor(() => st.match(id).state, 'partido ' + id);
+    // El estado de la estación llega agrupado (cada 100 ms): esperar a que esté al día
+    await sleep(160);
     const v = st.match(id).state.version;
     const r = await st.send('matchAction', { matchId: id, action, version: v });
     if (r.ok) await waitFor(() => st.match(id).state.version > v, 'versión nueva');

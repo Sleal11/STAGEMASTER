@@ -16,6 +16,7 @@
  *             imageSeconds (tiempo de cada imagen) · sound (vídeos con sonido)
  *   endAds    Publicidad al terminar el partido: enabled · delay (segundos que
  *             se ve el resultado antes de la lista de reproducción)
+ *   pauseAds  Publicidad mientras el partido está en pausa: enabled
  *   output    Formato de salida: 'fill' (todo el monitor) o un formato LED de
  *             tamaño fijo (OUTPUT_FORMATS) en la posición x, y del monitor
  *
@@ -24,6 +25,8 @@
  *   playId         Sube cada vez que se pulsa "Reproducir" (la lista empieza de nuevo)
  *   postMatch      { key, since } mientras se muestra la publicidad de fin de partido
  *   lastFinishKey  Último final de partido atendido (evita activarla dos veces)
+ *   pauseMedia     { key } mientras se muestra la publicidad de la pausa
+ *   pauseDismissed Pausa en la que el moderador volvió al marcador (no se repite)
  *
  * Este módulo es PURO (sin disco ni red): lo usan screens.js y las pruebas.
  */
@@ -61,11 +64,14 @@ function defaultConfig({ id, label, matchId }) {
     ribbon: { enabled: true, items: [], texts: [], motion: 'rotate', interval: 10, speed: 'normal', cleanLogos: true },
     media:  { items: [], imageSeconds: 10, sound: false },
     endAds: { enabled: false, delay: 15 },
+    pauseAds: { enabled: true },
     output: { format: 'fill', x: 0, y: 0 },
     playback:      'playing',
     playId:        0,
     postMatch:     null,
     lastFinishKey: null,
+    pauseMedia:     null,
+    pauseDismissed: null,
   };
 }
 
@@ -97,6 +103,7 @@ function normalizeSaved(saved, base) {
   const bool = (v) => typeof v === 'boolean';
   const oneOf = (list) => (v) => list.includes(v);
   const r = saved.ribbon || {}, m = saved.media || {}, e = saved.endAds || {}, o = saved.output || {};
+  const pa = saved.pauseAds || {};
 
   config.matchId = pick(saved.matchId, oneOf(base.matchIds), config.matchId);
   config.view    = pick(saved.view, oneOf(VIEWS), config.view);
@@ -118,6 +125,7 @@ function normalizeSaved(saved, base) {
     enabled: pick(e.enabled, bool, false),
     delay:   pick(e.delay, inRange(LIMITS.delay), 15),
   };
+  config.pauseAds = { enabled: pick(pa.enabled, bool, true) };
   config.output = {
     format: pick(o.format, (v) => v in OUTPUT_FORMATS, 'fill'),
     x:      pick(o.x, inRange(LIMITS.offset), 0),
@@ -128,6 +136,8 @@ function normalizeSaved(saved, base) {
   config.postMatch     = saved.postMatch && typeof saved.postMatch.key === 'string' &&
     Number.isFinite(saved.postMatch.since) ? { key: saved.postMatch.key, since: saved.postMatch.since } : null;
   config.lastFinishKey = typeof saved.lastFinishKey === 'string' ? saved.lastFinishKey : null;
+  config.pauseMedia     = saved.pauseMedia && typeof saved.pauseMedia.key === 'string' ? { key: saved.pauseMedia.key } : null;
+  config.pauseDismissed = typeof saved.pauseDismissed === 'string' ? saved.pauseDismissed : null;
   return config;
 }
 
@@ -151,6 +161,7 @@ function applyChanges(config, changes, { matchIds, library }) {
     ribbon: { ...config.ribbon },
     media:  { ...config.media },
     endAds: { ...config.endAds },
+    pauseAds: { ...config.pauseAds },
     output: { ...config.output },
   };
 
@@ -213,6 +224,9 @@ function applyChanges(config, changes, { matchIds, library }) {
     if (endAds.enabled !== undefined) next.endAds.enabled = boolean(endAds.enabled, 'Publicidad al terminar');
     if (endAds.delay   !== undefined) next.endAds.delay   = integer(endAds.delay, LIMITS.delay, 'Tiempo del resultado');
   }
+
+  const pauseAds = section('pauseAds');
+  if (pauseAds && pauseAds.enabled !== undefined) next.pauseAds.enabled = boolean(pauseAds.enabled, 'Publicidad en la pausa');
 
   const output = section('output');
   if (output) {

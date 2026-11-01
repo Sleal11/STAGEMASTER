@@ -616,6 +616,32 @@ test('Publicidad final: una vez por final, solo con la opción activada y en la 
   assert.deepStrictEqual(screens.matchFinished('pista-2', '3'), []);
 });
 
+test('Publicidad en la pausa: activa por defecto, vuelve al reanudar, sin repetirse y respetando "Volver al marcador"', () => {
+  const screens = freshScreens();
+  screens.update('pantalla-2', { matchId: 'pista-1', pauseAds: { enabled: false } }, EMPTY_LIBRARY);
+  assert.strictEqual(screens.get('pantalla-1').pauseAds.enabled, true, 'Activada por defecto');
+
+  const playId = screens.get('pantalla-1').playId;
+  assert.deepStrictEqual(screens.matchPauseChanged('pista-1', 'u:1'), ['pantalla-1'], 'Solo la que la tiene activada');
+  assert.deepStrictEqual(screens.get('pantalla-1').pauseMedia, { key: 'u:1' });
+  assert.strictEqual(screens.get('pantalla-1').playId, playId + 1, 'La lista empieza desde el principio');
+  assert.deepStrictEqual(screens.matchPauseChanged('pista-1', 'u:1'), [], 'El mismo aviso no cambia nada');
+
+  // "Volver al marcador" en plena pausa: no vuelve a salir en ESTA pausa
+  screens.command('pantalla-1', 'stop');
+  assert.strictEqual(screens.get('pantalla-1').pauseMedia, null);
+  assert.deepStrictEqual(screens.matchPauseChanged('pista-1', 'u:1'), []);
+  // Reanudar y volver a pausar: sí
+  assert.deepStrictEqual(screens.matchPauseChanged('pista-1', null), ['pantalla-1']);
+  assert.deepStrictEqual(screens.matchPauseChanged('pista-1', 'u:2'), ['pantalla-1']);
+  assert.deepStrictEqual(screens.matchPauseChanged('pista-1', null), ['pantalla-1'], 'Al reanudar vuelve al marcador');
+  assert.strictEqual(screens.get('pantalla-1').pauseMedia, null);
+
+  // En "Publicidad y vídeos" ya se ve la lista: nada que hacer
+  screens.command('pantalla-1', 'play');
+  assert.deepStrictEqual(screens.matchPauseChanged('pista-1', 'u:3'), []);
+});
+
 test('Publicidad final pendiente sobrevive a un reinicio y no se repite', () => {
   const screens = freshScreens({ t: 100 });
   screens.update('pantalla-1', { endAds: { enabled: true } }, EMPTY_LIBRARY);

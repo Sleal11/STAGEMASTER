@@ -14,6 +14,7 @@
  *   - Guardado en disco (data/screens.json) y valores por defecto
  *   - Comandos del reproductor: play / pause / resume / stop
  *   - Publicidad al terminar el partido (se activa UNA vez por final)
+ *   - Publicidad mientras el partido está en pausa (vuelve al marcador al reanudar)
  *   - PRESENCIA en tiempo real (no se guarda): ventanas conectadas, su
  *     resolución, la versión del marcador que han dibujado (sincronización),
  *     qué están reproduciendo y qué archivos fallan
@@ -81,6 +82,11 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
 
     // Otro partido, se pide el marcador o se desactiva la publicidad final: se vuelve al marcador
     if (next.matchId !== config.matchId || !next.endAds.enabled || changes.view === 'score') next.postMatch = null;
+    if (next.matchId !== config.matchId || !next.pauseAds.enabled) next.pauseMedia = null;
+    if (changes.view === 'score' && config.pauseMedia) {
+      next.pauseMedia = null;
+      next.pauseDismissed = config.pauseMedia.key;
+    }
     if (next.matchId !== config.matchId) next.lastFinishKey = null;
     // Pasar a la lista de reproducción la empieza desde el principio
     if (next.view === 'media' && config.view !== 'media') {
@@ -102,7 +108,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     if (!MEDIA_COMMANDS.includes(name)) throw appError('INVALID_ACTION', `Comando desconocido: ${name}`);
 
     const next = { ...config };
-    const showingMedia = config.view === 'media' || !!config.postMatch;
+    const showingMedia = config.view === 'media' || !!config.postMatch || !!config.pauseMedia;
     switch (name) {
       case 'play':
         next.view = 'media';
@@ -118,6 +124,9 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
         next.view = 'score';
         next.postMatch = null;
         next.playback = 'playing';
+        // En una pausa: el marcador vuelve y no se insiste hasta la próxima pausa
+        if (config.pauseMedia) next.pauseDismissed = config.pauseMedia.key;
+        next.pauseMedia = null;
         break;
     }
     return set(id, next);
@@ -159,6 +168,33 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     configs.forEach((config, id) => {
       if (config.matchId === matchId && config.postMatch) {
         configs.set(id, { ...config, postMatch: null });
+        changed.push(id);
+      }
+    });
+    if (changed.length) persist();
+    return changed;
+  }
+
+  /**
+   * El partido `matchId` entra en pausa (`pauseKey` identifica ESA pausa) o
+   * sale de ella (`pauseKey` null). Las pantallas que lo muestran con la
+   * opción activada pasan a la publicidad y vuelven al marcador al reanudar.
+   * Repetir el mismo aviso no cambia nada.
+   * @returns {string[]} Pantallas que cambian
+   */
+  function matchPauseChanged(matchId, pauseKey) {
+    const changed = [];
+    configs.forEach((config, id) => {
+      if (config.matchId !== matchId) return;
+      let next = null;
+      if (!pauseKey) {
+        if (config.pauseMedia || config.pauseDismissed) next = { ...config, pauseMedia: null, pauseDismissed: null };
+      } else if (config.pauseAds.enabled && config.view === 'score' && !config.pauseMedia &&
+                 config.pauseDismissed !== pauseKey) {
+        next = { ...config, pauseMedia: { key: pauseKey }, playback: 'playing', playId: config.playId + 1 };
+      }
+      if (next) {
+        configs.set(id, next);
         changed.push(id);
       }
     });
@@ -243,6 +279,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     command,
     matchFinished,
     matchActive,
+    matchPauseChanged,
     forgetAd,
     attach,
     detach,
