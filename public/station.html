@@ -8,6 +8,7 @@
     Desde aquí el moderador controla:
       - Los DOS partidos: marcador, pausa, finalizar, reiniciar, PIN/QR y
         teléfono del árbitro, y puntuación de respaldo
+      - El HISTORIAL de partidos terminados (búsqueda por fecha, pista y jugador)
       - Las DOS pantallas: qué muestran (marcador o publicidad y vídeos),
         reproductor, cinta publicitaria, lista de reproducción, publicidad al
         terminar el partido, monitor y formato de salida (LED 832×416 / 416×208)
@@ -30,6 +31,14 @@
       <div class="st-logo" data-brand-logo>STAGE<span>MASTER</span></div>
       <div class="st-title">Estación operadora <span id="st-build" class="st-build" title="Versión de StageMaster que está funcionando"></span></div>
     </div>
+    <nav class="st-views" role="tablist" aria-label="Secciones">
+      <button type="button" role="tab" class="st-view-tab is-active" data-view="panel" aria-selected="true">
+        <svg class="icon"><use href="img/icons.svg#scoreboard"></use></svg>Panel
+      </button>
+      <button type="button" role="tab" class="st-view-tab" data-view="history" aria-selected="false">
+        <svg class="icon"><use href="img/icons.svg#history"></use></svg>Historial
+      </button>
+    </nav>
     <div id="st-network" class="st-network"></div>
     <div class="st-top-actions">
       <button id="st-open-ads" class="btn btn-ghost hidden" type="button">
@@ -48,7 +57,7 @@
   <!-- Aviso si no se puede usar la estación -->
   <div id="st-blocked" class="st-blocked hidden"></div>
 
-  <main class="st-main">
+  <main id="view-panel" class="st-main">
     <section class="st-section">
       <div class="st-section-head">
         <h2 class="st-section-title">Partidos</h2>
@@ -66,6 +75,42 @@
       <div id="st-screens" class="st-grid"></div>
     </section>
   </main>
+
+  <!-- ── Historial de partidos ───────────────────────────────────── -->
+  <main id="view-history" class="st-main hidden">
+    <section class="st-section">
+      <div class="st-section-head">
+        <h2 class="st-section-title">Historial de partidos</h2>
+        <button id="hist-export" class="btn btn-ghost btn-sm" type="button">
+          <svg class="icon"><use href="img/icons.svg#download"></use></svg>Exportar CSV
+        </button>
+      </div>
+      <div class="hist-filters">
+        <div id="hist-quick" class="segmented" role="group" aria-label="Periodo">
+          <button type="button" data-quick="today" class="is-active">Hoy</button>
+          <button type="button" data-quick="yesterday">Ayer</button>
+          <button type="button" data-quick="7">7 días</button>
+          <button type="button" data-quick="30">30 días</button>
+          <button type="button" data-quick="all">Todo</button>
+        </div>
+        <label class="hist-field"><span>Desde</span><input id="hist-from" class="input" type="date" /></label>
+        <label class="hist-field"><span>Hasta</span><input id="hist-to" class="input" type="date" /></label>
+        <label class="hist-field"><span>Pista</span><select id="hist-court" class="input"><option value="">Todas</option></select></label>
+        <label class="hist-field hist-search"><span>Jugador</span>
+          <input id="hist-text" class="input" type="search" maxlength="80" placeholder="Buscar por nombre…" autocomplete="off" /></label>
+      </div>
+      <p id="hist-summary" class="hist-summary"></p>
+      <div id="hist-list" class="hist-list"></div>
+    </section>
+  </main>
+
+  <!-- ── Diálogo: detalle de un partido del historial ─────────────── -->
+  <dialog id="dlg-match" class="st-dialog">
+    <div id="dlg-match-body"></div>
+    <div class="st-dialog-actions">
+      <button type="button" id="dlg-match-close" class="btn btn-primary">Cerrar</button>
+    </div>
+  </dialog>
 
   <!-- ── Diálogo: configurar partido ─────────────────────────────── -->
   <dialog id="dlg-setup" class="st-dialog">

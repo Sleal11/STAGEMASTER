@@ -80,6 +80,7 @@ function loadModules() {
     ...require('./screens'),
     ads:  require('./ads'),
     auth: require('./auth'),
+    history: require('./history'),
   };
 }
 
@@ -655,6 +656,94 @@ test('Informe de pantalla: guarda resolución y versión dibujada (datos saneado
   assert.deepStrictEqual(display.adErrors, ['x.png']);
   screens.detach('pantalla-1', 's1');
   assert.strictEqual(screens.presenceOf('pantalla-1').length, 0);
+});
+
+// ═════════════════════════════════════════════════════════════════
+console.log('\nHISTORIAL DE PARTIDOS');
+// ═════════════════════════════════════════════════════════════════
+
+function record(over = {}) {
+  return {
+    uid: 'u1', matchId: 'pista-1', court: 'Pista 1', startedAt: 1000, finishedAt: 5000, durationMs: 4000, pausedMs: 0,
+    finishType: 'normal', teams: { A: 'Agustín Tapia / Arturo Coello', B: 'Ale Galán / Federico Chingotto' },
+    winner: 'A', sets: { A: 2, B: 0 }, setScores: [], unfinishedSet: null, config: {}, version: 30, ...over,
+  };
+}
+
+function freshHistory() {
+  fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+  return loadModules().history.createHistory();
+}
+
+test('Un partido terminado se guarda y se lee (los más recientes primero)', () => {
+  const h = quiet(() => freshHistory());
+  quiet(() => h.recordFinish(record({ uid: 'a', finishedAt: 1000 })));
+  quiet(() => h.recordFinish(record({ uid: 'b', finishedAt: 3000 })));
+  quiet(() => h.recordFinish(record({ uid: 'c', finishedAt: 2000 })));
+  assert.deepStrictEqual(h.list().records.map((r) => r.uid), ['b', 'c', 'a']);
+});
+
+test('Sin duplicados: el mismo final dos veces → un solo registro (ni se escribe dos veces)', () => {
+  const h = quiet(() => freshHistory());
+  assert.strictEqual(quiet(() => h.recordFinish(record())), true);
+  assert.strictEqual(quiet(() => h.recordFinish(record())), false);
+  assert.strictEqual(h.list().total, 1);
+  assert.strictEqual(fs.readFileSync(h.file, 'utf8').trim().split('\n').length, 1);
+});
+
+test('Deshacer el final lo anula; volver a terminar guarda el resultado nuevo', () => {
+  const h = quiet(() => freshHistory());
+  quiet(() => h.recordFinish(record({ version: 30 })));
+  quiet(() => h.cancelFinish('u1'));
+  assert.strictEqual(h.list().total, 0, 'Anulado');
+  quiet(() => h.recordFinish(record({ version: 34, sets: { A: 2, B: 1 } })));
+  const { records } = h.list();
+  assert.deepStrictEqual([records.length, records[0].sets], [1, { A: 2, B: 1 }]);
+  assert.strictEqual(quiet(() => h.cancelFinish('no-existe')), false);
+});
+
+test('Filtros: rango de fechas, pista y nombre (sin tildes ni mayúsculas)', () => {
+  const h = quiet(() => freshHistory());
+  quiet(() => h.recordFinish(record({ uid: 'x', finishedAt: 100, matchId: 'pista-1' })));
+  quiet(() => h.recordFinish(record({ uid: 'y', finishedAt: 200, matchId: 'pista-2', teams: { A: 'Juan Lebrón', B: 'Paquito Navarro' } })));
+  quiet(() => h.recordFinish(record({ uid: 'z', finishedAt: 300, matchId: 'pista-1' })));
+  assert.deepStrictEqual(h.list({ from: 150, to: 300 }).records.map((r) => r.uid), ['y'], 'Desde incluido, hasta excluido');
+  assert.deepStrictEqual(h.list({ matchId: 'pista-1' }).records.map((r) => r.uid), ['z', 'x']);
+  assert.deepStrictEqual(h.list({ text: 'GALAN tapia' }).records.map((r) => r.uid), ['z', 'x']);
+  assert.deepStrictEqual(h.list({ text: 'lebron' }).records.map((r) => r.uid), ['y']);
+  assert.strictEqual(h.list({ limit: 1 }).records.length, 1);
+  assert.strictEqual(h.list({ limit: 1 }).total, 3, 'El total cuenta todos aunque se limite la lista');
+});
+
+test('Se conserva tras reiniciar y una línea dañada (corte de luz) no rompe el resto', () => {
+  const h = quiet(() => freshHistory());
+  quiet(() => h.recordFinish(record({ uid: 'a' })));
+  fs.appendFileSync(h.file, '{"type":"final","uid":"rot');   // escritura cortada a medias
+  const again = loadModules().history.createHistory();
+  assert.deepStrictEqual(again.list().records.map((r) => r.uid), ['a']);
+  quiet(() => again.recordFinish(record({ uid: 'b', finishedAt: 9000 })));
+  // La línea cortada no se mezcla con la siguiente
+  assert.deepStrictEqual(loadModules().history.createHistory().list().records.map((r) => r.uid).sort(), ['a', 'b']);
+});
+
+test('Match: inicio, uid, tiempo en pausa y registro del historial', () => {
+  const match = freshRegistry().get('pista-1');
+  quiet(() => match.setup(validConfig()));
+  const uid = match.uid;
+  assert.ok(uid && Number.isFinite(match.startedAt));
+  quiet(() => match.applyAction('pause', match.version));
+  match.pausedSince -= 5000;   // simula 5 s en pausa
+  quiet(() => match.applyAction('resume', match.version));
+  assert.ok(match.pausedMs >= 5000 && match.pausedMs < 6000, `pausa ${match.pausedMs}`);
+  quiet(() => match.applyAction('pointA', match.version));
+  const rec = match.historyRecord('manual');
+  assert.strictEqual(rec.uid, uid);
+  assert.strictEqual(rec.finishType, 'manual');
+  assert.deepStrictEqual(rec.teams, { A: 'Galán / Lebrón', B: 'Coello / Tapia' });
+  assert.ok(rec.durationMs >= 0);
+  assert.strictEqual(restartRegistry().get('pista-1').uid, uid, 'Se conserva tras reiniciar');
+  quiet(() => match.reset(match.version));
+  assert.notStrictEqual(match.uid, uid, 'Reiniciar = partido nuevo');
 });
 
 fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });

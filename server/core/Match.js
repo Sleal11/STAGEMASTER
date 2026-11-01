@@ -15,6 +15,8 @@
  *     un partido en curso sin confirmación
  *   - Estado PÚBLICO (sin historial) con version, canUndo y paused
  *   - Pausa del partido (no admite puntos hasta reanudarlo)
+ *   - Datos para el historial: identificador único de cada partido (uid),
+ *     hora de inicio y tiempo en pausa (historyRecord)
  *
  * Y además (nuevo):
  *   - PIN de vinculación y teléfono árbitro asociado
@@ -27,6 +29,7 @@
 
 const { createMatch, applyAction } = require('../sports/padel/engine');
 const { validateConfig }           = require('../sports/padel/config');
+const crypto                       = require('crypto');
 const { appError }                 = require('./errors');
 const auth                         = require('./auth');
 
@@ -53,6 +56,10 @@ class Match {
     this.state      = null;   // Estado completo (con historial). null = sin partido
     this.version    = 0;
     this.paused     = false;  // Pausa (lesión, lluvia…): el marcador no admite puntos
+    this.uid        = null;   // Identificador único de ESTE partido (historial, sin duplicados)
+    this.startedAt  = null;   // Hora de inicio (ms)
+    this.pausedMs   = 0;      // Tiempo total en pausa
+    this.pausedSince = null;  // Inicio de la pausa actual
     this.pin        = null;
     this.controller = null;   // { tokenHash, deviceName, pairedAt } | null
     this.changedAt  = Date.now();
@@ -81,7 +88,7 @@ class Match {
     }
 
     const config = validateConfig(rawConfig);
-    this.paused = false;
+    this.startTracking();
     this.commit(createMatch(config));
     console.log(`[${this.label}] Partido creado: ${config.nameA} vs ${config.nameB} (v${this.version})`);
     return this.getPublicState();
@@ -107,7 +114,7 @@ class Match {
     const nextState = applyAction(this.state, actionName);
     // El motor devuelve el MISMO objeto si la acción no cambió nada (ej. undo sin historial)
     if (nextState !== this.state) {
-      if (nextState.status === 'finished') this.paused = false;
+      if (nextState.status === 'finished') this.setPausedFlag(false);
       this.commit(nextState);
     }
     return this.getPublicState();
@@ -119,7 +126,7 @@ class Match {
       throw appError('INVALID_ACTION', 'Solo se puede pausar un partido en juego');
     }
     if (this.paused !== paused) {
-      this.paused = paused;
+      this.setPausedFlag(paused);
       this.commit(this.state);   // Nueva versión: pantallas y teléfono se actualizan
       console.log(`[${this.label}] Partido ${paused ? 'en pausa' : 'reanudado'} (v${this.version})`);
     }
@@ -131,7 +138,7 @@ class Match {
     this.requireMatch();
     this.requireVersion(expectedVersion);
 
-    this.paused = false;
+    this.startTracking();
     this.commit(createMatch({
       ...this.state.config,
       nameA: this.state.players.A.name,
@@ -195,8 +202,64 @@ class Match {
   }
 
   // ─────────────────────────────────────────────────────────────
+  // HISTORIAL
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Registro del partido terminado para el historial (ver core/history.js).
+   * @param {'normal'|'manual'} finishType - Terminó por las reglas o con "Finalizar"
+   */
+  historyRecord(finishType) {
+    const s = this.state;
+    const finishedAt = Date.now();
+    const current = { A: s.players.A.games, B: s.players.B.games };
+    return {
+      uid:        this.uid,
+      matchId:    this.id,
+      court:      this.label,
+      color:      this.color,
+      startedAt:  this.startedAt,
+      finishedAt,
+      durationMs: this.startedAt ? finishedAt - this.startedAt : null,
+      pausedMs:   this.pausedMs,
+      finishType,
+      teams:      { A: s.players.A.name, B: s.players.B.name },
+      winner:     s.winner,
+      sets:       { A: s.players.A.sets, B: s.players.B.sets },
+      setScores:  s.setScores,
+      // Finalizado a mano a mitad de set: games del set que se estaba jugando
+      unfinishedSet: finishType === 'manual' && (current.A || current.B) ? current : null,
+      config: {
+        gamesPerSet: s.config.gamesPerSet, totalSets: s.config.totalSets,
+        scoringSystem: s.config.scoringSystem, tiebreakType: s.config.tiebreakType,
+      },
+      version: this.version,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // INTERNO
   // ─────────────────────────────────────────────────────────────
+
+  /** Partido nuevo (o reiniciado): identificador nuevo, hora de inicio y sin pausa */
+  startTracking() {
+    this.uid = crypto.randomUUID();
+    this.startedAt = Date.now();
+    this.paused = false;
+    this.pausedMs = 0;
+    this.pausedSince = null;
+  }
+
+  /** Cambia la pausa llevando la cuenta del tiempo en pausa */
+  setPausedFlag(paused) {
+    if (paused === this.paused) return;
+    if (paused) this.pausedSince = Date.now();
+    else if (this.pausedSince) {
+      this.pausedMs += Date.now() - this.pausedSince;
+      this.pausedSince = null;
+    }
+    this.paused = paused;
+  }
 
   /** ÚNICO punto donde cambia el marcador: estado, versión y guardado */
   commit(newState) {
@@ -209,6 +272,7 @@ class Match {
   persist() {
     this.store.save({
       version: this.version, state: this.state, paused: this.paused, pin: this.pin, controller: this.controller,
+      uid: this.uid, startedAt: this.startedAt, pausedMs: this.pausedMs, pausedSince: this.pausedSince,
     });
   }
 
@@ -221,6 +285,11 @@ class Match {
     this.paused     = saved.paused === true && !!this.state && this.state.status === 'playing';
     this.pin        = saved.pin || null;
     this.controller = saved.controller || null;
+    // Partidos guardados por versiones anteriores: sin hora de inicio conocida
+    this.uid         = saved.uid || (this.state ? crypto.randomUUID() : null);
+    this.startedAt   = Number.isFinite(saved.startedAt) ? saved.startedAt : null;
+    this.pausedMs    = Number.isFinite(saved.pausedMs) ? saved.pausedMs : 0;
+    this.pausedSince = this.paused && Number.isFinite(saved.pausedSince) ? saved.pausedSince : null;
     if (this.state) {
       console.log(`[${this.label}] Partido recuperado del disco: ` +
         `${this.state.players.A.name} vs ${this.state.players.B.name} (v${this.version})`);

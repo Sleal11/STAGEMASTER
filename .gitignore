@@ -12,3 +12,6 @@ Thumbs.db
 # Ejecutables generados (StageMaster.exe)
 dist/
 build-info.json
+
+# Capturas y datos temporales de las pruebas de navegador
+tests/e2e/out/

@@ -151,6 +151,7 @@ function createDevice(nombre, auth, host = 'localhost') {
   socket.on('controllerSession', (s) => { device.session = s; device.revoked = null; });
   socket.on('controllerRevoked', (r) => { device.revoked = r; device.session = null; });
   socket.on('identify', () => { device.identified++; });
+  socket.on('historyChanged', () => { device.historyChanged = (device.historyChanged || 0) + 1; });
   dispositivos.push(device);
   return device;
 }
@@ -720,6 +721,58 @@ test('Pausa: el partido no admite puntos hasta reanudarlo; las pantallas lo mues
   assert.ok(res.ok, res.message);
   await waitFor(() => telefono1.states['pista-1'].paused === false, 'reanudado');
   assert.ok((await action(telefono1, 'pista-1', 'pointA')).ok);
+});
+
+test('Historial: guarda cada partido terminado una sola vez; deshacer el final lo anula', async () => {
+  const total = async (filters = {}) => (await send(estacion, 'station:history', filters)).total;
+  const before = await total();
+
+  await send(estacion, 'setupMatch', { matchId: 'pista-1', config: config({ gamesPerSet: 1, totalSets: 1, nameA: 'Agustín Tapia / Arturo Coello' }), force: true });
+  await waitFor(() => telefono1.states['pista-1'].status === 'playing' && telefono1.states['pista-1'].players.A.points === 0, 'partido nuevo');
+  await sleep(150);
+  assert.strictEqual(await total(), before, 'Un partido sin terminar no está en el historial');
+
+  const changes = estacion.historyChanged || 0;
+  for (let i = 0; i < 40 && telefono1.states['pista-1'].status === 'playing'; i++) {
+    await action(telefono1, 'pista-1', 'pointA');
+    await waitFor(() => telefono1.states['pista-1'].version > 0, 'punto');
+  }
+  assert.strictEqual(telefono1.states['pista-1'].status, 'finished');
+  await waitFor(() => (estacion.historyChanged || 0) > changes, 'aviso a la estación');
+  let res = await send(estacion, 'station:history', {});
+  assert.strictEqual(res.total, before + 1);
+  const rec = res.records[0];
+  assert.deepStrictEqual([rec.matchId, rec.court, rec.winner, rec.finishType], ['pista-1', 'Pista 1', 'A', 'normal']);
+  assert.strictEqual(rec.teams.A, 'Agustín Tapia / Arturo Coello');
+  assert.ok(rec.durationMs >= 0 && rec.startedAt <= rec.finishedAt);
+
+  // "Finalizar" otra vez sobre el partido terminado: nada nuevo
+  await action(telefono1, 'pista-1', 'finishMatch');
+  await sleep(150);
+  assert.strictEqual(await total(), before + 1, 'Sin duplicados');
+
+  // Deshacer el último punto: el partido sigue → se anula; terminarlo a mano → se guarda como "manual"
+  await action(telefono1, 'pista-1', 'undo');
+  await waitFor(() => telefono1.states['pista-1'].status === 'playing', 'reabierto');
+  await sleep(150);
+  assert.strictEqual(await total(), before, 'Anulado al deshacer');
+  await action(telefono1, 'pista-1', 'finishMatch');
+  await waitFor(() => telefono1.states['pista-1'].status === 'finished', 'final manual');
+  await sleep(150);
+  res = await send(estacion, 'station:history', {});
+  assert.deepStrictEqual([res.total, res.records[0].finishType], [before + 1, 'manual']);
+
+  // Filtros
+  assert.strictEqual(await total({ text: 'agustin arturo' }), 1, 'Busca sin tildes');
+  assert.strictEqual(await total({ text: 'nadie' }), 0);
+  assert.strictEqual(await total({ from: Date.now() + 60000 }), 0);
+  assert.strictEqual(await total({ matchId: 'pista-2' }), (await send(estacion, 'station:history', { matchId: 'pista-2' })).total);
+  // En disco, una línea por evento
+  const lines = fs.readFileSync(path.join(DATA_DIR, 'historial.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l).type);
+  assert.deepStrictEqual(lines.slice(-3), ['final', 'anulado', 'final']);
+
+  res = await send(telefono1, 'station:history', {});
+  assert.strictEqual(res.code, 'FORBIDDEN', 'Un teléfono no puede leer el historial');
 });
 
 test('/health responde con el estado de ambos partidos', async () => {

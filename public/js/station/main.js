@@ -7,6 +7,7 @@
  *   3. Reparte los clics y cambios a cada módulo:
  *        matches.js  partidos        screens.js  pantallas
  *        dialogs.js  diálogos        uploads.js  subir y borrar publicidad
+ *        history.js  vista Historial
  *        context.js  estado y envío de órdenes
  *
  * Los textos que cambian con el tiempo ("hace 12 s", "publicidad en 8 s") se
@@ -20,6 +21,7 @@ import { initDialogs } from './dialogs.js';
 import { renderMatches, onMatchClick } from './matches.js';
 import { renderScreens, onScreenClick, onScreenChange, onScreenInput } from './screens.js';
 import { initUploads } from './uploads.js';
+import { initHistory, updateCourts, setHistoryVisible, onHistoryChanged } from './history.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -43,6 +45,7 @@ function connectToServer() {
       $('st-blocked').classList.remove('hidden');
     }
   });
+  socket.on('historyChanged', onHistoryChanged);
   socket.on('stationState', (state) => {
     ctx.state = state;
     ctx.clockOffset = state.serverTime - Date.now();
@@ -57,6 +60,7 @@ function render(state) {
   renderNetwork(state.network);
   renderMatches(state);
   renderScreens(state);
+  updateCourts(state);
   tick();
 }
 
@@ -96,9 +100,25 @@ function setConnection(kind, text) {
 // ARRANQUE
 // ─────────────────────────────────────────────────────────────────
 
+/** Panel (partidos y pantallas) ↔ Historial */
+function showView(view) {
+  document.querySelectorAll('.st-view-tab').forEach((tab) => {
+    tab.classList.toggle('is-active', tab.dataset.view === view);
+    tab.setAttribute('aria-selected', tab.dataset.view === view);
+  });
+  $('view-panel').classList.toggle('hidden', view !== 'panel');
+  $('view-history').classList.toggle('hidden', view !== 'history');
+  setHistoryVisible(view === 'history');
+}
+
 applyLogo();
 initDialogs();
 initUploads();
+initHistory();
+document.querySelector('.st-views').addEventListener('click', (e) => {
+  const tab = e.target.closest('.st-view-tab');
+  if (tab) showView(tab.dataset.view);
+});
 
 $('st-matches').addEventListener('click', onMatchClick);
 $('st-screens').addEventListener('click', onScreenClick);

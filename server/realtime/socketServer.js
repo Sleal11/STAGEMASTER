@@ -31,6 +31,7 @@
  *   station:unpair { matchId }                      estación
  *   station:updateScreen { screenId, changes }      estación (ver core/screenConfig.js)
  *   station:media { screenId, command }             estación: play | pause | resume | stop
+ *   station:history { from, to, text, matchId }     estación: partidos terminados (historial)
  *   station:identify { screenId }                   estación
  *   station:refreshAds                              estación
  *   station:setMonitor { screenId, monitor }        estación (solo aplicación de escritorio)
@@ -45,6 +46,7 @@
  *   screenConfig { ... }                            pantalla
  *   identify { label }                              pantalla
  *   stationState { matches, screens, ads, network } estación
+ *   historyChanged                                  estación: se guardó o anuló un partido del historial
  */
 
 const { appError }      = require('../core/errors');
@@ -66,8 +68,9 @@ const SYNC_TOLERANCE_MS = 2000;
  * @param {Function} deps.getNetworkInfo - Direcciones del portátil (para la estación)
  * @param {Object}  [deps.desktop] - Adaptador de la aplicación de escritorio (monitores y
  *                                   carpetas). null cuando se arranca con `npm start`.
+ * @param {Object}  [deps.history] - Historial de partidos (core/history.js)
  */
-function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = null }) {
+function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = null, history = null }) {
   const pinGuard = auth.createPinGuard();
 
   // La aplicación de escritorio avisa cuando cambian los monitores o las ventanas
@@ -131,6 +134,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       const match = authorizeMatch(socket, matchId);
       const wasFinished = match.state && match.state.status === 'finished';
       match.applyAction(action, version);
+      updateHistory(match, wasFinished, action);
       publishMatch(match, wasFinished);
     });
 
@@ -177,6 +181,17 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       }
       pushScreenConfig(screenId, matchChanged);
       scheduleStationState();
+    });
+
+    handle(socket, 'station:history', (filters = {}) => {
+      requireStation(socket);
+      if (!history) return { total: 0, records: [] };
+      const num = (v) => (Number.isFinite(v) ? v : undefined);
+      return history.list({
+        from: num(filters.from), to: num(filters.to), limit: num(filters.limit),
+        text: typeof filters.text === 'string' ? filters.text.slice(0, 80) : '',
+        matchId: typeof filters.matchId === 'string' ? filters.matchId : '',
+      });
     });
 
     handle(socket, 'station:media', ({ screenId, command } = {}) => {
@@ -418,6 +433,22 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     scheduleStationState();
     // Segunda revisión pasada la tolerancia: detecta pantallas que no dibujaron la versión nueva
     setTimeout(scheduleStationState, SYNC_TOLERANCE_MS + 200);
+  }
+
+  /**
+   * Historial: el partido acaba de terminar → se guarda; se deshizo el final →
+   * se anula. Un partido que nunca termina no se guarda.
+   */
+  function updateHistory(match, wasFinished, action) {
+    if (!history) return;
+    const finishedNow = !!match.state && match.state.status === 'finished';
+    let changed = false;
+    if (finishedNow && !wasFinished) {
+      changed = history.recordFinish(match.historyRecord(action === 'finishMatch' ? 'manual' : 'normal'));
+    } else if (!finishedNow && wasFinished) {
+      changed = history.cancelFinish(match.uid);
+    }
+    if (changed) io.to('station').emit('historyChanged');
   }
 
   /** Lo que necesita una pantalla para dibujarse (URLs resueltas, sin datos internos) */

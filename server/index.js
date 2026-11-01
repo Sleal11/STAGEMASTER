@@ -35,6 +35,7 @@ const { Server } = require('socket.io');
 
 const { createMatchRegistry } = require('./core/matchRegistry');
 const { createScreenManager } = require('./core/screens');
+const { createHistory }       = require('./core/history');
 const { adsDir }              = require('./core/ads');
 const { isLocalAddress }      = require('./core/auth');
 const { getLocalAddresses }   = require('./core/network');
@@ -58,6 +59,7 @@ const DEFAULT_PORTS = [3000, 3001, 3002, 3003, 3004, 3005];
 async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = null, logHttp = true } = {}) {
   const registry = createMatchRegistry();
   const screens  = createScreenManager({ matchIds: registry.ids() });
+  const history  = createHistory();
 
   const app    = express();
   const server = http.createServer(app);
@@ -79,7 +81,7 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
     return { port, addresses, primary: addresses[0] || null };
   };
 
-  const realtime = attachSocketServer(io, { registry, screens, getNetworkInfo, desktop });
+  const realtime = attachSocketServer(io, { registry, screens, getNetworkInfo, desktop, history });
 
   // ── HTTP ─────────────────────────────────────────────────────────
 
