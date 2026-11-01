@@ -36,6 +36,7 @@ const dom = {
   media:    $('d-media'),
   standby:  $('d-standby'),
   identify: $('d-identify'),
+  dimmer:   $('d-dimmer'),
 };
 
 const screenId = readScreenId();
@@ -128,7 +129,9 @@ function schedulePostMatch(postMatch) {
  */
 function applyOutput() {
   if (!config) return;
-  const { width, height, x, y } = config.output;
+  const { width, height, x, y, brightness } = config.output;
+  // Brillo de la imagen (no el físico de los módulos LED): velo negro encima de todo
+  dom.dimmer.style.opacity = String(1 - (brightness || 100) / 100);
   const dpr   = window.devicePixelRatio || 1;
   const fixed = !!(width && height);
   const style = dom.output.style;

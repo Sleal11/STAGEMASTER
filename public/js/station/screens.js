@@ -278,6 +278,10 @@ function outputPanel(screen, state) {
   const formats = state.outputFormats.map((f) =>
     `<option value="${f.id}"${f.id === screen.output.format ? ' selected' : ''}>${esc(f.label)}</option>`).join('');
   return monitor +
+    field('Brillo de la imagen', `<input class="range" type="range" min="${state.limits.brightness[0]}" max="${state.limits.brightness[1]}" step="5" ` +
+      `value="${screen.output.brightness}" data-action="brightness" data-screen="${screen.id}" aria-label="Brillo de la imagen">` +
+      `<output class="range-value" data-brightness-value="${screen.id}">${screen.output.brightness} %</output>`,
+    'Atenúa la imagen que envía StageMaster (útil de noche). El brillo físico de los módulos LED se ajusta en el procesador LED.') +
     field('Formato', `<select class="input" data-action="format" data-screen="${screen.id}">${formats}</select>`,
       fixed ? 'Tamaño exacto en píxeles reales, también con el escalado de Windows activado.' : 'El marcador ocupa todo el monitor y se adapta a su tamaño.') +
     (fixed ? field('Posición', `X ${number('outputX', screen.id, screen.output.x, state.limits.offset, '')}` +
@@ -397,6 +401,7 @@ export function onScreenChange(event) {
     case 'format':         update(screenId, { output: { format: el.value } }); break;
     case 'outputX':        update(screenId, { output: { x: value } }); break;
     case 'outputY':        update(screenId, { output: { y: value } }); break;
+    case 'brightness':     update(screenId, { output: { brightness: value } }); break;
     case 'endAds':         update(screenId, { endAds: { enabled: el.checked } }); break;
     case 'pauseAds':       update(screenId, { pauseAds: { enabled: el.checked } }); break;
     case 'endDelay':       update(screenId, { endAds: { delay: value } }); break;
@@ -415,6 +420,12 @@ export function onScreenChange(event) {
 /** Mientras se escriben los mensajes: activar "Aplicar" solo si hay cambios */
 export function onScreenInput(event) {
   const el = event.target;
+  // Brillo: el número se actualiza mientras se arrastra; se aplica al soltar
+  if (el.dataset.action === 'brightness') {
+    const label = document.querySelector(`[data-brightness-value="${el.dataset.screen}"]`);
+    if (label) label.textContent = el.value + ' %';
+    return;
+  }
   if (el.dataset.action !== 'texts') return;
   const screen = findScreen(el.dataset.screen);
   const button = el.parentElement.querySelector('[data-action="applyTexts"]');

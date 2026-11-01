@@ -440,7 +440,7 @@ test('Por defecto: Pantalla 1 → Pista 1, Pantalla 2 → Pista 2, marcador con 
   assert.strictEqual(p1.ribbon.enabled, true);
   assert.strictEqual(p1.endAds.enabled, false, 'La publicidad final empieza desactivada');
   assert.strictEqual(p1.ribbon.cleanLogos, true, 'Logos sin fondo blanco por defecto');
-  assert.deepStrictEqual(p1.output, { format: 'fill', x: 0, y: 0 });
+  assert.deepStrictEqual(p1.output, { format: 'fill', x: 0, y: 0, brightness: 100 });
 });
 
 test('Dos pantallas pueden mostrar el MISMO partido', () => {
@@ -454,7 +454,7 @@ test('Validación de pantalla: partido, vista, tiempos, formato y posición inv�
   [
     { matchId: 'pista-9' }, { view: 'karaoke' }, { ribbon: { interval: 1 } }, { ribbon: { motion: 'zigzag' } },
     { ribbon: { enabled: 'si' } }, { ribbon: { texts: Array(11).fill('x') } }, { media: { imageSeconds: 500 } },
-    { ribbon: { cleanLogos: 'no' } },
+    { ribbon: { cleanLogos: 'no' } }, { output: { brightness: 5 } }, { output: { brightness: 101 } }, { pauseAds: { enabled: 1 } },
     { media: { sound: 1 } }, { endAds: { delay: -1 } }, { output: { format: '4k' } }, { output: { y: 1.5 } },
     { ribbon: 'todo' }, null,
   ].forEach((changes) => assertCode(() => screens.update('pantalla-1', changes, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG'));
@@ -538,7 +538,7 @@ test('La configuración de pantallas se conserva tras reiniciar', () => {
   assert.strictEqual(again.matchId, 'pista-1');
   assert.strictEqual(again.ribbon.motion, 'scroll');
   assert.strictEqual(again.ribbon.speed, 'slow');
-  assert.deepStrictEqual(again.output, { format: 'led-sm', x: 32, y: 0 });
+  assert.deepStrictEqual(again.output, { format: 'led-sm', x: 32, y: 0, brightness: 100 });
   assert.deepStrictEqual(again.endAds, { enabled: true, delay: 20 });
 });
 

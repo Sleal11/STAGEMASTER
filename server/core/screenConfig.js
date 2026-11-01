@@ -18,7 +18,10 @@
  *             se ve el resultado antes de la lista de reproducción)
  *   pauseAds  Publicidad mientras el partido está en pausa: enabled
  *   output    Formato de salida: 'fill' (todo el monitor) o un formato LED de
- *             tamaño fijo (OUTPUT_FORMATS) en la posición x, y del monitor
+ *             tamaño fijo (OUTPUT_FORMATS) en la posición x, y del monitor ·
+ *             brightness: brillo de la IMAGEN que envía StageMaster (10-100 %).
+ *             No es el brillo físico de los módulos LED (ese lo controla el
+ *             procesador LED: ver docs/BRILLO-LED.md)
  *
  * Y el estado de reproducción (también se guarda: sobrevive a un reinicio):
  *   playback       'playing' | 'paused'
@@ -50,6 +53,7 @@ const LIMITS = {
   imageSeconds: [3, 120],   // segundos de cada imagen de la lista de reproducción
   delay:        [0, 600],   // segundos del resultado antes de la publicidad final
   offset:       [0, 7680],  // posición del formato LED dentro del monitor
+  brightness:   [10, 100],  // brillo de la imagen (%)
   texts:        10,         // mensajes de la cinta
   textLength:   120,        // caracteres por mensaje
 };
@@ -65,7 +69,7 @@ function defaultConfig({ id, label, matchId }) {
     media:  { items: [], imageSeconds: 10, sound: false },
     endAds: { enabled: false, delay: 15 },
     pauseAds: { enabled: true },
-    output: { format: 'fill', x: 0, y: 0 },
+    output: { format: 'fill', x: 0, y: 0, brightness: 100 },
     playback:      'playing',
     playId:        0,
     postMatch:     null,
@@ -130,6 +134,7 @@ function normalizeSaved(saved, base) {
     format: pick(o.format, (v) => v in OUTPUT_FORMATS, 'fill'),
     x:      pick(o.x, inRange(LIMITS.offset), 0),
     y:      pick(o.y, inRange(LIMITS.offset), 0),
+    brightness: pick(o.brightness, inRange(LIMITS.brightness), 100),
   };
   config.playback      = pick(saved.playback, oneOf(PLAYBACK), 'playing');
   config.playId        = pick(saved.playId, Number.isInteger, 0);
@@ -233,14 +238,15 @@ function applyChanges(config, changes, { matchIds, library }) {
     if (output.format !== undefined) next.output.format = oneOf(output.format, Object.keys(OUTPUT_FORMATS), 'Formato');
     if (output.x      !== undefined) next.output.x      = integer(output.x, LIMITS.offset, 'Posición X');
     if (output.y      !== undefined) next.output.y      = integer(output.y, LIMITS.offset, 'Posición Y');
+    if (output.brightness !== undefined) next.output.brightness = integer(output.brightness, LIMITS.brightness, 'Brillo de la imagen');
   }
   return next;
 }
 
-/** Formato de salida con su tamaño: { format, width, height, x, y } (width null = todo el monitor) */
+/** Formato de salida con su tamaño: { format, width, height, x, y, brightness } (width null = todo el monitor) */
 function resolveOutput(output) {
   const { width, height } = OUTPUT_FORMATS[output.format];
-  return { format: output.format, width, height, x: output.x, y: output.y };
+  return { format: output.format, width, height, x: output.x, y: output.y, brightness: output.brightness };
 }
 
 module.exports = {

@@ -525,13 +525,13 @@ test('Configuración inválida de pantalla → INVALID_SCREEN_CONFIG (nada cambi
   assert.strictEqual(res.code, 'INVALID_ACTION');
 });
 
-test('Formato LED: la pantalla recibe el tamaño exacto y la posición', async () => {
-  let res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-2', changes: { output: { format: 'led-sm', x: 16, y: 8 } } });
+test('Formato LED y brillo de la imagen: la pantalla recibe el tamaño exacto, la posición y el brillo', async () => {
+  let res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-2', changes: { output: { format: 'led-sm', x: 16, y: 8, brightness: 60 } } });
   assert.ok(res.ok, res.message);
   await waitFor(() => pantalla2.screenConfig.output.format === 'led-sm', 'formato LED en la pantalla 2');
-  assert.deepStrictEqual(pantalla2.screenConfig.output, { format: 'led-sm', width: 416, height: 208, x: 16, y: 8 });
+  assert.deepStrictEqual(pantalla2.screenConfig.output, { format: 'led-sm', width: 416, height: 208, x: 16, y: 8, brightness: 60 });
   assert.ok(estacion.stationState.outputFormats.some((f) => f.id === 'led-xl' && f.width === 832 && f.height === 416));
-  res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-2', changes: { output: { format: 'fill', x: 0, y: 0 } } });
+  res = await send(estacion, 'station:updateScreen', { screenId: 'pantalla-2', changes: { output: { format: 'fill', x: 0, y: 0, brightness: 100 } } });
   assert.ok(res.ok, res.message);
 });
 
