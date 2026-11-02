@@ -98,6 +98,7 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 | Opinión de la estética nueva en LED | Pendiente | Santiago |
 | Análisis profundo final + paso a `main` + etiqueta | Cuando Santiago lo pida | — |
 | `.gitignore` de `*.exe` en la raíz | Propuesto, sin hacer | Confirmación de Santiago |
+| **Colores de la marca** (índigo / claro) | **En espera** por decisión de Santiago: la app sigue con su paleta azul oscuro | Maquetas, paleta y temas listos en `docs/maquetas-marca/` (ver su LEEME); falta elegir opción por parte (LED / estación / teléfono) y el color de la Pista 2 |
 
 ## 6. Pruebas
 
