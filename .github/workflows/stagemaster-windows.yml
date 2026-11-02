@@ -68,11 +68,26 @@ jobs:
       - name: Compilar StageMaster.exe
         run: npm run dist:win
 
+      # También en .zip (con instrucciones dentro): los navegadores bloquean
+      # mucho menos un .zip que un .exe sin firma digital
+      - name: Preparar el .zip
+        shell: bash
+        run: |
+          set -e
+          VERSION=$(node -p "require('./package.json').version")
+          mkdir -p dist/zip
+          cp dist/StageMaster-$VERSION.exe dist/zip/StageMaster.exe
+          cp "build/LEEME-si-Windows-avisa.txt" dist/zip/
+          powershell -NoProfile -Command "Compress-Archive -Path 'dist/zip/*' -DestinationPath 'dist/StageMaster-$VERSION.zip' -Force"
+          ls -la dist/*.zip
+
       - name: Guardar el ejecutable
         uses: actions/upload-artifact@v4
         with:
           name: StageMaster-Windows
-          path: dist/*.exe
+          path: |
+            dist/*.exe
+            dist/*.zip
           retention-days: 30
 
       # Versión de prueba: la etiqueta "prueba" se mueve a este commit y su
@@ -85,16 +100,17 @@ jobs:
         run: |
           set -e
           cp dist/StageMaster-*.exe dist/StageMaster-prueba.exe
+          cp dist/StageMaster-*.zip dist/StageMaster-prueba.zip
           VERSION=$(node -p "require('./package.json').version")
           FECHA=$(date -u +'%Y-%m-%d %H:%M UTC')
           git tag -f prueba
           git push -f origin refs/tags/prueba
-          NOTAS="Versión de PRUEBA $VERSION · rama ${GITHUB_REF_NAME} · commit ${GITHUB_SHA::7} · $FECHA. Se actualiza sola con cada cambio. Para el cliente, usar la última versión de Releases."
+          NOTAS="Versión de PRUEBA $VERSION · rama ${GITHUB_REF_NAME} · commit ${GITHUB_SHA::7} · $FECHA. Se actualiza sola con cada cambio. Si el navegador bloquea el .exe, descarga el .zip (lleva instrucciones dentro). Para el cliente, usar la última versión de Releases."
           if gh release view prueba >/dev/null 2>&1; then
             gh release edit prueba --prerelease --title "StageMaster · versión de prueba ($VERSION)" --notes "$NOTAS"
-            gh release upload prueba dist/StageMaster-prueba.exe --clobber
+            gh release upload prueba dist/StageMaster-prueba.exe dist/StageMaster-prueba.zip --clobber
           else
-            gh release create prueba dist/StageMaster-prueba.exe --prerelease --latest=false \
+            gh release create prueba dist/StageMaster-prueba.exe dist/StageMaster-prueba.zip --prerelease --latest=false \
               --title "StageMaster · versión de prueba ($VERSION)" --notes "$NOTAS"
           fi
 
@@ -103,13 +119,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: StageMaster ${{ github.ref_name }}
-          files: dist/*.exe
+          files: |
+            dist/*.exe
+            dist/*.zip
           body: |
             ## Descargar y usar
 
-            1. Descarga **StageMaster-….exe** (abajo, en *Assets*). No se instala nada.
-            2. Cópialo a la laptop del evento y ábrelo con doble clic.
-            3. Si Windows avisa *"Windows protegió su PC"*: **Más información → Ejecutar de todas formas**.
+            1. Descarga **StageMaster-….zip** (abajo, en *Assets*); si el navegador deja, también vale el **.exe**. No se instala nada.
+            2. Extrae **StageMaster.exe** del .zip, cópialo a la laptop del evento y ábrelo con doble clic.
+            3. Si Windows avisa *"Windows protegió su PC"*: **Más información → Ejecutar de todas formas**. Si no deja: clic derecho → Propiedades → **Desbloquear**.
             4. Si pregunta por el **Firewall**: **Permitir** (redes privadas), para que se conecten los teléfonos.
 
             Todo lo demás está en el botón **❔ Ayuda** de la estación.

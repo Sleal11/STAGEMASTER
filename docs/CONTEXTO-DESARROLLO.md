@@ -30,6 +30,8 @@ frameworks (módulos ES), archivos JSON/JSONL con escritura atómica.
 - **No pasar a `main`** hasta el análisis profundo final del proyecto.
 - Cada push publica el exe de prueba (enlace fijo):
   https://github.com/Sleal11/STAGEMASTER/releases/download/prueba/StageMaster-prueba.exe
+  y el mismo en .zip (si el navegador bloquea el .exe):
+  https://github.com/Sleal11/STAGEMASTER/releases/download/prueba/StageMaster-prueba.zip
   La versión ya no se muestra en la interfaz (por estética): se comprueba
   pasando el ratón por el logo de la estación o al final de la Ayuda.
 - Santiago actualiza con **`git pull` + `npm run app`** en Antigravity. No debe
@@ -98,6 +100,7 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 | Opinión de la estética nueva en LED | Pendiente | Santiago |
 | Análisis profundo final + paso a `main` + etiqueta | Cuando Santiago lo pida | — |
 | `.gitignore` de `*.exe` en la raíz | Propuesto, sin hacer | Confirmación de Santiago |
+| **Firma digital del .exe** («la app no es segura») | Sin firma. Mientras tanto: .zip en el enlace de prueba (con LEEME), USB y pasos en `docs/DESCARGA-Y-SEGURIDAD.md` | Decisión y coste: Azure Artifact Signing (solo empresas de EE. UU./Canadá/UE/RU o personas de EE. UU./Canadá) o certificado OV; datos legales de la empresa |
 | **Colores de la marca** (índigo / claro) | **En espera** por decisión de Santiago: la app sigue con su paleta azul oscuro | Maquetas, paleta y temas listos en `docs/maquetas-marca/` (ver su LEEME); falta elegir opción por parte (LED / estación / teléfono) y el color de la Pista 2 |
 
 ## 6. Pruebas

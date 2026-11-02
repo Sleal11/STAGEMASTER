@@ -1,0 +1,24 @@
+STAGEMASTER - SI WINDOWS O EL NAVEGADOR AVISAN
+================================================
+
+StageMaster todavía no lleva firma digital de empresa, por eso Windows lo
+trata como un programa "desconocido". No es un virus: es el aviso normal
+para cualquier programa sin firma descargado de Internet.
+
+1) Saca StageMaster.exe de este .zip (clic derecho > Extraer todo) y
+   cópialo, por ejemplo, al Escritorio.
+
+2) Ábrelo con doble clic. Si sale "Windows protegió su PC":
+   pulsa "Más información" y después "Ejecutar de todas formas".
+
+3) Si Windows no deja abrirlo:
+   clic derecho sobre StageMaster.exe > Propiedades > en la parte de abajo
+   marca "Desbloquear" > Aceptar. Vuelve a abrirlo.
+
+4) Si lo borra el antivirus: añade una excepción para StageMaster.exe en
+   el antivirus, o cópialo desde un USB (los archivos copiados desde un
+   USB no llevan el aviso de "descargado de Internet").
+
+5) La primera vez, si el firewall pregunta, pulsa "Permitir". Si la
+   estación muestra el aviso rojo de los teléfonos, pulsa
+   "Permitir teléfonos".

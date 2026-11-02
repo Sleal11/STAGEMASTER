@@ -25,6 +25,8 @@ en **otros portátiles** de la red, con marcador, cinta publicitaria y vídeos,
    las **pantallas** (en los monitores externos).
    - La primera vez, Windows puede avisar *"Windows protegió su PC"*:
      **Más información → Ejecutar de todas formas** (el `.exe` no está firmado).
+   - Si el navegador **no deja descargar** el `.exe`, descarga el **.zip** (lleva
+     instrucciones dentro). Todas las soluciones: [`docs/DESCARGA-Y-SEGURIDAD.md`](docs/DESCARGA-Y-SEGURIDAD.md).
    - Si pregunta por el **Firewall**: **Permitir** (redes privadas).
 4. Todo lo demás se explica en el botón **Ayuda** de la estación.
 
@@ -171,6 +173,7 @@ hacer que `Match.js` elija el motor según el deporte y crear su vista de pantal
 - [`docs/RESOLUCIONES.md`](docs/RESOLUCIONES.md) — resolución del monitor vs formato LED, EDID, el caso 1920×1120.
 - [`docs/BRILLO-LED.md`](docs/BRILLO-LED.md) — brillo de la imagen vs brillo físico de los módulos.
 - [`docs/AUDITORIA-V3.md`](docs/AUDITORIA-V3.md) — auditoría y plan de la versión 3.
+- [`docs/DESCARGA-Y-SEGURIDAD.md`](docs/DESCARGA-Y-SEGURIDAD.md) — «la app no es segura»: descargar y abrir el .exe; firma digital.
 - [`docs/CONTEXTO-DESARROLLO.md`](docs/CONTEXTO-DESARROLLO.md) — estado, forma de trabajar, identidad visual, pendientes y decisiones (para continuar el desarrollo).
 
 Tipografías **Inter** y **Oswald**: SIL Open Font License 1.1 (`public/fonts/LICENSE-*.txt`).
