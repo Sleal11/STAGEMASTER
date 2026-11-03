@@ -1,0 +1,186 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: Oswald; font-weight: 700; src: url(../../public/fonts/oswald-latin-700-normal.woff2); }
+@font-face { font-family: Oswald; font-weight: 600; src: url(../../public/fonts/oswald-latin-600-normal.woff2); }
+@font-face { font-family: Inter; font-weight: 700; src: url(../../public/fonts/inter-latin-700-normal.woff2); }
+@font-face { font-family: Inter; font-weight: 600; src: url(../../public/fonts/inter-latin-600-normal.woff2); }
+:root { --indigo:#3A3FC0; --navy:#2E3192; --light:#EEF4FB; --sky:#4FB8F2; --sky2:#1E9BE0; --yellow:#FFD21F; }
+* { margin:0; box-sizing:border-box; }
+html,body { width:832px; height:416px; overflow:hidden; background:var(--indigo); }
+.stage { position:absolute; inset:0; overflow:hidden; }
+.scene { position:absolute; inset:0; overflow:hidden; opacity:0; }
+.abs { position:absolute; will-change:transform,opacity; }
+.bar { position:absolute; height:12px; background:var(--sky); transform:skewX(-35deg); }
+.h { font-family:Oswald; font-weight:700; text-transform:uppercase; line-height:.95; letter-spacing:.5px; }
+.t { font-family:Inter; font-weight:700; }
+.circle { position:absolute; border-radius:50%; background:#DCEBF8; }
+/* Escena 3: marcador */
+.board { position:absolute; left:452px; top:78px; width:340px; height:216px; border-radius:16px; background:#0B1440; border:5px solid #101a52; box-shadow:0 8px 30px rgba(0,0,0,.35); }
+.board .col { position:absolute; top:22px; font-family:Inter; font-weight:700; font-size:20px; color:var(--sky); letter-spacing:1px; }
+.board .num { position:absolute; top:52px; font-family:Oswald; font-weight:700; font-size:112px; color:var(--yellow); width:130px; text-align:center; line-height:1; }
+.board .sep { position:absolute; left:155px; top:72px; font-family:Oswald; font-weight:700; font-size:70px; color:#fff; }
+.board .flash { position:absolute; inset:0; border-radius:12px; background:var(--yellow); opacity:0; }
+.pill { position:absolute; padding:6px 16px; border-radius:30px; font-family:Oswald; font-weight:700; font-size:24px; letter-spacing:.5px; }
+.legs { position:absolute; top:299px; width:9px; height:38px; background:var(--sky2); }
+/* Escena 4 */
+.card { position:absolute; top:186px; width:236px; height:150px; border-radius:18px; background:var(--indigo); color:#fff; text-align:center; padding-top:22px; }
+.card .ico { height:58px; display:flex; align-items:center; justify-content:center; }
+.card .lbl { font-family:Oswald; font-weight:700; font-size:34px; margin-top:12px; letter-spacing:.5px; }
+.wipe { position:absolute; top:-40px; width:520px; height:500px; background:var(--sky); transform:skewX(-20deg); }
+</style></head>
+<body><div class="stage">
+
+<!-- 1 · INTRO: logo sobre índigo -->
+<div class="scene" id="s1">
+  <div class="bar" id="s1b1" style="left:-40px; top:44px; width:330px"></div>
+  <div class="bar" id="s1b2" style="left:560px; top:360px; width:330px"></div>
+  <img class="abs" id="s1logo" src="../../public/img/logo-stagemaster.png" style="left:226px; top:78px; width:380px">
+  <div class="abs t" id="s1sub" style="left:0; width:832px; top:268px; text-align:center; color:var(--sky); font-size:26px; letter-spacing:6px">PANTALLAS LED · EVENTOS</div>
+</div>
+
+<!-- 2 · DONDE TUS EVENTOS SUBEN DE NIVEL -->
+<div class="scene" id="s2" style="background:var(--light)">
+  <div class="circle" id="s2c" style="width:420px; height:420px; left:520px; top:-150px"></div>
+  <div class="bar" id="s2b1" style="left:-40px; top:378px; width:260px"></div>
+  <img class="abs" id="s2logo" src="logo-indigo.png" style="left:36px; top:124px; width:290px">
+  <div class="abs" id="s2line" style="left:358px; top:76px; width:7px; height:264px; background:var(--sky2); transform-origin:top"></div>
+  <div class="abs h" id="s2t1" style="left:390px; top:92px; font-size:58px; color:var(--navy); white-space:nowrap">DONDE TUS</div>
+  <div class="abs h" id="s2t2" style="left:390px; top:156px; font-size:58px; color:var(--navy); white-space:nowrap">EVENTOS</div>
+  <div class="abs h" id="s2t3" style="left:390px; top:226px; font-size:58px; color:var(--sky2); white-space:nowrap">SUBEN DE NIVEL</div>
+</div>
+
+<!-- 3 · MARCADORES DE PÁDEL EN LED -->
+<div class="scene" id="s3">
+  <div class="bar" id="s3b1" style="left:-40px; top:30px; width:300px"></div>
+  <img class="abs" id="s3logo" src="../../public/img/logo-stagemaster.png" style="left:40px; top:52px; width:140px">
+  <div class="abs h" id="s3t1" style="left:40px; top:132px; font-size:78px; color:#fff">MARCADOR</div>
+  <div class="abs h" id="s3t2" style="left:40px; top:206px; font-size:78px; color:var(--yellow)">DE PÁDEL</div>
+  <div class="abs t" id="s3t3" style="left:42px; top:300px; font-size:24px; color:var(--sky); letter-spacing:2px">EN VIVO · EN TU PANTALLA LED</div>
+  <div class="legs" id="s3l1" style="left:560px"></div><div class="legs" id="s3l2" style="left:684px"></div>
+  <div class="board" id="s3board">
+    <div class="col" style="left:46px">LOCAL</div><div class="col" style="left:232px">VISITA</div>
+    <div class="num" id="s3a" style="left:12px">0</div><div class="sep">:</div><div class="num" id="s3b" style="left:190px">0</div>
+    <div class="flash" id="s3flash"></div>
+  </div>
+  <div class="pill" id="s3p1" style="left:470px; top:350px; background:var(--yellow); color:var(--navy)">MARCADOR</div>
+  <div class="pill" id="s3p2" style="left:636px; top:350px; background:#fff; color:var(--indigo)">PUBLICIDAD</div>
+</div>
+
+<!-- 4 · TODO EN UNA PANTALLA -->
+<div class="scene" id="s4" style="background:var(--light)">
+  <div class="circle" id="s4c" style="width:380px; height:380px; left:-120px; top:170px"></div>
+  <div class="abs h" id="s4t" style="left:0; width:832px; top:44px; text-align:center; font-size:76px; color:var(--navy)">TODO EN <span style="color:var(--sky2)">UNA PANTALLA</span></div>
+  <div class="card" id="s4k1" style="left:40px">
+    <div class="ico"><svg width="86" height="58" viewBox="0 0 86 58"><rect x="3" y="3" width="80" height="52" rx="8" fill="none" stroke="#FFD21F" stroke-width="6"/><text x="43" y="39" text-anchor="middle" font-family="Oswald" font-weight="700" font-size="27" fill="#FFD21F">40:15</text></svg></div>
+    <div class="lbl">MARCADOR</div></div>
+  <div class="card" id="s4k2" style="left:298px">
+    <div class="ico"><svg width="86" height="58" viewBox="0 0 86 58"><rect x="3" y="3" width="80" height="52" rx="8" fill="none" stroke="#4FB8F2" stroke-width="6"/><path d="M34 16 L58 29 L34 42 Z" fill="#fff"/></svg></div>
+    <div class="lbl">VÍDEOS</div></div>
+  <div class="card" id="s4k3" style="left:556px">
+    <div class="ico"><svg width="86" height="58" viewBox="0 0 86 58"><rect x="3" y="3" width="80" height="52" rx="8" fill="none" stroke="#fff" stroke-width="6"/><rect x="14" y="36" width="58" height="10" rx="3" fill="#FFD21F"/><rect x="14" y="14" width="34" height="14" rx="3" fill="#4FB8F2"/></svg></div>
+    <div class="lbl">PUBLICIDAD</div></div>
+</div>
+
+<!-- 5 · CIERRE: logo + usuario -->
+<div class="scene" id="s5">
+  <div class="bar" id="s5b1" style="left:-40px; top:40px; width:330px"></div>
+  <div class="bar" id="s5b2" style="left:560px; top:364px; width:330px"></div>
+  <img class="abs" id="s5logo" src="../../public/img/logo-stagemaster.png" style="left:236px; top:62px; width:360px">
+  <div class="abs t" id="s5user" style="left:0; width:832px; top:252px; text-align:center; color:#fff; font-size:40px">@stagemastervzla</div>
+</div>
+
+<div class="wipe" id="wipe"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const ease = (p) => 1 - Math.pow(1 - clamp(p), 3);              // salida suave
+const inOut = (p) => { p = clamp(p); return p < .5 ? 4*p*p*p : 1 - Math.pow(-2*p + 2, 3) / 2; };
+const prog = (t, a, d) => clamp((t - a) / d);
+const set = (id, o = {}) => {
+  const el = $(id); const tf = [];
+  if (o.x !== undefined || o.y !== undefined) tf.push(`translate(${o.x || 0}px,${o.y || 0}px)`);
+  if (o.s !== undefined) tf.push(`scale(${o.s})`);
+  if (o.sy !== undefined) tf.push(`scaleY(${o.sy})`);
+  if (o.k !== undefined) tf.push(`skewX(${o.k}deg)`);
+  el.style.transform = tf.join(' ');
+  if (o.o !== undefined) el.style.opacity = o.o;
+};
+// Escenas: [inicio, fin]
+const S = { s1: [0, 3.2], s2: [3.2, 6.4], s3: [6.4, 10.6], s4: [10.6, 13.0], s5: [13.0, 15.0] };
+const WIPES = [3.2, 6.4, 10.6, 13.0];
+const WIPE_D = .5;
+const BAR = -35;
+
+function render(t) {
+  Object.entries(S).forEach(([id, [a, b]]) => { $(id).style.opacity = (t >= a && t < b) ? 1 : 0; });
+
+  // Barrido celeste entre escenas (cubre el corte a mitad)
+  let wx = 1100;
+  WIPES.forEach((w) => { const p = (t - (w - WIPE_D / 2)) / WIPE_D; if (p >= 0 && p <= 1) wx = 1000 - inOut(p) * 1700; });
+  set('wipe', { x: wx, k: -20 }); $('wipe').style.left = '0px';
+
+  // 1 · intro (el logo aparece; empieza igual que termina la escena 5 → bucle sin salto)
+  let p = ease(prog(t, 0.1, .8));
+  set('s1b1', { x: -360 * (1 - ease(prog(t, 0.2, .7))), k: BAR });
+  set('s1b2', { x: 360 * (1 - ease(prog(t, 0.3, .7))), k: BAR });
+  set('s1logo', { o: p, s: .85 + .15 * p, y: -10 * p });
+  set('s1sub', { o: ease(prog(t, 1.0, .6)), y: 16 * (1 - ease(prog(t, 1.0, .6))) });
+
+  // 2 · donde tus eventos suben de nivel
+  const t2 = t - S.s2[0];
+  set('s2c', { s: .8 + .2 * ease(prog(t2, .1, 1.2)), o: 1 });
+  set('s2b1', { x: -300 * (1 - ease(prog(t2, .2, .6))), k: BAR });
+  set('s2logo', { o: ease(prog(t2, .2, .5)), x: -30 * (1 - ease(prog(t2, .2, .5))) });
+  set('s2line', { sy: ease(prog(t2, .4, .5)) });
+  ['s2t1', 's2t2', 's2t3'].forEach((id, i) => {
+    const q = ease(prog(t2, .55 + i * .22, .5));
+    set(id, { o: q, x: 40 * (1 - q) });
+  });
+
+  // 3 · marcador de pádel
+  const t3 = t - S.s3[0];
+  set('s3b1', { x: -320 * (1 - ease(prog(t3, .2, .6))), k: BAR });
+  set('s3logo', { o: ease(prog(t3, .2, .5)) });
+  set('s3t1', { o: ease(prog(t3, .3, .5)), y: 30 * (1 - ease(prog(t3, .3, .5))) });
+  set('s3t2', { o: ease(prog(t3, .5, .5)), y: 30 * (1 - ease(prog(t3, .5, .5))) });
+  set('s3t3', { o: ease(prog(t3, .8, .5)) });
+  const bq = ease(prog(t3, .35, .6));
+  set('s3board', { o: bq, s: .9 + .1 * bq });
+  set('s3l1', { o: bq }); set('s3l2', { o: bq });
+  set('s3p1', { o: ease(prog(t3, 1.0, .4)), y: 14 * (1 - ease(prog(t3, 1.0, .4))) });
+  set('s3p2', { o: ease(prog(t3, 1.15, .4)), y: 14 * (1 - ease(prog(t3, 1.15, .4))) });
+  // Puntos: 0-0 → 15-0 → 15-15 → 30-15 → 40-15
+  const pts = [[0, '0', '0'], [1.4, '15', '0'], [2.1, '15', '15'], [2.8, '30', '15'], [3.5, '40', '15']];
+  let cur = pts[0], since = 99;
+  pts.forEach((s) => { if (t3 >= s[0]) { cur = s; since = t3 - s[0]; } });
+  $('s3a').textContent = cur[1]; $('s3b').textContent = cur[2];
+  const pop = since < .35 && cur[0] > 0 ? 1 + .12 * Math.sin(Math.PI * since / .35) : 1;
+  const side = cur === pts[2] ? 's3b' : 's3a';
+  set('s3a', { s: side === 's3a' ? pop : 1 }); set('s3b', { s: side === 's3b' ? pop : 1 });
+  set('s3flash', { o: since < .3 && cur[0] > 0 ? .25 * (1 - since / .3) : 0 });
+
+  // 4 · todo en una pantalla
+  const t4 = t - S.s4[0];
+  set('s4c', { s: .8 + .2 * ease(prog(t4, .1, 1)) });
+  set('s4t', { o: ease(prog(t4, .2, .5)), y: -20 * (1 - ease(prog(t4, .2, .5))) });
+  ['s4k1', 's4k2', 's4k3'].forEach((id, i) => {
+    const q = ease(prog(t4, .45 + i * .18, .45));
+    set(id, { o: q, y: 50 * (1 - q), s: .92 + .08 * q });
+  });
+
+  // 5 · cierre (al final se apaga el logo: el bucle vuelve a la escena 1, que empieza sin logo)
+  const t5 = t - S.s5[0];
+  set('s5b1', { x: -360 * (1 - ease(prog(t5, .2, .6))) - 360 * inOut(prog(t5, 1.55, .4)), k: BAR });
+  set('s5b2', { x: 360 * (1 - ease(prog(t5, .25, .6))) + 360 * inOut(prog(t5, 1.55, .4)), k: BAR });
+  const out = 1 - inOut(prog(t5, 1.55, .4));
+  const lq = ease(prog(t5, .2, .6));
+  set('s5logo', { o: lq * out, s: (.9 + .1 * lq) * (1 - .1 * (1 - out)) });
+  set('s5user', { o: ease(prog(t5, .6, .5)) * out, y: 16 * (1 - ease(prog(t5, .6, .5))) });
+}
+window.render = render;
+render(0);
+</script>
+</body></html>
