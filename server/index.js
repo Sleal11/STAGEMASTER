@@ -236,4 +236,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { startServer, DEFAULT_PORTS };
+module.exports = { startServer };

@@ -121,4 +121,4 @@ function removeRules() {
   return powershell(['-File', writeScript('firewall-remove', REMOVE_SCRIPT)]);
 }
 
-module.exports = { supported, status, allow, removeRules, RULE_TCP, RULE_UDP, _scripts: { STATUS_SCRIPT, ALLOW_SCRIPT } };
+module.exports = { supported, status, allow, removeRules };

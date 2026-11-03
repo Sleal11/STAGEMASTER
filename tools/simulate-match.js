@@ -108,6 +108,7 @@ function main() {
   let busy      = false;
   let started   = false;
   let actions   = 0;
+  let onState   = null;   // espera del estado nuevo tras una acción
   const startAt = Date.now();
 
   console.log(`\n🎾 Simulador StageMaster → ${options.url} (un punto cada ${options.interval} ms)`);
@@ -134,6 +135,7 @@ function main() {
       process.exit(1);
     }
     state = match.state;
+    if (onState) onState();
 
     // Primera vez: decidir si continuar el partido actual o crear uno nuevo
     if (!started) {
@@ -173,8 +175,10 @@ function main() {
         { matchId: options.matchId, action: accion, version: state.version });
       actions++;
       if (res.ok) {
-        // El estado nuevo llega por 'matchUpdate'; esperamos un instante para mostrarlo
-        setTimeout(() => console.log(`${accion.padEnd(7)} → ${describe(state)}`), 30);
+        // El estado nuevo llega con el resumen de la estación (agrupado cada 100 ms):
+        // se espera a tenerlo para mostrarlo y para no enviar la versión anterior
+        await newerThan(state.version);
+        console.log(`${accion.padEnd(7)} → ${describe(state)}`);
       } else if (res.code === 'STALE_VERSION') {
         console.log('↻  El marcador cambió desde otro dispositivo (teléfono): se reintenta');
       } else {
@@ -185,6 +189,15 @@ function main() {
     } finally {
       busy = false;
     }
+  }
+
+  /** Hasta que llega un estado con versión mayor (máximo 2 s) */
+  function newerThan(version) {
+    return new Promise((resolve) => {
+      const done = () => { clearTimeout(limit); onState = null; resolve(); };
+      const limit = setTimeout(done, 2000);
+      onState = () => { if (state && state.version > version) done(); };
+    });
   }
 
   process.on('SIGINT', () => {

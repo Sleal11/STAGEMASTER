@@ -105,4 +105,4 @@ function createRemoteRegistry({ now = Date.now } = {}) {
   };
 }
 
-module.exports = { createRemoteRegistry, MAX_REMOTES };
+module.exports = { createRemoteRegistry };

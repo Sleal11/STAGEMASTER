@@ -71,4 +71,4 @@ function getQrSvg(url, onReady) {
   return null;
 }
 
-module.exports = { getLocalAddresses, getQrSvg, addressRank };
+module.exports = { getLocalAddresses, getQrSvg };

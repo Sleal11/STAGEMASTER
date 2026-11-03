@@ -52,7 +52,8 @@ const H = require('./harness');
     await D.waitForFunction(() => document.getElementById('d-media').classList.contains('hidden'), null, { timeout: 5000 });
     const scoreAfter = await D.evaluate(() => ['pts-a', 'pts-b', 'games-a', 'games-b', 'sets-a', 'sets-b'].map((id) => document.getElementById(id).textContent).join(','));
     T.check('Reanudar → vuelve al marcador con el mismo tanteo', scoreAfter === scoreBefore, `${scoreBefore} → ${scoreAfter}`);
-    T.check('Reproductor vacío al volver (sin restos)', await D.evaluate(() => document.querySelectorAll('#d-media *').length === 0));
+    T.check('Reproductor vacío al volver (sin restos)', await D.evaluate(() =>
+      document.querySelectorAll('#d-media .media-item').length === 0 && document.querySelector('#d-media .media-backdrop').classList.contains('hidden')));
     T.check('Se puede seguir puntuando', (await st.act('pista-1', 'pointB')).ok);
 
     // ── "Volver al marcador" en plena pausa: solo esa pausa ──

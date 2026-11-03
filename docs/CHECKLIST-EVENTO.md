@@ -57,6 +57,7 @@ Ver el botón **Ayuda** de la estación ("Si algo falla"). Lo más habitual:
 | Un teléfono no abre la página («el servidor no responde») | Misma Wi-Fi que indica la tarjeta de la pista (no datos móviles ni red de invitados); si la estación muestra el aviso rojo, **Permitir teléfonos**; o escribir la dirección que aparece junto al QR |
 | Pantalla "Sin conexión" | **Abrir ventana** en su tarjeta |
 | La LED se ve cortada o con bordes | **Salida → Formato** LED correcto y posición del controlador |
+| El marcador llena la LED pero la publicidad sale cortada o con bandas | **Salida → Publicidad: Automático** (o «Estirar siempre»): ocupa lo mismo que el marcador |
 | Un vídeo no se ve | Convertirlo a MP4 (H.264); la estación indica cuál falla y se salta |
 | Se cerró StageMaster / corte de luz | Volver a abrirlo: todo se recupera solo |
 | La LED parpadea | Monitor a 1920 × 1080 a 60 Hz (Salida → Cambiar resolución del monitor…) |

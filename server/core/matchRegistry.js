@@ -47,4 +47,4 @@ function createMatchRegistry({ courts = COURTS } = {}) {
   };
 }
 
-module.exports = { createMatchRegistry, COURTS };
+module.exports = { createMatchRegistry };

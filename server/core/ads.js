@@ -132,5 +132,5 @@ function existingFile(category, name) {
 
 module.exports = {
   listAds, resolve, adsDir, folderOf, kindOf, safeFileName, uniqueFileName, existingFile,
-  CATEGORIES, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS,
+  CATEGORIES,
 };

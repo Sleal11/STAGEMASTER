@@ -1,8 +1,8 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.4.1** (2.3.0 + retoques
-estéticos, pestaña «En vivo» y teléfonos que no conectaban, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
+compactación de la conversación). Estado: **versión 2.5.0** (2.3.0 + retoques
+estéticos, pestaña «En vivo», teléfonos que no conectaban y publicidad que llena la LED, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
 ## 1. Qué es
 
@@ -182,3 +182,26 @@ Ronda 3 (versión 2.4.1):
   caché con revalidación, cliente Socket.IO minificado y texto visible al momento
   (font-display swap solo en el teléfono). 1ª visita 372 → 274 KB; siguientes
   334 → 4 KB. El logo PNG (123 KB) se deja tal cual: comprimirlo cambiaba la marca.
+
+Ronda 4 (versión 2.5.0) — **la publicidad no llenaba la LED** (prueba real con
+una LED 832 × 416 y un vídeo 832 × 416): en «Monitor completo» el marcador
+llenaba la LED, pero el vídeo se veía cortado / con bandas. Causa: el marcador
+se estira a todo el monitor (16:9) y el procesador LED escala ese monitor
+entero a la LED (2:1); la publicidad, en cambio, se mostraba «completa» (sin
+deformar) dentro del 16:9 y llegaba a la LED con bandas.
+- Nuevo ajuste por pantalla **Salida → Publicidad** (`output.fit`, por pantalla
+  física; los espejos tienen el suyo): `auto` (por defecto) estira si la
+  proporción difiere ≤ 35 % (así ocupa EXACTAMENTE lo mismo que el marcador y
+  llega a la LED con su proporción original); si difiere más (foto vertical,
+  logo cuadrado), completa sobre un **fondo difuminado** de la propia imagen o
+  vídeo (lienzo de 64 px, 5 fps; nunca bandas negras). También `stretch`,
+  `cover` (recorta) y `contain` (completa con fondo difuminado).
+- Archivos: `server/core/screenConfig.js`, `public/js/display/media-player.js`,
+  `public/js/display/main.js`, `public/css/score.css`, `public/js/station/screens.js`;
+  prueba `tests/e2e/media-fit.e2e.js` (vídeo 2:1 en monitor 16:9, foto vertical,
+  cada ajuste, LED 832 × 416 exacta y el selector de la estación).
+- Revisión de código sobrante: quitadas exportaciones que nadie usaba (constantes
+  internas de 12 módulos), manejadores vacíos, estilos de la antigua cabecera
+  de red. Arreglado el simulador (`tools/simulate-match.js`): mostraba el tanteo
+  anterior y, a ritmo rápido, chocaba con su propia versión (esperaba 30 ms un
+  estado que llega agrupado cada 100 ms).

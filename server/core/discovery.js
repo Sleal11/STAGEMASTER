@@ -97,4 +97,4 @@ function enabled() {
   return process.env.STAGEMASTER_DISCOVERY !== '0';
 }
 
-module.exports = { startBeacon, listen, broadcastAddresses, enabled, DISCOVERY_PORT };
+module.exports = { startBeacon, listen, broadcastAddresses, enabled };

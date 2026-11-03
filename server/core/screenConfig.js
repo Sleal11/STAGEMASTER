@@ -25,7 +25,12 @@
  *             x, y del monitor. Tamaños en píxeles REALES (físicos) ·
  *             brightness: brillo de la IMAGEN que envía StageMaster (10-100 %).
  *             No es el brillo físico de los módulos LED (ese lo controla el
- *             procesador LED: ver docs/BRILLO-LED.md)
+ *             procesador LED: ver docs/BRILLO-LED.md) ·
+ *             fit: cómo ocupan la salida las imágenes y vídeos de publicidad
+ *             (MEDIA_FITS). 'auto' los estira a toda la salida si su proporción
+ *             es parecida (igual que el marcador, que siempre la llena) y, si es
+ *             muy distinta (ej. una foto vertical), los muestra completos con
+ *             un fondo difuminado
  *
  * Y el estado de reproducción (también se guarda: sobrevive a un reinicio):
  *   playback       'playing' | 'paused'
@@ -45,6 +50,8 @@ const RIBBON_MOTIONS = ['rotate', 'scroll'];
 const SCROLL_SPEEDS  = ['slow', 'normal', 'fast'];
 const PLAYBACK       = ['playing', 'paused'];
 const PRESET_ID      = /^f-[0-9a-f]{8}$/;   // formato guardado por el operador (formats.js)
+/** Ajuste de la publicidad: automático · estirar · llenar recortando · completa con fondo difuminado */
+const MEDIA_FITS     = ['auto', 'stretch', 'cover', 'contain'];
 
 /** Formatos de salida. Los LED tienen proporción 2:1 y tamaño exacto en píxeles físicos */
 const OUTPUT_FORMATS = {
@@ -77,7 +84,7 @@ function defaultConfig({ id, label, matchId }) {
     media:  { items: [], imageSeconds: 10, sound: false },
     endAds: { enabled: false, delay: 15 },
     pauseAds: { enabled: true },
-    output: { format: 'fill', x: 0, y: 0, brightness: 100, width: 832, height: 416 },
+    output: { format: 'fill', x: 0, y: 0, brightness: 100, width: 832, height: 416, fit: 'auto' },
     playback:      'playing',
     playId:        0,
     postMatch:     null,
@@ -146,6 +153,7 @@ function normalizeSaved(saved, base) {
     brightness: pick(o.brightness, inRange(LIMITS.brightness), 100),
     width:  pick(o.width, inRange(LIMITS.width), 832),
     height: pick(o.height, inRange(LIMITS.height), 416),
+    fit:    pick(o.fit, oneOf(MEDIA_FITS), 'auto'),
   };
   copyFixedSize(config.output);
   config.playback      = pick(saved.playback, oneOf(PLAYBACK), 'playing');
@@ -269,6 +277,7 @@ function applyChanges(config, changes, { matchIds, library, formats = [] }) {
     if (output.x      !== undefined) next.output.x      = integer(output.x, LIMITS.offset, 'Posición X');
     if (output.y      !== undefined) next.output.y      = integer(output.y, LIMITS.offset, 'Posición Y');
     if (output.brightness !== undefined) next.output.brightness = integer(output.brightness, LIMITS.brightness, 'Brillo de la imagen');
+    if (output.fit        !== undefined) next.output.fit        = oneOf(output.fit, MEDIA_FITS, 'Ajuste de la publicidad');
   }
   return next;
 }
@@ -284,16 +293,16 @@ function copyFixedSize(output) {
 }
 
 /**
- * Formato de salida con su tamaño: { format, width, height, x, y, brightness }
+ * Formato de salida con su tamaño: { format, width, height, x, y, brightness, fit }
  * (width null = todo el monitor). Personalizado o guardado: su propio tamaño.
  */
 function resolveOutput(output) {
   const fixed = OUTPUT_FORMATS[output.format];
   const { width, height } = fixed || output;
-  return { format: output.format, width, height, x: output.x, y: output.y, brightness: output.brightness };
+  return { format: output.format, width, height, x: output.x, y: output.y, brightness: output.brightness, fit: output.fit };
 }
 
 module.exports = {
-  VIEWS, RIBBON_MOTIONS, SCROLL_SPEEDS, OUTPUT_FORMATS, LIMITS, PRESET_ID,
+  OUTPUT_FORMATS, LIMITS,
   defaultConfig, normalizeSaved, applyChanges, resolveOutput,
 };

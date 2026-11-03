@@ -66,4 +66,4 @@ function createFormatLibrary() {
   };
 }
 
-module.exports = { createFormatLibrary, MAX_FORMATS };
+module.exports = { createFormatLibrary };

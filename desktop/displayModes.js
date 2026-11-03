@@ -224,4 +224,4 @@ function matchDevices(monitors, devices) {
   return result;
 }
 
-module.exports = { supported, list, apply, matchDevices, sortModes, RESULT_TEXT, _script: SCRIPT };
+module.exports = { supported, list, apply, matchDevices, sortModes };

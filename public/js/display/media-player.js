@@ -18,11 +18,26 @@
  *     reproductor muestra otra cosa (hasPlayable() === false).
  *   - Sonido: si el navegador bloquea el sonido, el vídeo sigue sin sonido y
  *     se avisa a la estación (en la aplicación de escritorio no ocurre).
+ *   - Ajuste a la salida (setFit, de «Salida» en la estación):
+ *       auto     estira si la proporción es parecida (≤ AUTO_STRETCH_RATIO, ej.
+ *                un vídeo 2:1 en un monitor 16:9): la publicidad ocupa
+ *                EXACTAMENTE lo mismo que el marcador, que siempre llena la
+ *                salida. Así, si el procesador LED escala el monitor entero a
+ *                la LED, el vídeo llega a la LED con su proporción original.
+ *                Si es muy distinta (foto vertical, logo cuadrado): completa,
+ *                con fondo difuminado
+ *       stretch  siempre estirado a toda la salida
+ *       cover    llena sin deformar, recortando lo que sobra
+ *       contain  completa sin deformar; el espacio que sobra se rellena con
+ *                la misma imagen ampliada y difuminada (nunca bandas negras)
  */
 
 const FADE_MS          = 500;
 const START_TIMEOUT_MS = 15000;
 const STALL_TIMEOUT_MS = 10000;
+const AUTO_STRETCH_RATIO = 1.35;   // hasta un 35 % de diferencia de proporción se estira
+const BACKDROP_WIDTH   = 64;       // el fondo difuminado se dibuja muy pequeño (barato)
+const BACKDROP_MS      = 200;      // con vídeo, se actualiza 5 veces por segundo
 
 /**
  * @param {HTMLElement} container
@@ -40,9 +55,14 @@ export function createMediaPlayer(container, { onChange }) {
   let current  = null;    // { el, item } el que se ve
   let pending  = null;    // { el, item } el que se está cargando
   let soundBlocked = false;
+  let fit      = 'auto';
   const failed = new Set();   // URLs que no se pueden reproducir
 
-  const timers = { image: null, start: null, stall: null };
+  const backdrop = document.createElement('canvas');
+  backdrop.className = 'media-backdrop hidden';
+  container.appendChild(backdrop);
+
+  const timers = { image: null, start: null, stall: null, backdrop: null };
   let imageDeadline = 0;
   let imageRemaining = 0;
 
@@ -168,6 +188,7 @@ export function createMediaPlayer(container, { onChange }) {
 
     const previous = current;
     current = entry;
+    applyFit(entry);
     entry.el.classList.add('is-visible');
     if (previous) setTimeout(() => release(previous.el), FADE_MS + 50);
 
@@ -188,6 +209,62 @@ export function createMediaPlayer(container, { onChange }) {
     // Si falla el que se ve, sigue visible hasta que aparezca el siguiente
     onChange();
     advance();
+  }
+
+  // ── Ajuste a la salida ──────────────────────────────────────────
+
+  function setFit(next) {
+    if (next === fit) return;
+    fit = next;
+    relayout();
+  }
+
+  /** La salida cambió de tamaño o de ajuste: recalcular el que se ve */
+  function relayout() {
+    if (current) applyFit(current);
+  }
+
+  function applyFit(entry) {
+    const { el } = entry;
+    const width  = el.naturalWidth || el.videoWidth;
+    const height = el.naturalHeight || el.videoHeight;
+    const boxW = container.clientWidth, boxH = container.clientHeight;
+    let mode = fit;
+    let difference = 1;
+    if (width && height && boxW && boxH) {
+      const ratio = (width / height) / (boxW / boxH);
+      difference = Math.max(ratio, 1 / ratio);
+    }
+    if (mode === 'auto') mode = difference <= AUTO_STRETCH_RATIO ? 'stretch' : 'contain';
+    el.dataset.fit = mode;
+    showBackdrop(mode === 'contain' && difference > 1.02 ? el : null);
+  }
+
+  /**
+   * Fondo difuminado (solo «completa»): la misma imagen o vídeo dibujado en un
+   * lienzo diminuto y ampliado con desenfoque. Con vídeo se redibuja a 5 fps.
+   */
+  function showBackdrop(el) {
+    clearInterval(timers.backdrop);
+    backdrop.classList.toggle('hidden', !el);
+    if (!el) return;
+    const boxW = container.clientWidth || 16, boxH = container.clientHeight || 9;
+    backdrop.width  = BACKDROP_WIDTH;
+    backdrop.height = Math.max(1, Math.round(BACKDROP_WIDTH * boxH / boxW));
+    const context = backdrop.getContext('2d');
+    const draw = () => {
+      const width  = el.naturalWidth || el.videoWidth;
+      const height = el.naturalHeight || el.videoHeight;
+      if (!width || !height) return;
+      // Recorte «cover»: la parte central con la proporción de la salida
+      const scale = Math.min(width / backdrop.width, height / backdrop.height);
+      const sw = backdrop.width * scale, sh = backdrop.height * scale;
+      try {
+        context.drawImage(el, (width - sw) / 2, (height - sh) / 2, sw, sh, 0, 0, backdrop.width, backdrop.height);
+      } catch { /* fotograma aún no disponible: se dibuja en la siguiente vuelta */ }
+    };
+    draw();
+    if (el.tagName === 'VIDEO') timers.backdrop = setInterval(draw, BACKDROP_MS);
   }
 
   // ── Tiempos, pausa y vídeos parados ─────────────────────────────
@@ -269,11 +346,14 @@ export function createMediaPlayer(container, { onChange }) {
     discard(current);
     pending = current = null;
     index = -1;
+    showBackdrop(null);
   }
 
   return {
     configure,
     setActive,
+    setFit,
+    relayout,
     hasPlayable: () => playable().length > 0,
     errors:      () => [...failed],
     soundBlocked: () => soundBlocked,

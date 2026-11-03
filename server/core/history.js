@@ -126,4 +126,4 @@ function normalize(value) {
   return String(value).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
-module.exports = { createHistory, FILE_NAME };
+module.exports = { createHistory };

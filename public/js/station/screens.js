@@ -30,6 +30,13 @@ const TABS = [
   { id: 'output',  label: 'Salida',                icon: 'monitor' },
 ];
 const SPEED_LABELS = { slow: 'Lenta', normal: 'Normal', fast: 'Rápida' };
+/** Ajuste de la publicidad a la salida (screenConfig.MEDIA_FITS) */
+const FIT_LABELS = {
+  auto:    'Automático: llena toda la pantalla (recomendado)',
+  stretch: 'Estirar siempre a toda la pantalla',
+  cover:   'Llenar sin deformar (recorta los bordes)',
+  contain: 'Completa sin deformar, con fondo difuminado',
+};
 
 const activeTab = {};   // pantalla → pestaña abierta
 
@@ -404,6 +411,9 @@ function outputPanel(screen, state) {
     : 'Tamaño en píxeles REALES de la pantalla LED (los que tiene configurados la tarjeta emisora), ' +
       'no los de Windows con escalado: StageMaster compensa el escalado.';
 
+  const fits = Object.entries(FIT_LABELS).map(([value, text]) =>
+    `<option value="${value}"${value === (screen.output.fit || 'auto') ? ' selected' : ''}>${text}</option>`).join('');
+
   return monitor + diagnostics +
     field('Brillo de la imagen', `<input class="range" type="range" min="${state.limits.brightness[0]}" max="${state.limits.brightness[1]}" step="5" ` +
       `value="${screen.output.brightness}" data-action="brightness" data-screen="${screen.id}" aria-label="Brillo de la imagen">` +
@@ -419,7 +429,11 @@ function outputPanel(screen, state) {
     'Ancho × alto de la pantalla LED (ej. 832 × 416 o 416 × 208). Guárdalo con un nombre para usarlo en otras pantallas.') : '') +
     (fixed ? field('Posición', `X ${number('outputX', screen.id, screen.output.x, state.limits.offset, '')}` +
       ` Y ${number('outputY', screen.id, screen.output.y, state.limits.offset, 'píxeles')}`,
-    'Píxel del monitor donde empieza la pantalla LED (normalmente 0, 0).') : '');
+    'Píxel del monitor donde empieza la pantalla LED (normalmente 0, 0).') : '') +
+    field('Publicidad', `<select class="input" data-action="fit" data-screen="${screen.id}">${fits}</select>`,
+      'Cómo ocupan la pantalla las imágenes y vídeos. «Automático» los estira para que llenen todo, igual que el marcador ' +
+      '(si su proporción es muy distinta, p. ej. una foto vertical, se ven completos sobre un fondo difuminado). ' +
+      'Si la LED muestra la publicidad cortada o con bandas, deja «Automático» o elige «Estirar».');
 }
 
 /**
@@ -658,6 +672,7 @@ export function onScreenChange(event) {
     case 'outputH':        update(screenId, { output: { height: value } }); break;
     case 'outputY':        update(screenId, { output: { y: value } }); break;
     case 'brightness':     update(screenId, { output: { brightness: value } }); break;
+    case 'fit':            update(screenId, { output: { fit: el.value } }); break;
     case 'endAds':         update(screenId, { endAds: { enabled: el.checked } }); break;
     case 'pauseAds':       update(screenId, { pauseAds: { enabled: el.checked } }); break;
     case 'endDelay':       update(screenId, { endAds: { delay: value } }); break;

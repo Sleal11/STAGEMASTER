@@ -168,6 +168,7 @@ function applyOutput() {
   style.height = fixed ? height / dpr + 'px' : '';
   style.left   = fixed ? x / dpr + 'px' : '';
   style.top    = fixed ? y / dpr + 'px' : '';
+  player.setFit(config.output.fit || 'auto');
 
   // Si cambió el tamaño real, reajustar nombres y cinta
   const size = dom.output.clientWidth + 'x' + dom.output.clientHeight;
@@ -175,6 +176,7 @@ function applyOutput() {
     boxSize = size;
     ribbon.refresh();
     board.fitAll();
+    player.relayout();
   }
 }
 

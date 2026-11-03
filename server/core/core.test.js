@@ -443,7 +443,7 @@ test('Por defecto: Pantalla 1 → Pista 1, Pantalla 2 → Pista 2, marcador con 
   assert.strictEqual(p1.ribbon.enabled, true);
   assert.strictEqual(p1.endAds.enabled, false, 'La publicidad final empieza desactivada');
   assert.strictEqual(p1.ribbon.cleanLogos, true, 'Logos sin fondo blanco por defecto');
-  assert.deepStrictEqual(p1.output, { format: 'fill', x: 0, y: 0, brightness: 100, width: 832, height: 416 });
+  assert.deepStrictEqual(p1.output, { format: 'fill', x: 0, y: 0, brightness: 100, width: 832, height: 416, fit: 'auto' });
 });
 
 test('Dos pantallas pueden mostrar el MISMO partido', () => {
@@ -531,6 +531,7 @@ test('Validación de pantalla: partido, vista, tiempos, formato y posición inv�
     { ribbon: { enabled: 'si' } }, { ribbon: { texts: Array(11).fill('x') } }, { media: { imageSeconds: 500 } },
     { ribbon: { cleanLogos: 'no' } }, { output: { brightness: 5 } }, { output: { brightness: 101 } }, { pauseAds: { enabled: 1 } },
     { media: { sound: 1 } }, { endAds: { delay: -1 } }, { output: { format: '4k' } }, { output: { y: 1.5 } },
+    { output: { fit: 'zoom' } }, { output: { fit: true } },
     { ribbon: 'todo' }, null,
   ].forEach((changes) => assertCode(() => screens.update('pantalla-1', changes, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG'));
   assertCode(() => screens.get('pantalla-7'), 'UNKNOWN_SCREEN');
@@ -606,14 +607,14 @@ test('Mensajes de la cinta: se limpian espacios y se descartan los vacíos', () 
 test('La configuración de pantallas se conserva tras reiniciar', () => {
   const screens = freshScreens();
   screens.update('pantalla-2', {
-    matchId: 'pista-1', ribbon: { motion: 'scroll', speed: 'slow' }, output: { format: 'led-sm', x: 32, y: 0 },
+    matchId: 'pista-1', ribbon: { motion: 'scroll', speed: 'slow' }, output: { format: 'led-sm', x: 32, y: 0, fit: 'cover' },
     endAds: { enabled: true, delay: 20 },
   }, EMPTY_LIBRARY);
   const again = loadModules().createScreenManager({ matchIds: ['pista-1', 'pista-2'] }).get('pantalla-2');
   assert.strictEqual(again.matchId, 'pista-1');
   assert.strictEqual(again.ribbon.motion, 'scroll');
   assert.strictEqual(again.ribbon.speed, 'slow');
-  assert.deepStrictEqual(again.output, { format: 'led-sm', x: 32, y: 0, brightness: 100, width: 416, height: 208 });
+  assert.deepStrictEqual(again.output, { format: 'led-sm', x: 32, y: 0, brightness: 100, width: 416, height: 208, fit: 'cover' });
   assert.deepStrictEqual(again.endAds, { enabled: true, delay: 20 });
 });
 
@@ -854,7 +855,7 @@ test('Formato personalizado: ancho × alto a mano, validado; la pantalla lo reci
   const { screenConfig } = loadModules();
   screens.update('pantalla-1', { output: { format: 'custom', width: 1536, height: 768, x: 10, y: 20 } }, EMPTY_LIBRARY);
   assert.deepStrictEqual(screenConfig.resolveOutput(screens.get('pantalla-1').output),
-    { format: 'custom', width: 1536, height: 768, x: 10, y: 20, brightness: 100 });
+    { format: 'custom', width: 1536, height: 768, x: 10, y: 20, brightness: 100, fit: 'auto' });
   [{ width: 8 }, { width: 9000 }, { height: 5000 }, { width: 100.5 }, { format: 'f-00000000' }].forEach((output) =>
     assertCode(() => screens.update('pantalla-1', { output }, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG'));
   // Los formatos fijos copian su tamaño: al pasar a personalizado (lo que hace la

@@ -749,7 +749,7 @@ function submitPin(force) {
     deviceName: guessDeviceName(),
     force:      force,
   }, {
-    onSuccess: function () {},   // la respuesta con el token llega en onResult
+    // La respuesta con el token llega en onResult
     onResult: function (response) {
       keypad.classList.remove('is-busy');
       if (!response.ok) return;

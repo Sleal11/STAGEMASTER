@@ -109,4 +109,4 @@ function createAdsRouter({ onChange, onRemoved }) {
   return router;
 }
 
-module.exports = { createAdsRouter, MAX_UPLOAD_BYTES };
+module.exports = { createAdsRouter };

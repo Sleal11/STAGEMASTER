@@ -180,9 +180,7 @@ code   { color: var(--st-soft); font-size: 0.9em; }
 }
 .st-network-main { display: inline-flex; align-items: center; gap: 8px; }
 .st-network-main .icon { width: 18px; height: 18px; color: var(--st-accent); }
-.st-network-main strong { color: #FFFFFF; font-size: 1.02rem; }
 .st-network-main.is-bad, .st-network-main.is-bad .icon { color: #FCA5A5; }
-.st-network-alt { font-size: 0.8rem; color: var(--st-muted); }
 
 .st-top-actions { display: flex; gap: 8px; }
 .st-conn { display: flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap; font-size: 0.88rem; }

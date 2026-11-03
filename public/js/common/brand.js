@@ -32,6 +32,5 @@ export function applyLogo(root = document) {
       slot.classList.add('has-logo-image');
     });
   };
-  probe.onerror = () => {};   // Sin archivo de logo: se mantiene el texto
-  probe.src = LOGO_URL;
+  probe.src = LOGO_URL;   // Sin archivo de logo (no carga): se mantiene el texto
 }

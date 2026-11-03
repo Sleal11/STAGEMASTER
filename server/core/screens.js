@@ -457,4 +457,4 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
   };
 }
 
-module.exports = { createScreenManager, DEFAULT_SCREENS, MEDIA_COMMANDS, MAX_SCREENS, CONTENT_FIELDS };
+module.exports = { createScreenManager, MAX_SCREENS };
