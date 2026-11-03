@@ -24,7 +24,8 @@
  *   INVALID_SCREEN_CONFIG Configuración de pantalla inválida
  *   MATCH_PAUSED         El partido está en pausa: no admite puntos
  *   INVALID_MONITOR      El monitor elegido ya no está conectado
- *   STATION_LOCAL_ONLY   La estación solo se abre en el propio portátil
+ *   STATION_LOCAL_ONLY   La estación solo se abre en el portátil principal o en un portátil remoto enlazado
+ *   MAIN_ONLY            Acción que solo puede hacer la estación del portátil principal
  *   DISPLAY_LOCAL_ONLY   Las pantallas solo se abren en el propio portátil
  */
 

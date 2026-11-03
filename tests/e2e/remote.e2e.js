@@ -10,8 +10,10 @@
  *              se enlaza con el código y abre la Pantalla 2 por la red (IP, no localhost).
  *
  * Comprueba: descubrimiento, enlace, marcador en tiempo real, informe a la
- * estación, corte del principal (la pantalla mantiene la imagen y se reconecta
- * sola) y desvincular desde la estación.
+ * estación, la ESTACIÓN DEL MODERADOR abierta desde el remoto (controla
+ * partidos, pantallas y «En vivo»; sin código ni «Desvincular»), corte del
+ * principal (la pantalla mantiene la imagen y se reconecta sola) y
+ * desvincular desde la estación (también cierra la estación del remoto).
  *
  * Requisitos: Electron descargado (node node_modules/electron/install.js) y una
  * pantalla (en Linux sin escritorio: Xvfb y DISPLAY=:99).
@@ -94,7 +96,43 @@ const score = (page) => page.evaluate(() =>
     await H.waitFor(() => st.state.screens[1].displays.some((d) => d.remote === 'Portátil pista 2'), 'pantalla remota en la tarjeta');
     T.check('La tarjeta de la Pantalla 2 indica «en Portátil pista 2»', true);
     await D.screenshot({ path: `${H.OUT}/remoto-pantalla-2.png` });
+
+    // ── Estación del moderador abierta desde el remoto ──
+    await ui.waitForSelector('#rm-station:not([disabled])');
     await ui.screenshot({ path: `${H.OUT}/remoto-control.png` });
+    const stationOpened = app.waitForEvent('window');
+    await ui.click('#rm-station');
+    const R = await stationOpened;
+    H.watchErrors(R, 'estación remota', errors);
+    await R.waitForSelector('[data-screen-card="pantalla-2"]', { timeout: 15000 });
+    T.check('«Abrir estación del moderador»: abre la estación DEL PRINCIPAL por la red',
+      !R.url().includes('localhost') && R.url().includes(`:${port}/station.html`), R.url().split('#')[0]);
+    await R.waitForFunction(() => document.getElementById('st-title').textContent.includes('portátil remoto'));
+    T.check('Se identifica como estación de un portátil remoto: sin código de enlace ni «Desvincular» portátiles',
+      (await R.$$('.st-code')).length === 0 && (await R.$$('[data-action="unlinkRemote"]')).length === 0 &&
+      (await R.textContent('#st-remotes')).includes('portátil principal'));
+    await H.waitFor(() => st.state.remotes.list[0].stationOpen, 'el principal ve la estación abierta');
+    T.check('El principal ve que ese portátil tiene la estación abierta', true);
+    await ui.waitForFunction(() => document.getElementById('rm-station').textContent.startsWith('Ir a'));
+    T.check('El botón del remoto pasa a «Ir a la estación…» (no abre otra)', true);
+
+    const versionBefore = st.match('pista-2').state.version;
+    await R.click('[data-action="score"][data-score="pointA"][data-match="pista-2"]');
+    await H.waitFor(() => st.match('pista-2').state.version > versionBefore, 'punto desde la estación remota');
+    await D.waitForFunction(() => document.getElementById('pts-a').textContent === '30', null, { timeout: 5000 });
+    T.check('Puntúa desde la estación remota: llega al principal y a la pantalla', true);
+    await R.click('[data-screen-card="pantalla-2"] [data-tab="output"]');
+    await R.selectOption('[data-screen-card="pantalla-2"] select[data-action="fit"]', 'cover');
+    await H.waitFor(() => st.state.screens[1].output.fit === 'cover', 'ajuste cambiado desde el remoto');
+    T.check('Cambia la configuración de una pantalla desde el remoto', true);
+    await R.click('.st-view-tab[data-view="live"]');
+    await R.waitForSelector('[data-live="pantalla-2"] iframe');
+    await H.waitFor(() => R.frame({ url: /pantalla=2&vista=previa/ }), 'vista previa');
+    const preview = R.frame({ url: /pantalla=2&vista=previa/ });
+    await preview.waitForSelector('#d-board:not(.hidden)', { timeout: 10000 });
+    T.check('«En vivo» funciona en el remoto (vistas previas con su token)', true);
+    await R.screenshot({ path: `${H.OUT}/remoto-estacion.png` });
+    await R.click('.st-view-tab[data-view="panel"]');
 
     // ── Corte del principal: la imagen se mantiene y se reconecta sola ──
     // (a partir de aquí el navegador avisa en consola de los fallos de red provocados;
@@ -119,8 +157,8 @@ const score = (page) => page.evaluate(() =>
     // ── Desvincular desde la estación ──
     await st2.send('station:unlinkRemote', { remoteId: st2.state.remotes.list[0].id });
     await ui.waitForSelector('#rm-pair:not(.hidden)', { timeout: 8000 });
-    await H.waitFor(() => app.windows().length === 1, 'la ventana de la pantalla se cierra');
-    T.check('Desvincular: se apagan sus pantallas y vuelve a pedir el código',
+    await H.waitFor(() => app.windows().length === 1, 'la ventana de la pantalla y la estación se cierran');
+    T.check('Desvincular: se apagan sus pantallas, se cierra su estación y vuelve a pedir el código',
       (await ui.textContent('#rm-pair-msg')).includes('desvincul'));
     st2.close();
     T.check('Sin errores de JavaScript (antes del corte provocado)', realErrors.length === 0, realErrors.join(' | '));

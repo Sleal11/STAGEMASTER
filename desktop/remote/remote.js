@@ -110,6 +110,8 @@
     }[state.status] || ['', ''];
     patch($('rm-status'), `<span>${status[0]}</span>${status[1] ? `<span class="muted">${status[1]}</span>` : ''}`);
     $('rm-retry').classList.toggle('hidden', state.status === 'connected');
+    $('rm-station').disabled = state.status !== 'connected';
+    $('rm-station').textContent = state.stationOpen ? 'Ir a la estación del moderador' : 'Abrir estación del moderador';
 
     const list = $('rm-screens');
     // No se redibuja mientras se elige en una lista
@@ -154,6 +156,7 @@
     if (button) api.openScreen(button.dataset.open);
   });
   $('rm-retry').addEventListener('click', () => api.retry());
+  $('rm-station').addEventListener('click', () => api.openStation());
   $('rm-unpair').addEventListener('click', () => {
     if (window.confirm('¿Desenlazar este portátil? Sus pantallas se apagarán y para volver a mostrarlas hará falta el código de la estación.')) api.unpair();
   });

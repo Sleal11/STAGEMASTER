@@ -5,10 +5,13 @@
  * portátiles enlazados (conectado o no, su IP y qué pantalla muestra en qué
  * monitor) y permite desvincularlos. Si es la aplicación de escritorio,
  * también convertir ESTE portátil en pantalla remota.
+ *
+ * En la estación abierta desde un portátil REMOTO no hay código ni botones:
+ * enlazar y desvincular es solo del portátil principal.
  */
 
 import { esc, icon } from '../common/ui.js';
-import { ctx, send, toast } from './context.js';
+import { ctx, send, toast, isRemoteViewer } from './context.js';
 import { confirmDialog } from './dialogs.js';
 
 export function renderRemotes(state) {
@@ -17,7 +20,7 @@ export function renderRemotes(state) {
   section.classList.toggle('hidden', !remotes);
   if (!remotes) return;
   const card = document.getElementById('st-remotes');
-  const html = codeHtml(remotes, state) + listHtml(remotes, state);
+  const html = (isRemoteViewer() ? remoteNoteHtml() : codeHtml(remotes, state)) + listHtml(remotes, state);
   if (card.dataset.html !== html) {
     card.dataset.html = html;
     card.innerHTML = html;
@@ -39,11 +42,21 @@ function codeHtml(remotes, state) {
           pulsa <em>«Usar este portátil como pantalla remota»</em>, elige <strong>«${esc(remotes.serverName)}»</strong>
           (este portátil, <code>${where}</code>) y escribe este código.</p>
         <p class="muted">Los dos portátiles en la misma red: cable Ethernet a un switch o router (lo más fiable), o Wi-Fi.
-          No hace falta Internet. Todo se configura aquí: el otro portátil solo muestra.</p>
+          No hace falta Internet. Desde ese portátil también se puede abrir esta estación
+          («Abrir estación del moderador») para controlar partidos y pantallas a la vez; aquí puedes desvincularlo cuando quieras.</p>
         ${state.desktop && state.desktop.canUseAsRemote
           ? `<button type="button" class="btn btn-ghost btn-sm" data-action="useAsRemote">${icon('screen')}Usar este portátil como pantalla remota</button>` : ''}
       </div>
     </div>`;
+}
+
+function remoteNoteHtml() {
+  return `<div class="st-remote-code"><div class="st-remote-help">
+      <p><strong>Estás usando la estación desde un portátil remoto.</strong> Puedes cambiar partidos, pantallas y
+        publicidad igual que en el principal.</p>
+      <p class="muted">Enlazar o desvincular portátiles, el código de enlace, la resolución de los monitores del
+        principal y el permiso de los teléfonos solo se cambian en la estación del <strong>portátil principal</strong>.</p>
+    </div></div>`;
 }
 
 function listHtml(remotes, state) {
@@ -58,7 +71,8 @@ function listHtml(remotes, state) {
       ? shown.map(([id, where]) => `<strong>${esc(label(id))}</strong> en ${esc(where)}`).join(' · ')
       : 'No muestra ninguna pantalla (elígelas en ese portátil)';
     const status = remote.online
-      ? `<span class="dot ok"></span>Conectado · ${esc(remote.address || '')}`
+      ? `<span class="dot ok"></span>Conectado · ${esc(remote.address || '')}` +
+        (remote.stationOpen ? ` · <strong>tiene la estación abierta</strong>` : '')
       : `<span class="dot bad"></span>Desconectado${remote.lastSeen ? ` <span class="muted">(hace <span data-tick-since="${remote.lastSeen}"></span>)</span>` : ''}`;
     return `<div class="st-remote">
         <div class="st-remote-main">
@@ -66,7 +80,7 @@ function listHtml(remotes, state) {
           <div class="st-status">${status}</div>
           <div class="st-remote-what">${remote.online ? what : 'Sus pantallas se reconectarán solas al volver la red'}</div>
         </div>
-        <button type="button" class="btn btn-danger-ghost btn-sm" data-action="unlinkRemote" data-remote="${esc(remote.id)}" data-name="${esc(remote.name)}">${icon('unlink')}Desvincular</button>
+        ${isRemoteViewer() ? '' : `<button type="button" class="btn btn-danger-ghost btn-sm" data-action="unlinkRemote" data-remote="${esc(remote.id)}" data-name="${esc(remote.name)}">${icon('unlink')}Desvincular</button>`}
       </div>`;
   }).join('')}</div>`;
 }
@@ -81,7 +95,7 @@ export function onRemotesClick(event) {
       break;
     case 'unlinkRemote':
       confirmDialog(`¿Desvincular «${el.dataset.name}»?`,
-        'Sus pantallas se apagarán al momento. Para volver a usarlo hará falta el código de enlace.', 'Desvincular')
+        'Sus pantallas se apagarán y, si tiene la estación abierta, dejará de poder usarla, al momento. Para volver a usarlo hará falta el código de enlace.', 'Desvincular')
         .then((ok) => {
           if (ok) send('station:unlinkRemote', { remoteId: el.dataset.remote }, el).then((res) => { if (res.ok) toast(`${el.dataset.name} desvinculado`); });
         });

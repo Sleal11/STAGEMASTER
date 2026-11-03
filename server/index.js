@@ -15,7 +15,7 @@
  *     las páginas se abren en el navegador.
  *
  * Páginas:
- *   http://localhost:3000/station.html            Estación operadora (solo en el portátil)
+ *   http://localhost:3000/station.html            Estación operadora (en el portátil; desde otro, solo un portátil remoto enlazado)
  *   http://localhost:3000/score.html?pantalla=1   Pantalla 1 (score + publicidad)
  *   http://localhost:3000/score.html?pantalla=2   Pantalla 2
  *   http://IP-DEL-PORTÁTIL:3000/control.html      Teléfono del árbitro
@@ -102,13 +102,6 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
     });
   }
 
-  // La estación operadora solo se abre en el propio portátil
-  app.use('/station.html', (req, res, next) => {
-    if (isLocalAddress(req.ip)) return next();
-    res.status(403).type('text/plain; charset=utf-8')
-      .send('La estación operadora solo puede abrirse en el portátil donde funciona StageMaster.');
-  });
-
   // Texto comprimido (páginas, estilos, código): el teléfono del árbitro abre
   // mucho antes en una Wi-Fi llena. Imágenes y vídeos no se comprimen (ya lo están).
   app.use(compression());
@@ -129,8 +122,12 @@ async function startServer({ ports = DEFAULT_PORTS, host = '0.0.0.0', desktop = 
     setHeaders: (res) => res.set('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self'"),
   }));
 
-  // Subir y borrar publicidad desde la estación (solo en el portátil)
+  // Subir y borrar publicidad desde la estación: en el portátil principal o en
+  // un portátil remoto enlazado (su token en la cabecera X-StageMaster-Token).
+  // La página station.html se sirve a cualquiera (no tiene datos): sin el
+  // token, la conexión de la estación se rechaza (socketServer.js).
   app.use('/api/publicidad', createAdsRouter({
+    authorize: (req) => isLocalAddress(req.ip) || !!remotes.verify(req.get('X-StageMaster-Token')),
     onChange:  () => realtime.refreshAds(),
     onRemoved: (category, name) => screens.forgetAd(category, name),
   }));

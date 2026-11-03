@@ -8,6 +8,11 @@
  *   toast()        Aviso breve abajo a la derecha
  *   patch()        Sustituye el HTML de un elemento SOLO si cambió (así un
  *                  redibujo nunca "se come" un clic del moderador)
+ *   remoteToken    Estación abierta en un PORTÁTIL REMOTO enlazado: su token llega
+ *                  en el enlace (station.html#remoto=TOKEN, no se envía en las
+ *                  peticiones HTTP salvo en la cabecera de la publicidad)
+ *   isRemoteViewer() Esta estación es la de un portátil remoto (el servidor lo
+ *                  indica; lo reservado al principal no se muestra)
  */
 
 const REQUEST_TIMEOUT_MS = 4000;
@@ -19,6 +24,11 @@ export const ctx = {
   state:       null,
   clockOffset: 0,     // hora del servidor − hora local
 };
+
+export const remoteToken = new URLSearchParams(window.location.hash.slice(1)).get('remoto') || null;
+export const isRemoteViewer = () => !!ctx.state && ctx.state.viewer === 'remote';
+/** Cabeceras para subir y borrar publicidad (el principal no las necesita) */
+export const authHeaders = () => (remoteToken ? { 'X-StageMaster-Token': remoteToken } : {});
 
 export const findMatch  = (id) => ctx.state.matches.find((m) => m.id === id);
 export const findScreen = (id) => ctx.state.screens.find((s) => s.id === id);

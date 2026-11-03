@@ -70,8 +70,14 @@ móviles durante el partido.
 
 ## 5. Seguridad básica
 
-- **Estación solo en el portátil:** la página y su conexión se rechazan si no
-  vienen de `localhost`. Un teléfono de la red no puede administrar nada.
+- **Estación solo en el portátil principal o en un portátil remoto ENLAZADO:**
+  desde la red, la conexión de la estación (y subir/borrar publicidad) exige el
+  token que el portátil recibió al enlazarse con el código. Un teléfono de la
+  red no puede administrar nada. La estación de un remoto no ve el código de
+  enlace ni puede enlazar/desvincular portátiles ni tocar el hardware del
+  principal (resolución, firewall, carpeta): `MAIN_ONLY`. Desvincularlo corta
+  su estación al momento. La red local va sin cifrar (HTTP): usar una red
+  propia del evento, no la de invitados.
 - **PIN por pista** (4 dígitos, mostrado en la estación) para vincular un
   teléfono. Tras 5 PIN fallidos desde un mismo dispositivo, bloqueo de 1 minuto.
 - **Token por teléfono:** aleatorio de 192 bits; en disco solo se guarda su hash.

@@ -18,7 +18,7 @@
  *   npm run simulate -- --match pista-2 --new --sets 5 --scoring starPoint
  *
  * Se conecta como ESTACIÓN, así que debe ejecutarse en el propio portátil
- * del servidor (la estación solo se acepta desde localhost).
+ * del servidor (sin token de portátil remoto, la estación solo se acepta desde localhost).
  *
  * Opciones:
  *   --url <dirección>     Servidor (por defecto http://localhost:3000)

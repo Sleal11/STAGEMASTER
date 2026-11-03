@@ -18,7 +18,7 @@
  */
 
 import { esc, icon, fileNameOf } from '../common/ui.js';
-import { ctx, send, toast, findMatch, findScreen, serverNow, patch } from './context.js';
+import { ctx, send, toast, findMatch, findScreen, serverNow, patch, isRemoteViewer } from './context.js';
 import { confirmDialog } from './dialogs.js';
 import { pickFiles, deleteAd } from './uploads.js';
 import { remotesShowing } from './remotes.js';
@@ -381,7 +381,7 @@ function outputPanel(screen, state) {
   let diagnostics = '';
   if (desktop) {
     const current = desktop.assignments[screen.id] || (desktop.preferences[screen.id] === 'none' ? 'none' : 'auto');
-    const options = desktop.monitors.map((m) => [m.key, `${m.label} · ${m.width}×${m.height}${m.refreshRate ? ` · ${m.refreshRate} Hz` : ''}${m.primary ? ' (aquí está la estación)' : ''}`])
+    const options = desktop.monitors.map((m) => [m.key, `${m.label} · ${m.width}×${m.height}${m.refreshRate ? ` · ${m.refreshRate} Hz` : ''}${m.primary ? (isRemoteViewer() ? ' (pantalla del portátil principal)' : ' (aquí está la estación)') : ''}`])
       .concat([['auto', 'Automático (primer monitor libre)'], ['window', 'Ventana de prueba'], ['none', 'No mostrar']]);
     const remote = remotesShowing(screen.id);
     monitor = field('Monitor', `<select class="input" data-action="monitor" data-screen="${screen.id}">${options.map(([v, t]) =>

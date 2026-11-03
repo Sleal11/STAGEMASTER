@@ -15,7 +15,7 @@
  */
 
 import { esc, icon, fileNameOf } from '../common/ui.js';
-import { ctx, findMatch, findScreen, serverNow, patch } from './context.js';
+import { ctx, findMatch, findScreen, serverNow, patch, remoteToken } from './context.js';
 import { playableCount, outputSize } from './screens.js';
 
 const DEFAULT_SIZE = { width: 1920, height: 1080 };
@@ -100,7 +100,9 @@ function updateTile(tile, screen, state) {
     iframe.className = 'live-iframe';
     iframe.title = `Vista previa de ${screen.label}`;
     iframe.setAttribute('tabindex', '-1');
-    iframe.src = `/score.html?pantalla=${screen.id.replace('pantalla-', '')}&vista=previa`;
+    // En un portátil remoto la vista previa necesita su token (como la estación)
+    iframe.src = `/score.html?pantalla=${screen.id.replace('pantalla-', '')}&vista=previa` +
+      (remoteToken ? `#remoto=${encodeURIComponent(remoteToken)}` : '');
     box.prepend(iframe);
     frame = { iframe };
     frames.set(screen.id, frame);

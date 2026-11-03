@@ -80,7 +80,8 @@ function connectToServer() {
     setTimeout(() => window.location.reload(), 3000);
     return;
   }
-  socket = window.io({ auth: preview ? { role: 'preview', screenId } : { role: 'display', screenId, remoteToken } });
+  // Con remoteToken: pantalla o vista previa abierta desde un portátil remoto enlazado
+  socket = window.io({ auth: { role: preview ? 'preview' : 'display', screenId, remoteToken } });
 
   socket.on('connect_error', (err) => {
     const code = err.data && err.data.code;

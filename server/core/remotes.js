@@ -8,7 +8,9 @@
  * una o varias pantallas conectándose por la red al portátil principal.
  *
  * El portátil PRINCIPAL es la única autoridad: tiene los partidos, la
- * configuración y la publicidad. Los remotos solo muestran (nunca modifican).
+ * configuración y la publicidad. Un remoto muestra pantallas y, con su token,
+ * puede abrir la ESTACIÓN del principal (rol station, socketServer.js) para
+ * controlar a la vez; enlazar y desvincular portátiles es solo del principal.
  *
  * Enlace (una vez por portátil):
  *   1. La estación del principal muestra un CÓDIGO DE ENLACE de 6 cifras.

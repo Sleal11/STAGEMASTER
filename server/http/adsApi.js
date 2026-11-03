@@ -9,8 +9,8 @@
  *
  *   :category = banner (cinta) | fullscreen (lista de reproducción)
  *
- * Solo desde el propio portátil (igual que la estación): un teléfono de la red
- * no puede subir ni borrar nada. El archivo se escribe primero con otro nombre
+ * Solo la estación (del portátil principal o de un portátil remoto enlazado,
+ * ver `authorize`): un teléfono de la red no puede subir ni borrar nada. El archivo se escribe primero con otro nombre
  * y se renombra al terminar: un archivo a medias nunca aparece en la
  * biblioteca. Nunca se pisa un archivo existente ("promo (2).png").
  */
@@ -19,8 +19,7 @@ const fs      = require('fs');
 const path    = require('path');
 const express = require('express');
 
-const ads                = require('../core/ads');
-const { isLocalAddress } = require('../core/auth');
+const ads = require('../core/ads');
 
 /** Tamaño máximo de un archivo (vídeos largos en alta calidad caben de sobra) */
 const MAX_UPLOAD_BYTES = 2 * 1024 ** 3;
@@ -29,13 +28,14 @@ const MAX_UPLOAD_BYTES = 2 * 1024 ** 3;
  * @param {Object}   hooks
  * @param {Function} hooks.onChange  - La biblioteca cambió (refrescar pantallas y estación)
  * @param {Function} hooks.onRemoved - (category, name) Un archivo se borró (quitarlo de las pantallas)
+ * @param {Function} hooks.authorize - (req) → ¿puede cambiar la publicidad?
  */
-function createAdsRouter({ onChange, onRemoved }) {
+function createAdsRouter({ onChange, onRemoved, authorize }) {
   const router = express.Router();
 
   router.use((req, res, next) => {
-    if (isLocalAddress(req.ip)) return next();
-    res.status(403).json({ ok: false, message: 'Solo la estación operadora (en el portátil) puede cambiar la publicidad' });
+    if (authorize(req)) return next();
+    res.status(403).json({ ok: false, message: 'Solo la estación operadora puede cambiar la publicidad' });
   });
 
   router.post('/:category', (req, res) => {

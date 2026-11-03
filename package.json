@@ -1,6 +1,6 @@
 {
   "name": "stagemaster",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "Marcador profesional de pádel para eventos: 2 partidos, hasta 8 pantallas (LED y monitores, también en portátiles remotos), publicidad y vídeos, historial, teléfonos de árbitro",
   "main": "desktop/main.js",
   "scripts": {

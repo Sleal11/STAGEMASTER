@@ -8,10 +8,10 @@
  *   - Borrar un archivo de la carpeta (con confirmación)
  *
  * Los archivos se envían a server/http/adsApi.js, que solo acepta peticiones
- * del propio portátil.
+ * del portátil principal o de un portátil remoto enlazado (con su token).
  */
 
-import { send, toast, findScreen } from './context.js';
+import { send, toast, findScreen, authHeaders } from './context.js';
 import { confirmDialog } from './dialogs.js';
 
 const CATEGORY_LABELS = { banner: 'la cinta', fullscreen: 'la lista de reproducción' };
@@ -60,6 +60,7 @@ function uploadOne(file, category, onProgress) {
     xhr.open('POST', `/api/publicidad/${category}`);
     xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    Object.entries(authHeaders()).forEach(([name, value]) => xhr.setRequestHeader(name, value));
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
       let body = {};
@@ -92,7 +93,7 @@ export function deleteAd(category, name) {
     .then(async (ok) => {
       if (!ok) return;
       try {
-        const res = await fetch(`/api/publicidad/${category}/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        const res = await fetch(`/api/publicidad/${category}/${encodeURIComponent(name)}`, { method: 'DELETE', headers: authHeaders() });
         const body = await res.json();
         if (!body.ok) throw new Error(body.message);
         toast(`"${name}" borrado`);

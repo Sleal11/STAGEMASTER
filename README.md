@@ -49,7 +49,7 @@ en **otros portátiles** de la red, con marcador, cinta publicitaria y vídeos,
 | **Añadir / quitar pantallas** (hasta 8) y **espejos** (igual que otra pantalla, con salida propia) | Sección *Pantallas* · pestaña *Contenido* |
 | **Formato de salida**: monitor completo o **personalizado** con el tamaño exacto de la LED (ej. 832×416, 416×208; guardable con nombre), con posición; **brillo de la imagen** | Pestaña *Salida* |
 | **Diagnóstico del monitor** (px reales, Hz, escalado) y **cambiar su resolución** con vuelta automática (Windows) | Pestaña *Salida* |
-| **Portátiles remotos**: pantallas en otro portátil por la red (código de enlace) | Sección *Portátiles remotos* |
+| **Portátiles remotos**: pantallas en otro portátil por la red (código de enlace) y la estación del moderador desde ese portátil | Sección *Portátiles remotos* |
 | **Historial de partidos**: buscar por día, rango, pista o jugador; detalle; exportar CSV | Pestaña *Historial* |
 | **En vivo**: vista previa en movimiento de todas las pantallas y su estado real; aviso si alguna no se ve | Pestaña *En vivo* |
 
@@ -151,9 +151,11 @@ publicidad/              Ejemplos (imagen y vídeo 2:1, cinta) que se copian a D
 build/                   Iconos del .exe y logo original (fuente de diseño)
 ```
 
-**Roles:** estación (solo en el portátil), pantalla (solo lectura; en el
-portátil o en un portátil remoto enlazado con código → token), portátil remoto
-(solo muestra) y teléfono (vinculado a UNA pista con PIN → token). Cada actualización
+**Roles:** estación (en el portátil principal, o en un portátil remoto enlazado
+con su token: todo salvo enlazar/desvincular portátiles y el hardware del
+principal), pantalla (solo lectura; en el portátil o en un portátil remoto
+enlazado con código → token), portátil remoto (muestra pantallas y abre la
+estación del principal) y teléfono (vinculado a UNA pista con PIN → token). Cada actualización
 de un partido se envía solo a la sala de ese partido. La publicidad nunca
 modifica el marcador: el servidor solo avisa a las pantallas cuando un partido
 termina o vuelve a jugarse. Detalles de red, sincronización y seguridad:

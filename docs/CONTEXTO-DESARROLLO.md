@@ -1,8 +1,9 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.5.0** (2.3.0 + retoques
-estéticos, pestaña «En vivo», teléfonos que no conectaban y publicidad que llena la LED, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
+compactación de la conversación). Estado: **versión 2.6.0** (2.3.0 + retoques
+estéticos, pestaña «En vivo», teléfonos que no conectaban, publicidad que llena la LED y estación
+desde el portátil remoto, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
 ## 1. Qué es
 
@@ -122,8 +123,9 @@ en `tests/e2e/out/` (no se suben); `out/matriz/` tiene la matriz visual actual.
 
 - Una sola autoridad: el servidor del portátil principal. Acciones con versión
   (`STALE_VERSION`): nunca se aplica un punto sobre un tanteo viejo.
-- Estación solo desde localhost; pantallas desde la red solo con token de
-  portátil enlazado; teléfonos con PIN → token (en disco solo hashes).
+- Estación desde localhost o desde un portátil remoto enlazado (token; sin
+  código ni hardware del principal: `MAIN_ONLY`); pantallas desde la red solo
+  con token de portátil enlazado; teléfonos con PIN → token (en disco solo hashes).
 - La publicidad nunca modifica el marcador.
 - Páginas servidas con compresión y `no-cache` + ETag (el navegador las guarda pero
   pregunta siempre si cambiaron: 304 si no; al actualizar se ve la versión nueva).
@@ -205,3 +207,23 @@ deformar) dentro del 16:9 y llegaba a la LED con bandas.
   de red. Arreglado el simulador (`tools/simulate-match.js`): mostraba el tanteo
   anterior y, a ritmo rápido, chocaba con su propia versión (esperaba 30 ms un
   estado que llega agrupado cada 100 ms).
+
+Ronda 5 (versión 2.6.0) — **estación del moderador desde el portátil remoto**
+(petición de Santiago: el portátil que entra con el código también controla, no
+solo refleja; el principal siempre puede desvincularlo):
+- El remoto pulsa «Abrir estación del moderador» (`desktop/remote.js`): ventana
+  aislada (sandbox) con `http://PRINCIPAL/station.html#remoto=TOKEN`. Rol
+  `station` aceptado desde la red solo con token de portátil enlazado (también
+  la vista previa de «En vivo» y subir/borrar publicidad con la cabecera
+  `X-StageMaster-Token`). Se re-verifica en cada orden.
+- Reservado al principal (`MAIN_ONLY` en `socketServer.js`): código, enlazar /
+  desvincular, resolución de sus monitores, firewall, carpeta, modo remoto. La
+  estación remota recibe el estado sin el código (`remoteView`, sala
+  `station-remote`) y no muestra esas opciones.
+- El principal ve «tiene la estación abierta». Desvincular corta al momento sus
+  pantallas y su estación (`stationRevoked`) y cierra la ventana en el remoto.
+- Varias estaciones a la vez: el último cambio de un mismo ajuste queda; los
+  puntos llevan versión (nunca se duplican).
+- `station.html` ya no se bloquea por HTTP (no tiene datos): la protección es la
+  conexión. Pruebas: integración «PORTÁTIL REMOTO CON ESTACIÓN» y `remote.e2e.js`
+  (Electron real: abrir, puntuar, cambiar una pantalla, En vivo, desvincular).

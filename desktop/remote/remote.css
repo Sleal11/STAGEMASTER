@@ -23,3 +23,6 @@
 .rm-footer { display: flex; justify-content: flex-end; }
 @media (max-width: 640px) { .rm-screen { grid-template-columns: 1fr; } }
 #rm-linked:not(.hidden) { display: flex; flex-direction: column; gap: 18px; }
+.rm-station { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 14px;
+  padding: 12px; border-radius: var(--st-radius); background: var(--st-inset); }
+.rm-station .hint { flex: 1 1 260px; }

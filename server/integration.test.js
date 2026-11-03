@@ -154,6 +154,7 @@ function createDevice(nombre, auth, host = 'localhost') {
   socket.on('screenRemoved', () => { device.removed = true; });
   socket.on('remoteState', (st) => { device.remoteState = st; });
   socket.on('remoteRevoked', (r) => { device.remoteRevoked = r; });
+  socket.on('stationRevoked', (r) => { device.stationRevoked = r; });
   socket.on('historyChanged', () => { device.historyChanged = (device.historyChanged || 0) + 1; });
   dispositivos.push(device);
   return device;
@@ -252,7 +253,7 @@ test('Pantalla desconocida (pantalla-9) se rechaza al conectar', async () => {
   assert.strictEqual(err.data.code, 'UNKNOWN_SCREEN');
 });
 
-test('La estación solo se acepta desde el propio portátil (localhost)', async () => {
+test('La estación solo se acepta desde el propio portátil (localhost) si no trae token de portátil enlazado', async () => {
   const lanIp = Object.values(os.networkInterfaces()).flat()
     .find((n) => n && n.family === 'IPv4' && !n.internal);
   if (!lanIp) return { skip: 'este equipo no tiene una IP de red local para simular un teléfono' };
@@ -264,7 +265,7 @@ test('La estación solo se acepta desde el propio portátil (localhost)', async 
   return `rechazada desde ${lanIp.address}`;
 });
 
-test('Una pantalla solo se acepta desde el portátil; station.html desde la red → 403', async () => {
+test('Una pantalla solo se acepta desde el portátil; station.html se sirve pero sin datos (la conexión se rechaza)', async () => {
   const lanIp = Object.values(os.networkInterfaces()).flat()
     .find((n) => n && n.family === 'IPv4' && !n.internal);
   if (!lanIp) return { skip: 'este equipo no tiene una IP de red local para simular un teléfono' };
@@ -274,8 +275,9 @@ test('Una pantalla solo se acepta desde el portátil; station.html desde la red 
   remota.close();
   assert.strictEqual(err.data.code, 'DISPLAY_LOCAL_ONLY');
 
+  // La página es solo código (sin datos): lo que se protege es la conexión de la estación
   const page = await fetch(`http://${lanIp.address}:${PORT}/station.html`);
-  assert.strictEqual(page.status, 403);
+  assert.strictEqual(page.status, 200);
 });
 
 test('La estación configura los DOS partidos; cada pantalla recibe solo el suyo', async () => {
@@ -680,6 +682,94 @@ test('PORTÁTIL REMOTO: se enlaza con el código, muestra una pantalla por la re
   viejo.socket.close();
   await waitFor(() => estacion.stationState.remotes.list.length === 0, 'la estación ya no lo lista');
   return `remoto en ${host}`;
+});
+
+test('PORTÁTIL REMOTO CON ESTACIÓN: con su token abre la estación del principal y controla todo, salvo enlazar portátiles y el hardware del principal', async () => {
+  const lanIp = Object.values(os.networkInterfaces()).flat()
+    .find((n) => n && n.family === 'IPv4' && !n.internal);
+  if (!lanIp) return { skip: 'este equipo no tiene una IP de red local para simular otro portátil' };
+  const host = lanIp.address;
+  const rejected = (auth) => new Promise((resolve) => {
+    const s = io(`http://${host}:${PORT}`, { auth, forceNew: true, reconnection: false });
+    s.once('connect_error', (err) => { s.close(); resolve(err.data && err.data.code); });
+    s.once('connect', () => { s.close(); resolve('connected'); });
+  });
+
+  // Enlazar el portátil (código de la estación del principal)
+  const remoto = createDevice('Portátil remoto', { role: 'remote' }, host);
+  await waitFor(() => remoto.socket.connected, 'portátil remoto conectado');
+  let res = await send(remoto, 'remote:pair', { code: estacion.stationState.remotes.code, name: 'Portátil pista 3' });
+  assert.ok(res.ok, res.message);
+  const { token } = res;
+
+  // Sin token o con uno inventado: no hay estación ni vista previa desde la red
+  assert.strictEqual(await rejected({ role: 'station', remoteToken: 'inventado' }), 'STATION_LOCAL_ONLY');
+  assert.strictEqual(await rejected({ role: 'preview', screenId: 'pantalla-1' }), 'STATION_LOCAL_ONLY');
+
+  // Con su token: estación completa… sin el código de enlace
+  const lejana = createDevice('Estación remota', { role: 'station', remoteToken: token }, host);
+  await waitFor(() => lejana.stationState, 'la estación remota recibe el estado');
+  assert.strictEqual(lejana.stationState.viewer, 'remote');
+  assert.strictEqual(lejana.stationState.remotes.code, null, 'No ve el código de enlace');
+  assert.strictEqual(estacion.stationState.viewer, 'main');
+  assert.ok(/^\d{6}$/.test(estacion.stationState.remotes.code), 'El principal sí lo ve');
+  await waitFor(() => estacion.stationState.remotes.list.some((r) => r.name === 'Portátil pista 3' && r.stationOpen),
+    'el principal ve que ese portátil tiene la estación abierta');
+
+  // Controla partidos y pantallas en simultáneo con el principal
+  const p1 = estacion.stationState.matches.find((m) => m.id === 'pista-1').state;
+  res = await send(lejana, 'matchAction', { matchId: 'pista-1', action: 'pointB', version: p1.version });
+  assert.ok(res.ok, res.message);
+  await waitFor(() => estacion.stationState.matches.find((m) => m.id === 'pista-1').state.version === p1.version + 1, 'el punto llega al principal');
+  await waitFor(() => pantalla1.states['pista-1'].version === p1.version + 1, '…y a la pantalla');
+  res = await send(lejana, 'station:updateScreen', { screenId: 'pantalla-2', changes: { output: { brightness: 70 } } });
+  assert.ok(res.ok, res.message);
+  await waitFor(() => pantalla2.screenConfig.output.brightness === 70, 'la pantalla 2 recibe el cambio');
+  await send(lejana, 'station:updateScreen', { screenId: 'pantalla-2', changes: { output: { brightness: 100 } } });
+  res = await send(lejana, 'station:newPin', { matchId: 'pista-2' });
+  assert.ok(res.ok, 'También el PIN de los árbitros');
+  res = await send(lejana, 'station:history', {});
+  assert.ok(res.ok && Array.isArray(res.records), 'Y el historial');
+
+  // Vista previa («En vivo») y subir publicidad desde el remoto, con su token
+  const previa = createDevice('Vista previa remota', { role: 'preview', screenId: 'pantalla-1', remoteToken: token }, host);
+  await waitFor(() => previa.screenConfig && previa.states['pista-1'], 'la vista previa remota recibe su pantalla');
+  previa.socket.close();
+  const upload = (headers) => fetch(`http://${host}:${PORT}/api/publicidad/banner`, {
+    method: 'POST', headers: { 'X-File-Name': encodeURIComponent('desde remoto.png'), ...headers }, body: Buffer.alloc(512, 3),
+  });
+  assert.strictEqual((await upload({})).status, 403, 'Sin token, la red no sube publicidad');
+  const up = await upload({ 'X-StageMaster-Token': token });
+  const body = await up.json();
+  assert.ok(up.status === 200 && body.ok, body.message);
+  const del = await fetch(`http://${host}:${PORT}/api/publicidad/banner/${encodeURIComponent(body.name)}`,
+    { method: 'DELETE', headers: { 'X-StageMaster-Token': token } });
+  assert.strictEqual(del.status, 200, 'Y borrarla');
+
+  // Reservado al principal: enlazar/desvincular portátiles y su hardware
+  for (const [eventName, payload] of [
+    ['station:remoteCode', {}], ['station:unlinkRemote', { remoteId: estacion.stationState.remotes.list[0].id }],
+    ['station:useAsRemote', {}], ['station:applyMode', { screenId: 'pantalla-1', mode: { width: 1920, height: 1080, hz: 60 } }],
+    ['station:confirmMode', {}], ['station:revertMode', {}], ['station:listModes', { screenId: 'pantalla-1' }],
+    ['station:allowPhones', {}], ['station:openAdsFolder', {}],
+  ]) {
+    res = await send(lejana, eventName, payload);
+    assert.strictEqual(res.code, 'MAIN_ONLY', `${eventName} desde el remoto`);
+  }
+  assert.ok(estacion.stationState.remotes.list.length >= 1, 'Nadie fue desvinculado');
+
+  // El principal lo desvincula: su estación se corta al momento y el token ya no vale
+  const remoteId = estacion.stationState.remotes.list.find((r) => r.name === 'Portátil pista 3').id;
+  res = await send(estacion, 'station:unlinkRemote', { remoteId });
+  assert.ok(res.ok, res.message);
+  await waitFor(() => lejana.stationRevoked && !lejana.socket.connected, 'la estación remota se corta');
+  assert.ok(/desvincul/.test(lejana.stationRevoked.message));
+  lejana.socket.close();
+  remoto.socket.close();
+  assert.strictEqual(await rejected({ role: 'station', remoteToken: token }), 'STATION_LOCAL_ONLY');
+  assert.strictEqual((await upload({ 'X-StageMaster-Token': token })).status, 403, 'Ni sube publicidad');
+  await waitFor(() => !estacion.stationState.remotes.list.some((r) => r.id === remoteId), 'el principal ya no lo lista');
+  return `estación remota desde ${host}`;
 });
 
 test('VISTA PREVIA (pestaña «En vivo»): recibe lo mismo que la pantalla, no cuenta como ventana, no puntúa; solo desde el portátil', async () => {

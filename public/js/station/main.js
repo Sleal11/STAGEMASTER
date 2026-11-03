@@ -1,7 +1,10 @@
 /**
  * main.js — Estación operadora (station.html)
  *
- *   1. Se conecta como estación (solo funciona en el propio portátil)
+ *   1. Se conecta como estación: en el portátil principal, o en un portátil
+ *      remoto enlazado (station.html#remoto=TOKEN, la abre su aplicación). Lo
+ *      reservado al principal (enlazar portátiles, su resolución, su firewall,
+ *      su carpeta) no se muestra en la de un remoto; el servidor lo impide igual.
  *   2. Dibuja partidos y pantallas cada vez que llega 'stationState'
  *      (el servidor lo envía al cambiar algo, como mucho cada 100 ms)
  *   3. Reparte los clics y cambios a cada módulo:
@@ -16,7 +19,7 @@
 
 import { applyLogo } from '../common/brand.js';
 import { icon, elapsed } from '../common/ui.js';
-import { ctx, send, toast, patch } from './context.js';
+import { ctx, send, toast, patch, remoteToken, isRemoteViewer } from './context.js';
 import { initDialogs } from './dialogs.js';
 import { renderMatches, onMatchClick } from './matches.js';
 import { renderScreens, onScreenClick, onScreenChange, onScreenInput } from './screens.js';
@@ -33,7 +36,7 @@ function connectToServer() {
     setTimeout(() => window.location.reload(), 3000);
     return;
   }
-  const socket = window.io({ auth: { role: 'station' } });
+  const socket = window.io({ auth: { role: 'station', remoteToken: remoteToken || undefined } });
   ctx.socket = socket;
 
   socket.on('connect', () => {
@@ -42,10 +45,13 @@ function connectToServer() {
   });
   socket.on('disconnect', () => setConnection('bad', 'Sin conexión con el servidor · Reconectando…'));
   socket.on('connect_error', (err) => {
-    if (err.data && err.data.code === 'STATION_LOCAL_ONLY') {
-      $('st-blocked').textContent = err.message;
-      $('st-blocked').classList.remove('hidden');
-    }
+    if (err.data && err.data.code === 'STATION_LOCAL_ONLY') showBlocked(err.message);
+  });
+  // Portátil remoto desvinculado por el principal: la estación deja de funcionar
+  socket.on('stationRevoked', ({ message } = {}) => {
+    socket.io.opts.reconnection = false;
+    showBlocked(message || 'Este portátil ya no está enlazado.');
+    setConnection('bad', 'Desvinculado');
   });
   socket.on('historyChanged', onHistoryChanged);
   socket.on('stationState', (state) => {
@@ -55,8 +61,17 @@ function connectToServer() {
   });
 }
 
+function showBlocked(message) {
+  $('st-blocked').textContent = message;
+  $('st-blocked').classList.remove('hidden');
+}
+
 function render(state) {
-  $('st-open-ads').classList.toggle('hidden', !state.desktop);
+  const remote = isRemoteViewer();
+  document.body.classList.toggle('is-remote-station', remote);
+  $('st-title').textContent = remote ? 'Estación · portátil remoto' : 'Estación operadora';
+  // La carpeta de publicidad está en el principal: desde un remoto se sube con «Subir archivos…»
+  $('st-open-ads').classList.toggle('hidden', !state.desktop || remote);
   // Versión que está funcionando: no se muestra (estética); se ve al pasar el
   // ratón por el logo y al final de la Ayuda, para comprobar que es la última
   document.querySelector('.st-brand').title = `StageMaster ${state.build.version} · ${state.build.commit}`;
@@ -93,11 +108,15 @@ function renderPhonesAlert(state) {
         ? 'La red de este portátil está marcada como <strong>«Pública»</strong> y el firewall de Windows no deja entrar a los teléfonos'
         : 'Puede que el firewall de Windows <strong>no deje entrar</strong> a los teléfonos';
     html = `<div class="st-phones-alert">${icon('alert')}<div class="st-phones-alert-text"><strong>Los teléfonos pueden no conectarse.</strong> ` +
-      `${why}: al escanear el QR verían «el servidor no responde». Pulsa <strong>Permitir teléfonos</strong> ` +
-      '(Windows pedirá permiso de administrador una vez; solo se abre a la red local).</div>' +
-      '<div class="st-phones-alert-actions"><button type="button" class="btn btn-primary btn-sm" data-action="allowPhones">' +
-      `${icon('check')}Permitir teléfonos</button><button type="button" class="btn btn-ghost btn-sm" data-action="checkNetwork">` +
-      `${icon('refresh')}Comprobar</button></div></div>`;
+      `${why}: al escanear el QR verían «el servidor no responde». ` +
+      (isRemoteViewer()
+        // El permiso de administrador lo pide Windows en el principal: se pulsa allí
+        ? 'Pulsa <strong>Permitir teléfonos</strong> en la estación del <strong>portátil principal</strong> (Windows pide permiso allí).</div>' +
+          '<div class="st-phones-alert-actions">'
+        : 'Pulsa <strong>Permitir teléfonos</strong> (Windows pedirá permiso de administrador una vez; solo se abre a la red local).</div>' +
+          '<div class="st-phones-alert-actions"><button type="button" class="btn btn-primary btn-sm" data-action="allowPhones">' +
+          `${icon('check')}Permitir teléfonos</button>`) +
+      `<button type="button" class="btn btn-ghost btn-sm" data-action="checkNetwork">${icon('refresh')}Comprobar</button></div></div>`;
   }
   patch($('st-phones-alert'), html);
 }

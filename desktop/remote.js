@@ -18,6 +18,11 @@
  *      reconectan solas. Si el principal cambia de dirección (otra IP), lo
  *      vuelve a encontrar por su nombre.
  *   5. Informa al principal de qué muestra y en qué monitor (la estación lo ve).
+ *   6. «Abrir estación del moderador»: abre la estación DEL PRINCIPAL en una
+ *      ventana de este portátil (station.html#remoto=TOKEN) para controlar
+ *      partidos y pantallas a la vez que el principal. El servidor decide qué
+ *      puede hacer (todo menos enlazar/desvincular y el hardware del
+ *      principal) y la corta al momento si el principal lo desvincula.
  *
  * Ventana de control: desktop/remote/remote.html (sin acceso a Node: habla
  * con este proceso por preload.js).
@@ -35,6 +40,7 @@ const DISCOVERY_TTL_MS = 8000;   // un principal que deja de anunciarse desapare
 const PAIR_TIMEOUT_MS  = 6000;
 
 let win       = null;
+let stationWin = null;   // estación del principal abierta en este portátil
 let socket    = null;
 let windows   = null;
 let settings  = null;
@@ -99,8 +105,46 @@ function unpair(message) {
   screensList = [];
   save();
   windows.setScreens([]);
+  closeStation();
   lastError = message || null;
   setStatus('unpaired');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ESTACIÓN DEL PRINCIPAL EN ESTE PORTÁTIL
+// ─────────────────────────────────────────────────────────────────
+
+/** El token va en el enlace (#…): no se envía en las peticiones HTTP */
+const stationUrl = () => `${baseUrl()}/station.html#remoto=${encodeURIComponent(remote().token)}`;
+
+function openStation({ background, icon }) {
+  if (!isPaired()) return { ok: false, message: 'Primero enlaza este portátil con el principal' };
+  if (stationWin && !stationWin.isDestroyed()) {
+    if (stationWin.isMinimized()) stationWin.restore();
+    stationWin.focus();
+    return { ok: true };
+  }
+  stationWin = new BrowserWindow({
+    width: 1400, height: 900, title: 'StageMaster · Estación (desde este portátil)',
+    backgroundColor: background, autoHideMenuBar: true, show: false, icon,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  stationWin.once('ready-to-show', () => { stationWin.maximize(); stationWin.show(); });
+  // Solo páginas del principal (la Ayuda en ventana nueva); nada externo
+  const own = (url) => !!baseUrl() && url.startsWith(baseUrl() + '/');
+  stationWin.webContents.setWindowOpenHandler(({ url }) => (own(url)
+    ? { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, backgroundColor: background } }
+    : { action: 'deny' }));
+  stationWin.webContents.on('will-navigate', (event, url) => { if (!own(url)) event.preventDefault(); });
+  stationWin.on('closed', () => { stationWin = null; pushState(); });
+  stationWin.loadURL(stationUrl());
+  pushState();
+  return { ok: true };
+}
+
+function closeStation() {
+  if (stationWin && !stationWin.isDestroyed()) stationWin.close();
+  stationWin = null;
 }
 
 /**
@@ -164,6 +208,7 @@ function onFound(info) {
     save();
     connect();
     windows.applyLayout();   // las ventanas cargan de la dirección nueva
+    if (stationWin && !stationWin.isDestroyed()) stationWin.loadURL(stationUrl());
   }
   pushState();
 }
@@ -191,6 +236,7 @@ function state() {
     name: r.name || null,
     discovered: [...discovered.values()].map(({ address, port, name, version }) => ({ address, port, name, version })),
     screens: screensList,
+    stationOpen: !!stationWin && !stationWin.isDestroyed(),
     desktop: windows.getState(),
   };
 }
@@ -239,7 +285,7 @@ function openControlWindow({ background, icon }) {
   win.loadFile(path.join(__dirname, 'remote', 'remote.html'));
 }
 
-function registerIpc() {
+function registerIpc(options) {
   const only = (handler) => (event, ...args) => {
     // Solo la ventana de control puede dar órdenes
     if (!win || event.sender !== win.webContents) throw new Error('No autorizado');
@@ -259,6 +305,7 @@ function registerIpc() {
     windows.openScreen(String(screenId));
     return { ok: true };
   }));
+  ipcMain.handle('remote:openStation', only(() => openStation(options)));
   ipcMain.handle('remote:unpair', only(() => {
     unpair(null);
     return { ok: true };
@@ -310,7 +357,7 @@ async function start(options) {
     onChange: () => { report(); pushState(); },
   });
 
-  registerIpc();
+  registerIpc(options);
   openControlWindow(options);
   // Las pantallas no se apagan ni entran en reposo mientras StageMaster esté abierto
   powerSaveBlocker.start('prevent-display-sleep');

@@ -64,6 +64,11 @@
         <header class="st-card-head"><span class="st-card-name">Portátil principal</span><span id="rm-server-chip" class="pill"></span></header>
         <div class="st-card-body">
           <div id="rm-status" class="rm-status"></div>
+          <div class="rm-station">
+            <button id="rm-station" class="btn btn-primary" type="button">Abrir estación del moderador</button>
+            <span class="hint">Controla desde aquí partidos, pantallas y publicidad, a la vez que el portátil principal.
+              Enlazar o desvincular portátiles solo se hace en el principal.</span>
+          </div>
           <div class="rm-actions">
             <button id="rm-retry" class="btn btn-ghost btn-sm" type="button">Reintentar ahora</button>
             <button id="rm-unpair" class="btn btn-danger-ghost btn-sm" type="button">Desenlazar este portátil</button>
@@ -75,7 +80,8 @@
         <div class="st-card-body">
           <p class="rm-lead">Elige el monitor de cada pantalla que va en <strong>este</strong> portátil. Las demás,
             en «No mostrar» (se ven en el principal o en otro portátil). Lo que muestra cada pantalla
-            (partido, cinta, publicidad, formato LED y brillo) se cambia en la estación del principal.</p>
+            (partido, cinta, publicidad, formato LED y brillo) se cambia en la estación: la del principal o
+            «Abrir estación del moderador» desde aquí.</p>
           <div id="rm-screens" class="rm-screens"></div>
         </div>
       </div>

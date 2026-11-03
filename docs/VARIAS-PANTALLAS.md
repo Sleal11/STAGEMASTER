@@ -44,22 +44,32 @@ Cada pantalla necesita una **salida de vídeo** del portátil. Un portátil suel
    dirección, la que muestra la estación arriba, p. ej. `192.168.1.10:3000`).
 4. Escribe el **código de enlace** de 6 cifras que muestra la estación del principal y pulsa *Enlazar*.
 5. Elige qué pantalla va en cada monitor de este portátil (las demás: «No mostrar aquí»).
+6. Si también quieres **controlar desde este portátil**, pulsa **«Abrir estación del moderador»**:
+   se abre la estación del principal (la misma: partidos, puntos, pantallas, publicidad, En vivo e
+   Historial) en una ventana de este portátil.
 
 A partir de ahí, al abrir StageMaster en el portátil remoto se conecta solo.
 
 ### Cómo se comporta
 
 - **Una sola autoridad**: los partidos, la configuración y la publicidad están solo en el principal.
-  El remoto no puede cambiar nada (ni puntuar): no hay conflictos entre portátiles.
+  La ventana «Pantalla remota» no cambia nada; para controlar se abre la **estación del principal**
+  desde el remoto («Abrir estación del moderador»), y todo lo que se hace ahí lo guarda el principal.
+- **Dos estaciones a la vez** (principal y remotos): cada cambio llega a todas al instante. Los puntos
+  llevan la versión del marcador: nunca se cuenta un punto dos veces ni sobre un tanteo viejo. Si
+  dos personas cambian el mismo ajuste a la vez, queda el último y las dos lo ven.
+- **Solo en el principal**: código de enlace, enlazar y desvincular portátiles, la resolución de
+  sus monitores, «Permitir teléfonos» (firewall) y «Carpeta de publicidad». La estación del remoto
+  no los muestra y el servidor los rechaza (`MAIN_ONLY`). La publicidad se sube con «Subir archivos…».
 - **Tiempo real**: el marcador, la cinta, la publicidad automática (pausa/fin de partido) y los
   cambios de la estación llegan a la vez a todas las pantallas, también a las remotas.
 - **Si se corta la red**: la pantalla remota **mantiene la última imagen** (nunca se queda en negro),
   la ventana del remoto indica «Reconectando…» y vuelve sola al volver la red.
 - **Si el principal cambia de IP** (otra red, DHCP): el remoto lo vuelve a encontrar por su nombre.
-- **La estación del principal** muestra cada portátil remoto: conectado o no, su IP y qué pantalla
-  muestra en qué monitor. Cada tarjeta de pantalla dice dónde se ve («en Portátil pista 2»).
-- **Desvincular** (estación del principal): sus pantallas se apagan al momento y su enlace deja de
-  valer. **Nuevo código**: el anterior deja de servir; los ya enlazados siguen funcionando.
+- **La estación del principal** muestra cada portátil remoto: conectado o no, su IP, si **tiene la
+  estación abierta** y qué pantalla muestra en qué monitor. Cada tarjeta de pantalla dice dónde se ve («en Portátil pista 2»).
+- **Desvincular** (estación del principal): sus pantallas y su estación se apagan al momento y su
+  enlace deja de valer. **Nuevo código**: el anterior deja de servir; los ya enlazados siguen funcionando.
 - Para volver a usar el portátil remoto como principal: botón «Usar este portátil como principal».
 
 ### Requisitos de red
@@ -88,17 +98,19 @@ Recomendación: cable siempre que se pueda. El Wi‑Fi del recinto puede saturar
 - Una pantalla desde otro equipo solo se acepta con el **token** que se recibe al enlazar con el
   código (el principal guarda solo su *hash*). Sin enlazar, se rechaza.
 - 5 códigos incorrectos seguidos bloquean los intentos desde ese equipo durante un minuto.
-- La estación sigue funcionando solo en el portátil principal.
+- La estación desde otro equipo exige el mismo **token** (solo portátiles enlazados); sin él, se
+  rechaza. Subir o borrar publicidad desde la red, también.
+- La red local va sin cifrar: usa una **red propia del evento** (no la de invitados) y no compartas
+  el código de enlace. Si alguien lo viera, pulsa «Nuevo código» y desvincula lo que no reconozcas.
 
 ## Compartir el panel de partido entre portátiles (análisis)
 
 | Opción | Estado |
 |---|---|
 | **Panel del árbitro** (`control.html`) en otro portátil o tableta, con el PIN de la pista | **Ya disponible**: un segundo operador puede llevar el marcador de una pista desde otro equipo de la red (un dispositivo por pista; vincular otro pide confirmación y reemplaza al anterior). Si la estación y ese equipo puntúan a la vez, no hay conflicto: cada acción lleva la versión del marcador y nunca se aplica sobre un tanteo antiguo ni se cuenta un punto dos veces |
-| **Estación completa** (pantallas, publicidad) en otro portátil | **No habilitado a propósito**: dos personas cambiando la configuración a la vez se pisarían. Si hiciera falta, se añadiría como rol «estación remota» enlazado con código, con un único operador con permiso de configuración a la vez |
+| **Estación completa** (pantallas, publicidad) en otro portátil | **Disponible** (versión 2.6.0, petición de Santiago) en los **portátiles remotos enlazados**: «Abrir estación del moderador». Varias estaciones a la vez; el último cambio de un mismo ajuste es el que queda y todas lo ven al instante. Lo reservado al principal está arriba |
 
-Recomendación: **una estación** (portátil principal) y, si hace falta ayuda, el **panel del árbitro**
-en los demás equipos.
+Recomendación: la **estación del principal** y, en las pistas lejanas, la **estación desde el portátil remoto**; para llevar solo el marcador de una pista, el **panel del árbitro**.
 
 ## Lo que necesitamos saber para el evento
 
