@@ -14,6 +14,7 @@
 const fs   = require('fs');
 const path = require('path');
 const { app } = require('electron');
+const { writeFileAtomic } = require('../server/core/storage');
 
 const file = () => path.join(app.getPath('userData'), 'modo.json');
 
@@ -28,8 +29,8 @@ function loadSettings() {
 
 function saveSettings(settings) {
   try {
-    fs.mkdirSync(path.dirname(file()), { recursive: true });
-    fs.writeFileSync(file(), JSON.stringify(settings, null, 2));
+    // Atómico: guarda el token del portátil remoto (un apagón no lo pierde)
+    writeFileAtomic(file(), JSON.stringify(settings, null, 2));
   } catch (err) {
     console.warn('[Escritorio] No se pudo guardar el modo:', err.message);
   }

@@ -34,8 +34,8 @@ convertirlos en un tema de la app (variables en `shared.css`, `station.css`,
 ## Volver a generar las maquetas
 
 ```bash
-node docs/maquetas-marca/maqueta.js      # capturas de la app real con cada tema
-python3 docs/maquetas-marca/componer.py   # comparativas ACTUAL · A · B
+node docs/desarrollo/maquetas-marca/maqueta.js      # capturas de la app real con cada tema
+python3 docs/desarrollo/maquetas-marca/componer.py   # comparativas ACTUAL · A · B
 ```
 
 Resultado en `tests/e2e/out/maqueta/` (`comparar-*.png`). Requiere Playwright con

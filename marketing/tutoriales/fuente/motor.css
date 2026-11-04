@@ -1,0 +1,96 @@
+/* motor.css — Estilo de los vídeos explicativos (marca StageMaster, 1920 × 1080) */
+@font-face { font-family: Oswald; font-weight: 700; src: url(../../../public/fonts/oswald-latin-700-normal.woff2); }
+@font-face { font-family: Oswald; font-weight: 600; src: url(../../../public/fonts/oswald-latin-600-normal.woff2); }
+@font-face { font-family: Inter; font-weight: 700; src: url(../../../public/fonts/inter-latin-700-normal.woff2); }
+@font-face { font-family: Inter; font-weight: 600; src: url(../../../public/fonts/inter-latin-600-normal.woff2); }
+@font-face { font-family: Inter; font-weight: 500; src: url(../../../public/fonts/inter-latin-500-normal.woff2); }
+
+:root {
+  --indigo: #3A3FC0; --indigo-2: #2E3192; --navy: #141A5C; --light: #EEF4FB;
+  --sky: #4FB8F2; --sky-2: #1E9BE0; --yellow: #FFD21F; --white: #FFFFFF;
+}
+* { margin: 0; box-sizing: border-box; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--indigo); }
+body { font-family: Inter, sans-serif; color: var(--white); }
+.abs { position: absolute; }
+.hidden-icons { display: none; }
+
+/* Fondo de marca */
+#bg { position: absolute; inset: 0; overflow: hidden;
+  background: radial-gradient(ellipse at 30% 20%, #4A50D6 0%, var(--indigo) 45%, #262A99 100%); }
+#bg .bar { position: absolute; height: 18px; background: var(--sky); transform: skewX(-35deg); opacity: .9; }
+#bg .glow { position: absolute; border-radius: 50%; background: rgba(79, 184, 242, .14); }
+
+/* Escenas */
+.scene { position: absolute; inset: 0; opacity: 0; will-change: opacity; }
+.scene.light { background: var(--light); }
+
+/* Capítulo arriba a la izquierda */
+#chapter { position: absolute; left: 56px; top: 44px; display: flex; align-items: center; gap: 18px; z-index: 50; }
+#chapter img { height: 58px; }
+#chapter .chip { font-family: Oswald; font-weight: 600; font-size: 26px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 6px 18px; border-radius: 30px; background: rgba(255,255,255,.14); }
+
+/* Subtítulo / paso */
+#caption { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); z-index: 60;
+  display: flex; align-items: center; gap: 22px; max-width: 1640px; padding: 18px 34px 18px 18px;
+  border-radius: 60px; background: rgba(10, 14, 60, .82); box-shadow: 0 10px 40px rgba(0,0,0,.35); opacity: 0; }
+#caption .num { flex: 0 0 auto; width: 62px; height: 62px; border-radius: 50%; background: var(--yellow); color: var(--indigo-2);
+  font-family: Oswald; font-weight: 700; font-size: 36px; display: flex; align-items: center; justify-content: center; }
+#caption .num.empty { display: none; }
+#caption .txt { font-size: 36px; font-weight: 600; line-height: 1.2; white-space: nowrap; }
+#caption .txt b { color: var(--yellow); }
+
+/* Textos */
+.h { font-family: Oswald; font-weight: 700; text-transform: uppercase; line-height: .95; letter-spacing: 1px; }
+.kicker { font-family: Inter; font-weight: 700; letter-spacing: 6px; text-transform: uppercase; color: var(--sky); }
+.lead { font-family: Inter; font-weight: 500; line-height: 1.35; color: #DCE6FF; }
+.yellow { color: var(--yellow); } .sky { color: var(--sky); } .navy { color: var(--indigo-2); }
+
+/* Dispositivos */
+.device { position: absolute; will-change: transform, opacity; }
+.device .vp { position: absolute; overflow: hidden; background: #050A24; }
+.device .content { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.device .content img { position: absolute; left: 0; top: 0; }
+.device .over { position: absolute; inset: 0; pointer-events: none; }
+.laptop { background: #0A0F2A; border-radius: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.45), 0 0 0 2px #2A3070 inset; }
+.laptop::after { content: ''; position: absolute; left: -5%; right: -5%; bottom: -26px; height: 26px;
+  background: linear-gradient(#C9CFE6, #8A91B3); border-radius: 0 0 26px 26px; }
+.laptop .cam { position: absolute; left: 50%; top: 8px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: #2A3070; }
+.phone { background: #0A0F2A; border-radius: 54px; box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 0 3px #3A4180 inset; }
+.phone .vp { border-radius: 40px; }
+.phone .notch { position: absolute; left: 50%; top: 12px; width: 110px; height: 18px; margin-left: -55px; border-radius: 10px; background: #1B2150; z-index: 3; }
+.led { background: #05060C; border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 0 4px #1B1F33 inset; }
+.led .grid { position: absolute; inset: 0; z-index: 2; opacity: .22;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.9) 0 1px, transparent 1px 4px),
+              repeating-linear-gradient(90deg, rgba(0,0,0,.9) 0 1px, transparent 1px 4px); }
+.led .leg { position: absolute; bottom: -70px; width: 22px; height: 70px; background: #1B1F33; }
+.window { background: #0A0F2A; border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+.window .bar { position: absolute; left: 0; right: 0; top: 0; height: 34px; border-radius: 14px 14px 0 0; background: #11173F; }
+.window .bar i { position: absolute; top: 12px; width: 11px; height: 11px; border-radius: 50%; background: #3A4180; }
+
+/* Resaltados y toques */
+.hl { position: absolute; border: 5px solid var(--yellow); border-radius: 14px; opacity: 0;
+  box-shadow: 0 0 0 9999px rgba(3, 6, 30, .38), 0 0 30px rgba(255, 210, 31, .7); }
+.hl.nodim { box-shadow: 0 0 30px rgba(255, 210, 31, .7); }
+.hl .tag { position: absolute; left: -5px; top: -54px; white-space: nowrap; font-family: Oswald; font-weight: 700; font-size: 28px;
+  padding: 4px 16px; border-radius: 10px; background: var(--yellow); color: var(--indigo-2); text-transform: uppercase; }
+.hl .tag.below { top: auto; bottom: -54px; }
+.tap { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; opacity: 0;
+  border: 6px solid var(--yellow); background: rgba(255, 210, 31, .25); }
+
+/* Iconos de diagrama */
+.node { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+.node .ico { width: 190px; height: 190px; border-radius: 40px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.18) inset; }
+.node .ico svg { width: 104px; height: 104px; stroke: var(--white); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.node .name { font-family: Oswald; font-weight: 700; font-size: 42px; text-transform: uppercase; }
+.node .sub { font-size: 26px; color: #CFE0FF; font-weight: 500; max-width: 360px; }
+.link { position: absolute; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--sky), var(--yellow)); transform-origin: 0 50%; }
+.pulse { position: absolute; width: 22px; height: 22px; margin: -7px 0 0 -11px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 20px var(--yellow); }
+
+.bullet { position: absolute; display: flex; align-items: center; gap: 26px; font-size: 40px; font-weight: 600; }
+.bullet .dot { flex: 0 0 auto; width: 66px; height: 66px; border-radius: 18px; background: var(--yellow); display: flex; align-items: center; justify-content: center; }
+.bullet .dot svg { width: 38px; height: 38px; stroke: var(--indigo-2); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.scanline { position: absolute; left: 6%; right: 6%; height: 6px; border-radius: 3px; background: var(--sky); box-shadow: 0 0 24px var(--sky); }
+#wipe { position: absolute; top: -100px; width: 900px; height: 1300px; background: var(--sky); transform: skewX(-20deg); z-index: 80; }

@@ -3,10 +3,10 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const H = require('../../tests/e2e/harness');
+const H = require('../../../tests/e2e/harness');
 
 const DIR = __dirname;
-const OUT = path.join(__dirname, '..', '..', 'tests', 'e2e', 'out', 'maqueta');
+const OUT = path.join(__dirname, '..', '..', '..', 'tests', 'e2e', 'out', 'maqueta');
 fs.mkdirSync(OUT, { recursive: true });
 const THEMES = [
   { id: 'actual', css: '' },

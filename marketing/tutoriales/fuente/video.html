@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>StageMaster · vídeo explicativo</title>
+  <link rel="stylesheet" href="motor.css">
+</head>
+<body>
+  <script src="motor.js"></script>
+  <script src="videos.js"></script>
+  <script>
+    // video.html?id=resumen&t=12  (t: fotograma para revisar a mano)
+    const params = new URLSearchParams(location.search);
+    const def = window.VIDEOS[params.get('id') || 'resumen'];
+    const V = window.createVideo({ chip: def.chip });
+    def.build(V);
+    window.render = V.render;
+    window.DURATION = V.total;
+    V.render(Number(params.get('t') || 0));
+  </script>
+</body>
+</html>

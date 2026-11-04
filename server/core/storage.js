@@ -62,15 +62,24 @@ function createStore(relativePath, { validate = () => true } = {}) {
   function save(data) {
     try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
-      const tmpFile = `${file}.tmp`;
-      fs.writeFileSync(tmpFile, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
-      fs.renameSync(tmpFile, file);
+      writeFileAtomic(file, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
     } catch (err) {
       console.error(`[Storage] ⚠ No se pudo guardar ${file}: ${err.message}`);
     }
   }
 
   return { file, load, save };
+}
+
+/**
+ * Escribe un archivo de forma que nunca quede a medias: primero en otro nombre
+ * y luego se renombra (un apagón a mitad deja el archivo anterior intacto).
+ */
+function writeFileAtomic(file, text) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmpFile = `${file}.tmp`;
+  fs.writeFileSync(tmpFile, text);
+  fs.renameSync(tmpFile, file);
 }
 
 /**
@@ -89,4 +98,4 @@ function migrateFile(oldRelativePath, newRelativePath) {
   return true;
 }
 
-module.exports = { createStore, migrateFile, dataDir };
+module.exports = { createStore, migrateFile, dataDir, writeFileAtomic };

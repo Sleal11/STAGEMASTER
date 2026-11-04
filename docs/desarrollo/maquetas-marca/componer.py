@@ -1,6 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont
 import sys, os
-os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'tests', 'e2e', 'out', 'maqueta'))
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'tests', 'e2e', 'out', 'maqueta'))
 F = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 30)
 NAMES = [('actual', 'ACTUAL'), ('indigo', 'A · ÍNDIGO'), ('claro', 'B · CLARO')]
 def compose(section, scale=1.0, out=None, crop=None):

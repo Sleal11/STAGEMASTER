@@ -14,9 +14,9 @@
  */
 
 const fs = require('fs');
-const path = require('path');
 const { BrowserWindow, screen } = require('electron');
 const monitors = require('./monitors');
+const { writeFileAtomic } = require('../server/core/storage');
 
 /**
  * @param {Object}   options
@@ -49,8 +49,7 @@ function createScreenWindows({ prefsFile, urlFor, allowedBase, background, icon,
 
   function savePreferences() {
     try {
-      fs.mkdirSync(path.dirname(prefsFile), { recursive: true });
-      fs.writeFileSync(prefsFile, JSON.stringify({ preferences }));
+      writeFileAtomic(prefsFile, JSON.stringify({ preferences }));
     } catch (err) {
       console.warn('[Escritorio] No se pudieron guardar los monitores:', err.message);
     }

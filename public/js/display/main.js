@@ -223,12 +223,18 @@ function updateLayout() {
 // INFORME A LA ESTACIÓN
 // ─────────────────────────────────────────────────────────────────
 
-/** Tamaño real (píxeles físicos) de lo que ve el público */
+/**
+ * Tamaño real (píxeles físicos) de lo que ve el público. Con el escalado de
+ * Windows (125 %, 150 %…) el tamaño en CSS tiene decimales: se mide sin
+ * redondear (getBoundingClientRect) para no informar 1921 × 1081 en un
+ * monitor de 1920 × 1080.
+ */
 function outputPixels() {
   const dpr = window.devicePixelRatio || 1;
+  const box = dom.output.getBoundingClientRect();
   return {
-    width:  Math.round(dom.output.clientWidth * dpr),
-    height: Math.round(dom.output.clientHeight * dpr),
+    width:  Math.round(box.width * dpr),
+    height: Math.round(box.height * dpr),
     dpr,
   };
 }

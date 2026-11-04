@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * generar.js — Vuelve a crear los vídeos de videos-led/ a partir de promo.html
+ * generar.js — Vuelve a crear los vídeos de marketing/videos-led/ a partir de promo.html
  *
- *   node videos-led/fuente/generar.js
+ *   node marketing/videos-led/fuente/generar.js
  *
  * Requisitos: Playwright con Chromium y ffmpeg en el PATH.
  * promo.html es una animación de 15 s (función render(t)): se captura

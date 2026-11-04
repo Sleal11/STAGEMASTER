@@ -1,7 +1,7 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.6.0** (2.3.0 + retoques
+compactación de la conversación). Estado: **versión 2.6.1, consolidada** (en operación en eventos reales; 2.3.0 + retoques
 estéticos, pestaña «En vivo», teléfonos que no conectaban, publicidad que llena la LED y estación
 desde el portátil remoto, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
@@ -80,7 +80,7 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 
 | Fase | Resultado | Archivos principales |
 |---|---|---|
-| 1 Auditoría | `docs/AUDITORIA-V3.md` | — |
+| 1 Auditoría | `docs/desarrollo/AUDITORIA-V3.md` | — |
 | 2 Historial | Pestaña Historial: día, rango, pista, jugador, detalle, CSV; sin duplicados; deshacer anula | `server/core/history.js`, `js/station/history.js` |
 | 3 Publicidad en la pausa | Lista durante la pausa; vuelve con el mismo tanteo; opción por pantalla | `server/core/screens.js` (`matchPauseChanged`) |
 | 4 Brillo | Brillo de la **imagen** por pantalla (10-100 %) | `d-dimmer` en `score.html`; `docs/BRILLO-LED.md` |
@@ -102,7 +102,7 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 | Análisis profundo final + paso a `main` + etiqueta | Cuando Santiago lo pida | — |
 | `.gitignore` de `*.exe` en la raíz | Propuesto, sin hacer | Confirmación de Santiago |
 | **Firma digital del .exe** («la app no es segura») | Sin firma. Mientras tanto: .zip en el enlace de prueba (con LEEME), USB y pasos en `docs/DESCARGA-Y-SEGURIDAD.md` | Decisión y coste: Azure Artifact Signing (solo empresas de EE. UU./Canadá/UE/RU o personas de EE. UU./Canadá) o certificado OV; datos legales de la empresa |
-| **Colores de la marca** (índigo / claro) | **En espera** por decisión de Santiago: la app sigue con su paleta azul oscuro | Maquetas, paleta y temas listos en `docs/maquetas-marca/` (ver su LEEME); falta elegir opción por parte (LED / estación / teléfono) y el color de la Pista 2 |
+| **Colores de la marca** (índigo / claro) | **En espera** por decisión de Santiago: la app sigue con su paleta azul oscuro | Maquetas, paleta y temas listos en `docs/desarrollo/maquetas-marca/` (ver su LEEME); falta elegir opción por parte (LED / estación / teléfono) y el color de la Pista 2 |
 
 ## 6. Pruebas
 
@@ -227,3 +227,16 @@ solo refleja; el principal siempre puede desvincularlo):
 - `station.html` ya no se bloquea por HTTP (no tiene datos): la protección es la
   conexión. Pruebas: integración «PORTÁTIL REMOTO CON ESTACIÓN» y `remote.e2e.js`
   (Electron real: abrir, puntuar, cambiar una pantalla, En vivo, desvincular).
+
+Ronda 6 (versión 2.6.1) — **consolidación** (petición de Santiago: «esta versión es la
+que está operando»; compactar, organizar, analizar errores, informe y vídeos):
+- Errores corregidos: tamaño informado 1921 × 1081 (redondeo con escalado de
+  Windows → `getBoundingClientRect`); `modo.json` y monitores con escritura atómica
+  (`storage.writeFileAtomic`); scripts de PowerShell temporales borrados al cerrar.
+- Organización: `docs/desarrollo/` (contexto, auditoría, maquetas de marca),
+  `marketing/` (vídeo LED y tutoriales), índice `docs/README.md`, `RESUMEN.md`,
+  informe `docs/INFORME-PROYECTO.md` (composición, pruebas, limitaciones, recomendaciones).
+- Vídeos explicativos (`marketing/tutoriales/`): resumen de 90 s y 4 tutoriales, con
+  capturas reales (`fuente/capturar.js`, servidor con adaptador de escritorio de ejemplo)
+  y un motor de animación propio (`fuente/motor.js`, `videos.js`, `generar.js`).
+- Un splitter HDMI es un solo monitor para Windows (lo resolvió Santiago).

@@ -7,6 +7,9 @@ en **otros portátiles** de la red, con marcador, cinta publicitaria y vídeos,
 **historial de partidos** y un **teléfono de árbitro** por partido. Funciona
 **sin Internet**: solo necesita una red local para los teléfonos y portátiles.
 
+> **En una página:** [`RESUMEN.md`](RESUMEN.md) · **Informe completo:** [`docs/INFORME-PROYECTO.md`](docs/INFORME-PROYECTO.md)
+> · **Vídeos de cómo se usa:** [`marketing/tutoriales/`](marketing/tutoriales/)
+
 ```
  📱 Árbitro Pista 1 ─┐                         ┌─ cable ─► 📺 Pantalla 1 (LED / monitor)
                      ├─ Wi-Fi ─► 💻 StageMaster ┤
@@ -119,6 +122,7 @@ desktop/
 ├── screenWindows.js     Ventanas de las pantallas en los monitores (común a los dos modos)
 ├── monitors.js          Qué pantalla va en qué monitor (lógica pura, probada)
 ├── displayModes.js      Resoluciones reales de Windows (EnumDisplaySettings / ChangeDisplaySettingsEx)
+├── firewall.js          «Permitir teléfonos»: reglas del firewall de Windows solo para la red local
 └── mode.js              Modo de este portátil (principal / remoto)
 server/
 ├── index.js             startServer(): HTTP, páginas, publicidad
@@ -136,19 +140,24 @@ server/
 │   ├── network.js       Dirección para los teléfonos y códigos QR
 │   ├── storage.js       Archivos JSON con escritura atómica
 │   └── errors.js        Errores con código
-├── http/adsApi.js     Subir y borrar publicidad (solo desde el portátil)
+├── http/adsApi.js     Subir y borrar publicidad (estación del principal o de un portátil enlazado)
 ├── realtime/socketServer.js   Roles, permisos, salas por partido, difusión
 └── sports/padel/              engine.js (motor) · config.js (validación)
 public/
-├── station.html · js/station/   Estación: main, context, dialogs, matches, screens, uploads
+├── station.html · js/station/   Estación: main, context, dialogs, matches, screens, uploads,
+│                                remotes (portátiles), live (En vivo), history (Historial)
 ├── score.html   · js/display/   Pantalla: main (capas y salida LED), scoreboard,
-│                                ribbon (cinta), media-player (imágenes y vídeos)
+│                                ribbon (cinta), media-player (imágenes y vídeos), logo-cleaner
 ├── control.html · js/control.js Teléfono del árbitro
 ├── js/common/                   score-format, brand (logo), ui (iconos, utilidades)
 ├── img/icons.svg                Iconos SVG (sprite)
 └── ayuda.html                   Ayuda para el cliente
 publicidad/              Ejemplos (imagen y vídeo 2:1, cinta) que se copian a Documentos la primera vez
-build/                   Iconos del .exe y logo original (fuente de diseño)
+tests/e2e/               Pruebas con navegador y aplicación de escritorio reales
+tools/                   simulate-match.js (operador virtual)
+marketing/               Vídeo de marca para las LED y vídeos explicativos (con su fuente)
+docs/                    Guías (índice en docs/README.md); docs/desarrollo/: historial del desarrollo
+build/                   Iconos del .exe, logo original y texto del .zip
 ```
 
 **Roles:** estación (en el portátil principal, o en un portátil remoto enlazado
@@ -168,15 +177,20 @@ hacer que `Match.js` elija el motor según el deporte y crear su vista de pantal
 
 ## Documentación
 
+Índice completo: [`docs/README.md`](docs/README.md).
+
+- [`RESUMEN.md`](RESUMEN.md) — StageMaster en una página.
+- [`docs/INFORME-PROYECTO.md`](docs/INFORME-PROYECTO.md) — cómo está hecho, pruebas, errores corregidos, limitaciones y recomendaciones.
+- [`marketing/`](marketing/LEEME.md) — vídeo de marca para las LED y vídeos explicativos.
 - [`docs/CHECKLIST-EVENTO.md`](docs/CHECKLIST-EVENTO.md) — día del evento.
 - [`docs/SIMULACRO-EVENTO.md`](docs/SIMULACRO-EVENTO.md) — prueba completa con el equipo real.
 - [`docs/RED-Y-COMUNICACION.md`](docs/RED-Y-COMUNICACION.md) — Wi-Fi vs Bluetooth, red, sincronización, seguridad.
 - [`docs/VARIAS-PANTALLAS.md`](docs/VARIAS-PANTALLAS.md) — varias pantallas, espejos y portátiles remotos: requisitos de red y distancias.
 - [`docs/RESOLUCIONES.md`](docs/RESOLUCIONES.md) — resolución del monitor vs formato LED, EDID, el caso 1920×1120.
 - [`docs/BRILLO-LED.md`](docs/BRILLO-LED.md) — brillo de la imagen vs brillo físico de los módulos.
-- [`docs/AUDITORIA-V3.md`](docs/AUDITORIA-V3.md) — auditoría y plan de la versión 3.
+- [`docs/desarrollo/AUDITORIA-V3.md`](docs/desarrollo/AUDITORIA-V3.md) — auditoría y plan de la versión 3.
 - [`docs/DESCARGA-Y-SEGURIDAD.md`](docs/DESCARGA-Y-SEGURIDAD.md) — «la app no es segura»: descargar y abrir el .exe; firma digital.
-- [`docs/CONTEXTO-DESARROLLO.md`](docs/CONTEXTO-DESARROLLO.md) — estado, forma de trabajar, identidad visual, pendientes y decisiones (para continuar el desarrollo).
+- [`docs/desarrollo/CONTEXTO-DESARROLLO.md`](docs/desarrollo/CONTEXTO-DESARROLLO.md) — estado, forma de trabajar, identidad visual, pendientes y decisiones (para continuar el desarrollo).
 
 Tipografías **Inter** y **Oswald**: SIL Open Font License 1.1 (`public/fonts/LICENSE-*.txt`).
 Iconos basados en **Lucide** (licencia ISC).

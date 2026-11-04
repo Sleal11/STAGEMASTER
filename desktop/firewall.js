@@ -57,9 +57,14 @@ function supported() {
   return process.platform === 'win32';
 }
 
+/** Scripts escritos en la carpeta temporal: se borran al cerrar StageMaster */
+const written = new Set();
+process.once('exit', () => written.forEach((file) => { try { fs.unlinkSync(file); } catch (_) { /* ya no está */ } }));
+
 function writeScript(name, content) {
   const file = path.join(os.tmpdir(), `stagemaster-${name}-${process.pid}.ps1`);
   fs.writeFileSync(file, '﻿' + content, 'utf8');
+  written.add(file);
   return file;
 }
 

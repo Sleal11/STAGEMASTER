@@ -14,5 +14,5 @@ Diseño para LED: letras grandes y gruesas, alto contraste (amarillo / blanco so
 índigo), sin líneas finas; MP4 H.264, 30 fps.
 
 Para cambiar textos o escenas: editar `fuente/promo.html` (función `render(t)`)
-y ejecutar `node videos-led/fuente/generar.js` (necesita Playwright y ffmpeg).
+y ejecutar `node marketing/videos-led/fuente/generar.js` (necesita Playwright y ffmpeg).
 Estos vídeos no van dentro del .exe.

@@ -164,6 +164,9 @@ function ensureScript() {
   if (scriptFile && fs.existsSync(scriptFile)) return scriptFile;
   scriptFile = path.join(os.tmpdir(), `stagemaster-display-modes-${process.pid}.ps1`);
   fs.writeFileSync(scriptFile, '﻿' + SCRIPT, 'utf8');
+  // Al cerrar StageMaster se borra (no se acumulan scripts en la carpeta temporal)
+  const file = scriptFile;
+  process.once('exit', () => { try { fs.unlinkSync(file); } catch (_) { /* ya no está */ } });
   return scriptFile;
 }
 
