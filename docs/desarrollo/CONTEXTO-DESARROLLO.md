@@ -1,7 +1,7 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.6.1, consolidada** (en operación en eventos reales; 2.3.0 + retoques
+compactación de la conversación). Estado: **versión 2.7.0** (2.6.1 en operación + QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
 estéticos, pestaña «En vivo», teléfonos que no conectaban, publicidad que llena la LED y estación
 desde el portátil remoto, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
@@ -240,3 +240,19 @@ que está operando»; compactar, organizar, analizar errores, informe y vídeos)
   capturas reales (`fuente/capturar.js`, servidor con adaptador de escritorio de ejemplo)
   y un motor de animación propio (`fuente/motor.js`, `videos.js`, `generar.js`).
 - Un splitter HDMI es un solo monitor para Windows (lo resolvió Santiago).
+
+Ronda 7 (versión 2.7.0) — **refinamiento profesional** (prompt por fases de Santiago):
+- F2 QR único: «Acceso de los árbitros» con un QR; el teléfono pide el CÓDIGO de
+  pista (4 cifras) y el código decide la pista (`pair { code }`); códigos nunca
+  repetidos (`matchRegistry.newPin/findByCode`); confirmación «Conectado a PISTA X»;
+  cambio de pista con su código. Quitados `listCourts` y la lista de pistas.
+- F3 «Punto Estrella» → «FIP 2026» (solo el nombre; valor interno `starPoint`).
+- F4 Estadísticas en el motor (`state.stats`, con deshacer) + `Match.finishedAt` y
+  `timing`; resumen compartido `ScoreFormat.summaryFromState/Record`; pantalla
+  `display/finale.js` (celebración 6 s una vez por final + resumen que sustituye al
+  marcador; la publicidad final espera); teléfono e historial con el resumen.
+- F5-6 Contraste (teléfono 5,1:1, estación 6,3:1), tamaños por prioridad, base de
+  la estación 16 px; botones auditados.
+- F7 Limpieza: presentación de ganador del marcador, compactScore, 3 iconos.
+- CI: la prueba se publica en `prueba-nueva` (variable `PRUEBA_TAG`) para conservar
+  2.6.1 en `prueba` hasta validar; al validar, volver a `prueba`.

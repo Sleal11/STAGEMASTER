@@ -1,4 +1,4 @@
-# StageMaster · Informe del proyecto (versión 2.6.1)
+# StageMaster · Informe del proyecto (versión 2.7.0)
 
 > Estado a **noviembre de 2026**. Versión que está operando en eventos reales.
 > Resumen corto: [`RESUMEN.md`](../RESUMEN.md). Historial del desarrollo:
@@ -11,8 +11,8 @@ aplicación de Windows **portable** (un solo `.exe`, no se instala) que conviert
 portátil en la central de un evento:
 
 - **Estación del operador** en el portátil: partidos, pantallas, publicidad, historial.
-- **Teléfono del árbitro** (cualquier móvil, sin instalar nada): escanea el QR de su
-  pista, escribe el PIN y puntúa con botones grandes.
+- **Teléfono del árbitro** (cualquier móvil, sin instalar nada): escanea el QR único,
+  escribe el código de su pista y puntúa con botones grandes.
 - **Pantallas** (monitores o LED, hasta 8): marcador legible de lejos, cinta de
   patrocinadores, imágenes y vídeos, publicidad automática en la pausa y al terminar.
 - **Portátiles remotos** para pistas lejanas: muestran pantallas por la red y pueden
@@ -96,7 +96,7 @@ STAGEMASTER/
 |---|---|---|
 | **Estación** | Portátil principal (localhost) | Todo |
 | **Estación remota** | Portátil enlazado con el código (token) | Todo salvo: enlazar/desvincular portátiles, el código, la resolución y el firewall del principal, su carpeta |
-| **Teléfono del árbitro** | Cualquier móvil de la red, con el PIN de su pista | Solo su partido |
+| **Teléfono del árbitro** | Cualquier móvil de la red, con el código de su pista | Solo su partido |
 | **Pantalla** | Portátil principal o remoto enlazado | Solo mostrar (nunca modifica nada) |
 | **Vista previa** («En vivo») | Estación | Ver, sin contar como pantalla |
 
@@ -123,15 +123,18 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 - Cada cambio en la rama de trabajo compila el `.exe` y el `.zip` **en un Windows real**
   (GitHub Actions) tras pasar las pruebas, y los publica en el enlace fijo de prueba:
   `releases/download/prueba/StageMaster-prueba.exe` (y `.zip`).
-- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.6.1` → Releases.
+- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.7.0` → Releases.
+- Mientras se valida una versión grande, la prueba se publica en `prueba-nueva`
+  (la anterior sigue en `prueba`); variable `PRUEBA_TAG` del flujo de compilación.
 
 ## 3. Funcionalidades (todas probadas)
 
 | Área | Qué hace |
 |---|---|
 | Partidos | 2 pistas simultáneas; nombres, games por set (1‑6), 1/3/5 sets, ventaja · punto de oro · FIP 2026, tie break · súper tie break, saque; pausar, finalizar, reiniciar, deshacer |
-| Teléfono | QR → PIN de 4 cifras → configurar y puntuar; deshacer con doble toque; pausa; un teléfono por pista (reemplazar pide confirmación); reconexión sola |
-| Pantallas | Hasta 8; espejos; marcador con sets en la cabecera, saque, punto de oro, ganador; identificar; pantalla «Próximo partido» |
+| Teléfono | QR único → código de la pista (decide la pista; nunca se repite) → «Conectado a PISTA X» → configurar y puntuar; cambiar de pista con su código; deshacer con doble toque; pausa; un teléfono por pista (reemplazar pide confirmación); reconexión sola; resumen al terminar |
+| Pantallas | Hasta 8; espejos; marcador con sets en la cabecera, saque y punto de oro; identificar; pantalla «Próximo partido» |
+| Final del partido | Celebración de los ganadores (una vez por final) y resumen con estadísticas registradas (juegos, puntos, puntos de oro, breaks, mejor racha, duración sin pausas) en la LED, el teléfono y el historial; la publicidad final espera a la celebración |
 | Publicidad | Cinta (logos sin fondo blanco, vídeos cortos, mensajes, cambio o desplazamiento); lista de reproducción (imágenes y vídeos en bucle, con o sin sonido); publicidad automática en la pausa y al terminar; subir arrastrando; **ajuste a la salida** (llena la LED como el marcador) |
 | Salida | Monitor completo o tamaño exacto de la LED (guardable con nombre) y posición; brillo de la imagen; diagnóstico (píxeles reales, Hz, escala, EDID); cambiar resolución en Windows con vuelta automática |
 | En vivo | Vista previa en movimiento de cada pantalla y su estado real; aviso si alguna no se ve |
@@ -143,17 +146,20 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 
 | Conjunto | Pruebas | Qué cubre |
 |---|---|---|
-| Motor del pádel | 55 | Todas las reglas FIP y 4 000 acciones aleatorias |
-| Núcleo del servidor | 73 | Partidos, versiones, PIN/tokens, pantallas, publicidad, formatos, migraciones |
+| Motor del pádel | 58 | Todas las reglas FIP, estadísticas (con deshacer) y 4 000 acciones aleatorias |
+| Núcleo del servidor | 74 | Partidos, versiones, códigos de pista únicos, tokens, pantallas, publicidad, formatos, migraciones |
 | Monitores | 14 | Qué pantalla va en qué monitor al conectar/desconectar |
-| Integración | 46 | Servidor real + estación + teléfonos + pantallas + portátil remoto por la IP de red |
-| Navegador y Electron (e2e) | 12 conjuntos · 276 comprobaciones | Estación, teléfono (partido completo), pantallas (matriz visual 4 formatos × 6 estados), publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
+| Integración | 47 | Servidor real + estación + teléfonos (el código decide la pista) + pantallas + portátil remoto por la IP de red |
+| Navegador y Electron (e2e) | 13 conjuntos · 315 comprobaciones | Estación, teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
 | Windows real (CI) | 2 | Cambio de resolución y firewall en un Windows de verdad |
 
-## 5. Análisis de errores de esta revisión (y su corrección)
+## 5. Análisis de errores (y su corrección)
 
 | Problema | Efecto | Corrección |
 |---|---|---|
+| Dos pistas podían tener el mismo PIN (1 de 10 000) (2.7.0) | Con el código único que decide la pista, el árbitro podría entrar en la pista equivocada | Códigos nunca repetidos (al crear, al arrancar y con «Nuevo código») |
+| Grises de texto con poco contraste (2.7.0) | Teléfono 2,4:1 y estación 4,6:1: difíciles de leer | 5,1:1 y 6,3:1; errores en rojo claro |
+| Textos de 9-11 px en el teléfono (2.7.0) | Nombres de las parejas en los botones casi ilegibles | Tamaños por prioridad (nombres 16 px) |
 | La estación mostraba «1921 × 1081 px» en un monitor de 1920 × 1080 | Confusión al revisar la salida (visto en las fotos del evento) | La pantalla mide su tamaño sin redondear (escalado de Windows) |
 | `modo.json` (token del portátil remoto) y la elección de monitores se escribían directamente | Un apagón a mitad de guardado podía obligar a enlazar de nuevo | Escritura atómica (archivo temporal + renombrar), como el resto de datos |
 | Los scripts de PowerShell quedaban en la carpeta temporal de Windows | Archivos acumulados en cada arranque | Se borran al cerrar StageMaster |
@@ -185,7 +191,7 @@ ya era atómico y todas las órdenes validan sus datos.
 2. **Router propio** para el evento (sin Internet, con contraseña) y el portátil enchufado a la corriente.
 3. Publicidad en **2:1** (832 × 416 o 1664 × 832, como `marketing/videos-led/`) y vídeos MP4 H.264.
 4. Hacer el **simulacro** de [`SIMULACRO-EVENTO.md`](SIMULACRO-EVENTO.md) antes de cada evento grande.
-5. Publicar la versión para el cliente en **Releases** (`v2.6.1`) y usar ese enlace fijo.
+5. Publicar la versión para el cliente en **Releases** (`v2.7.0`) y usar ese enlace fijo.
 
 ### Mejoras de funcionalidad (por orden de valor)
 | # | Mejora | Valor | Esfuerzo |
@@ -196,7 +202,7 @@ ya era atómico y todas las órdenes validan sus datos.
 | 4 | **Colores de marca** del marcador (maquetas listas en `docs/desarrollo/maquetas-marca/`) | Identidad visual | Medio |
 | 5 | **Brillo físico** desde StageMaster (SDK del procesador LED) | Control total de la LED | Depende del fabricante |
 | 6 | **Firma digital** del `.exe` (certificado OV o servicio de firma) | Sin avisos de Windows | Coste anual |
-| 7 | **Estadísticas** en el historial (duración por set, puntos de oro) y exportar PDF del resultado | Valor para organizadores | Medio |
+| 7 | **Más estadísticas** (duración por set) y exportar PDF del resultado del historial | Valor para organizadores | Medio |
 | 8 | **Otros deportes** (tenis, pickleball): el motor está separado (`server/sports/`) | Nuevos clientes | Medio‑alto |
 | 9 | **Arranque automático** con Windows y recuperación del último estado | Menos pasos al montar | Bajo |
 
@@ -213,7 +219,7 @@ ya era atómico y todas las órdenes validan sus datos.
 | `marketing/videos-led/StageMaster-LED-832x416.mp4` (y HD) | Vídeo de marca de 15 s para las LED (2:1) |
 | `marketing/tutoriales/StageMaster-resumen-90s.mp4` | Todo StageMaster en 90 s |
 | `marketing/tutoriales/StageMaster-tutorial-1-estacion.mp4` | La estación del operador |
-| `marketing/tutoriales/StageMaster-tutorial-2-arbitro.mp4` | El árbitro: QR, PIN y marcador |
+| `marketing/tutoriales/StageMaster-tutorial-2-arbitro.mp4` | El árbitro: QR único, código de pista, marcador y resumen final |
 | `marketing/tutoriales/StageMaster-tutorial-3-pantallas-y-publicidad.mp4` | Pantallas LED y publicidad |
 | `marketing/tutoriales/StageMaster-tutorial-4-varias-pantallas-y-remoto.mp4` | Varias pantallas, En vivo y portátil remoto |
 

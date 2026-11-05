@@ -43,7 +43,8 @@ en **otros portátiles** de la red, con marcador, cinta publicitaria y vídeos,
 | Función | Dónde |
 |---|---|
 | Configurar, **pausar/reanudar**, finalizar y reiniciar cada partido; puntuar como respaldo | Tarjeta de cada pista |
-| QR + PIN para el teléfono del árbitro; desvincular | Tarjeta de cada pista |
+| QR único de acceso para los árbitros + código de cada pista (nuevo código, desvincular) | Arriba de los partidos · tarjeta de cada pista |
+| **Final del partido**: celebración de los ganadores y resumen con estadísticas (pantalla, teléfono e historial) | Automático |
 | **Marcador** o **Publicidad y vídeos** (reproductor: pausar, reanudar, detener) | Tarjeta de cada pantalla |
 | **Cinta publicitaria**: imágenes, logos, vídeos cortos y mensajes, fundido o desplazamiento continuo | Pestaña *Cinta* |
 | **Lista de reproducción**: imágenes y vídeos MP4/WEBM en bucle, con o sin sonido | Pestaña *Lista de reproducción* |
@@ -164,7 +165,7 @@ build/                   Iconos del .exe, logo original y texto del .zip
 con su token: todo salvo enlazar/desvincular portátiles y el hardware del
 principal), pantalla (solo lectura; en el portátil o en un portátil remoto
 enlazado con código → token), portátil remoto (muestra pantallas y abre la
-estación del principal) y teléfono (vinculado a UNA pista con PIN → token). Cada actualización
+estación del principal) y teléfono (QR único → código de pista → token de UNA pista). Cada actualización
 de un partido se envía solo a la sala de ese partido. La publicidad nunca
 modifica el marcador: el servidor solo avisa a las pantallas cuando un partido
 termina o vuelve a jugarse. Detalles de red, sincronización y seguridad:
