@@ -79,7 +79,7 @@
   /* Texto */
   --text-primary:     #FFFFFF;   /* Blanco puro                       */
   --text-secondary:   #8AAED4;   /* Azul grisáceo                     */
-  --text-muted:       #4A6A8A;   /* Gris oscuro                       */
+  --text-muted:       #86A2C4;   /* Gris azulado (5,1:1 sobre tarjetas) */
 
   /* Estados */
   --danger:           #E53935;   /* Rojo — acciones destructivas      */

@@ -102,8 +102,10 @@ const H = require('./harness');
     T.check('El teléfono muestra el ganador', (await P.textContent('#winner-name')).includes('Galán'));
     await D.waitForFunction(() => document.getElementById('d-badge').textContent.includes('FINALIZADO'));
     T.check('La pantalla muestra el resultado (FINALIZADO)', true);
-    await D.waitForSelector('#d-media:not(.hidden)', { timeout: 5000 });
-    T.check('Al segundo, la publicidad final (lista de reproducción)', true);
+    await D.waitForSelector('#d-celebrate:not(.hidden)', { timeout: 3000 });
+    T.check('La pantalla celebra a los ganadores', true);
+    await D.waitForSelector('#d-media:not(.hidden)', { timeout: 10000 });
+    T.check('Tras la celebración, la publicidad final (lista de reproducción)', await D.isHidden('#d-celebrate'));
     await D.waitForFunction(() => {
       const video = document.querySelector('#d-media video');
       return video && video.currentTime > 0.3 && !video.paused;
