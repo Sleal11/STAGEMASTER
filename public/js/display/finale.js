@@ -8,7 +8,7 @@
  *      final y se vuelve a terminar, es otro final y se celebra.
  *   2. RESUMEN: sustituye al marcador mientras el partido está terminado
  *      (ganadores, resultado por set y estadísticas REGISTRADAS: juegos, puntos,
- *      puntos de oro, breaks, mejor racha y duración; ver ScoreFormat.matchSummary).
+ *      puntos de oro, breaks, mejor racha y duración; ver matchSummary en common/score-format.js).
  *
  * Con la publicidad al terminar activada, la lista de reproducción empieza
  * cuando toca (main.js), pero nunca antes de que acabe la celebración.

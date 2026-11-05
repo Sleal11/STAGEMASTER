@@ -3,7 +3,7 @@
  *
  *   resumen       StageMaster en 90 segundos: todo el sistema
  *   1-estacion    La estación del operador: partidos, puntos e historial
- *   2-arbitro     El árbitro con su teléfono: QR, PIN y marcador
+ *   2-arbitro     El árbitro con su teléfono: QR único, código de pista y marcador
  *   3-pantallas   Pantallas LED y publicidad
  *   4-avanzado    Varias pantallas, En vivo y portátil remoto
  *
@@ -61,12 +61,12 @@
     });
 
     V.scene(9, (s) => {
-      s.device('laptop', { img: 'estacion-panel', x: 60, y: 200, w: 1140, from: 'left' }).focus(0.6, 'access1', { padding: 20 }).highlight(1.6, 8.8, 'qr1', { tag: 'QR de la pista', padding: 8 });
+      s.device('laptop', { img: 'estacion-panel', x: 60, y: 200, w: 1140, from: 'left' }).focus(0.6, 'referee', { padding: 20 }).highlight(1.6, 8.8, 'qr', { tag: 'Un solo QR', padding: 8 });
       const phone = s.device('phone', { img: 'telefono-pin', x: 1330, y: 120, w: 400, vpw: 368, vph: 796, at: 2.2, from: 'right' });
-      phone.highlight(4.6, 8.8, 'keypad', { tag: 'PIN', below: true });
+      phone.highlight(4.6, 8.8, 'keypad', { tag: 'Código de pista', below: true });
       const scan = document.createElement('div'); scan.className = 'scanline'; phone.box.querySelector('.vp').appendChild(scan);
       s.on((t) => { const k = ((t - 2.6) / 1.4) % 1; scan.style.top = (8 + 84 * k) + '%'; scan.style.opacity = t > 2.6 && t < 4.4 ? '1' : '0'; });
-      s.caption(0.5, 2, 'El árbitro <b>escanea el QR</b> y escribe el <b>PIN</b> de la pista');
+      s.caption(0.5, 2, 'El árbitro <b>escanea el QR</b> y escribe el <b>código de su pista</b>');
     }, { wipe: true });
 
     V.scene(9, (s) => {
@@ -86,6 +86,11 @@
       s.device('led', { img: 'led-pausa', x: 690, y: 250, w: 1100, at: 0.6, from: 'right' });
       s.caption(0.5, 3, 'En la pausa y al terminar, la LED pasa <b>sola</b> a tu publicidad');
     });
+
+    V.scene(8, (s) => {
+      s.device('led', { img: 'led-celebracion', x: 360, y: 180, w: 1200 }).swap(3.6, 'led-resumen');
+      s.caption(0.5, 3, 'Al terminar: <b>celebración</b> de los ganadores y <b>estadísticas</b> del partido');
+    }, { wipe: true });
 
     V.scene(7, (s) => {
       s.device('laptop', { img: 'estacion-pantalla-salida', ...LAPTOP }).focus(0.8, 'card', { padding: 10 })
@@ -146,7 +151,7 @@
 
     V.scene(7, (s) => {
       s.device('laptop', { img: 'estacion-panel-telefono', ...LAPTOP }).focus(0.6, 'access1', { padding: 20 });
-      s.caption(0.5, 5, 'Ves si el teléfono del árbitro está <b>conectado</b>; puedes cambiar el PIN o desvincularlo');
+      s.caption(0.5, 5, 'Ves si el teléfono del árbitro está <b>conectado</b>; puedes cambiar el código o desvincularlo');
     });
 
     V.scene(7, (s) => {
@@ -161,26 +166,27 @@
   // 2 · El árbitro con su teléfono
   // ═════════════════════════════════════════════════════════════════
   function arbitro(V) {
-    intro(V, { kicker: 'Tutorial 2', title: 'El árbitro y su teléfono', sub: 'Sin instalar nada: escanea, escribe el PIN y puntúa' });
+    intro(V, { kicker: 'Tutorial 2', title: 'El árbitro y su teléfono', sub: 'Sin instalar nada: escanea, escribe el código de su pista y puntúa' });
 
     V.scene(6.5, (s) => {
-      s.device('laptop', { img: 'estacion-panel', ...LAPTOP }).focus(0.6, 'access1', { padding: 20 })
-        .highlight(1.6, 6.3, 'qr1', { tag: 'QR', padding: 8 }).highlight(3.2, 6.3, 'pin1', { tag: 'PIN', padding: 8, dim: false });
-      s.caption(0.5, 1, 'Cada pista tiene su <b>QR</b> y su <b>PIN</b> en la estación');
+      s.device('laptop', { img: 'estacion-panel', ...LAPTOP }).focus(0.6, { x: 30, y: 60, w: 1540, h: 640 }, { padding: 0 })
+        .highlight(1.6, 6.3, 'qr', { tag: 'Un solo QR', padding: 8 }).highlight(3.2, 6.3, 'pin1', { tag: 'Código de pista', below: true, padding: 8, dim: false });
+      s.caption(0.5, 1, '<b>Un solo QR</b> para todos y un <b>código</b> por pista, en la estación');
     });
 
     V.scene(8, (s) => {
-      s.device('laptop', { img: 'estacion-panel', x: 60, y: 200, w: 1140, from: 'left' }).focus(0.1, 'access1', { padding: 20, dur: 0.01 }).highlight(0.6, 7.8, 'qr1', { padding: 8 });
+      s.device('laptop', { img: 'estacion-panel', x: 60, y: 200, w: 1140, from: 'left' }).focus(0.1, 'referee', { padding: 20, dur: 0.01 }).highlight(0.6, 7.8, 'qr', { padding: 8 });
       const phone = s.device('phone', { img: 'telefono-pin', x: 1330, y: 120, w: 400, vpw: 368, vph: 796, at: 0.8, from: 'right' });
       const scan = document.createElement('div'); scan.className = 'scanline'; phone.box.querySelector('.vp').appendChild(scan);
       s.on((t) => { const k = ((t - 1.2) / 1.4) % 1; scan.style.top = (8 + 84 * k) + '%'; scan.style.opacity = t > 1.2 && t < 4.0 ? '1' : '0'; });
-      phone.highlight(4.4, 7.8, 'court', { tag: 'Su pista', below: true, padding: 6 });
-      s.caption(0.5, 2, 'Con la <b>cámara del teléfono</b> escanea el QR: se abre la página de su pista');
+      phone.highlight(4.4, 7.8, 'title', { tag: 'Página del árbitro', below: true, padding: 4 });
+      s.caption(0.5, 2, 'Con la <b>cámara del teléfono</b> escanea el QR: se abre la página del árbitro');
     }, { wipe: true });
 
     V.scene(7, (s) => {
-      s.device('phone', { img: 'telefono-pin', x: 760, y: 120, w: 400, vpw: 368, vph: 796 }).highlight(1.0, 6.8, 'keypad', { tag: 'PIN de 4 cifras', padding: 6 }).tap(2.2, { x: 140, y: 400, w: 100, h: 60 }).tap(3.0, { x: 260, y: 470, w: 100, h: 60 });
-      s.caption(0.5, 3, 'Escribe el <b>PIN</b> que le das: solo ese teléfono controla esa pista');
+      s.device('phone', { img: 'telefono-pin', x: 760, y: 120, w: 400, vpw: 368, vph: 796 }).highlight(1.0, 4.2, 'keypad', { tag: 'Código de 4 cifras', padding: 6 })
+        .tap(2.2, { x: 140, y: 470, w: 100, h: 60 }).tap(3.0, { x: 260, y: 540, w: 100, h: 60 }).swap(4.4, 'telefono-conectado');
+      s.caption(0.5, 3, 'Escribe el <b>código de su pista</b>: el teléfono confirma <b>«Conectado a Pista 1»</b>');
     });
 
     V.scene(7, (s) => {
@@ -207,6 +213,12 @@
       s.device('laptop', { img: 'estacion-panel-telefono', ...LAPTOP }).focus(0.6, 'access1', { padding: 20 });
       s.caption(0.5, 7, 'La estación ve el teléfono <b>conectado</b> y siempre puede desvincularlo');
     });
+
+    V.scene(7, (s) => {
+      s.device('phone', { img: 'telefono-final', x: 150, y: 120, w: 400, vpw: 368, vph: 796, from: 'left' }).highlight(1.2, 6.8, 'stats', { padding: 4 });
+      s.device('led', { img: 'led-resumen', x: 690, y: 250, w: 1100, at: 0.4, from: 'right' });
+      s.caption(0.5, 8, 'Al terminar, ganadores y <b>estadísticas</b> en el teléfono y en la LED');
+    }, { wipe: true });
 
     outro(V);
   }
@@ -255,6 +267,11 @@
         .highlight(6.2, 8.8, 'fit', { tag: 'Publicidad: llena toda la LED', padding: 6 });
       s.caption(0.5, 5, '<b>Salida</b>: monitor, brillo, formato exacto de la LED y ajuste de la publicidad');
     });
+
+    V.scene(8, (s) => {
+      s.device('led', { img: 'led-celebracion', x: 360, y: 180, w: 1200 }).swap(3.6, 'led-resumen');
+      s.caption(0.5, 6, 'Fin del partido: <b>celebración</b> y <b>resumen</b> con estadísticas reales');
+    }, { wipe: true });
 
     V.scene(5.5, (s) => {
       s.text('Para que se vea <span class="yellow">perfecto</span>', { x: 330, y: 190, size: 84, at: 0.1 });

@@ -3,7 +3,8 @@
  *
  * Dibuja el estado que envía el servidor; nunca lo modifica.
  *   - Una línea por jugador, cada una ajustada por separado ("Santiago R")
- *   - Saque, ganador (trofeo), badge (EN PAUSA, TIE BREAK, PUNTO DE ORO…)
+ *   - Saque y badge (EN PAUSA, TIE BREAK, PUNTO DE ORO, PARTIDO FINALIZADO…)
+ *   - Partido terminado: el marcador se oculta y se ve el resumen (finale.js)
  *   - Historial de sets y animaciones SOLO de lo que cambió
  */
 
@@ -15,7 +16,7 @@ const NAME_SCALE_BEFORE_ABBREVIATING = 0.8;
 const NAME_SCALE_MIN = 0.6;
 
 const ANIM = {
-  point: 'anim-point', game: 'anim-game', set: 'anim-set', row: 'anim-row', chip: 'anim-chip', winner: 'anim-winner',
+  point: 'anim-point', game: 'anim-game', set: 'anim-set', row: 'anim-row', chip: 'anim-chip',
 };
 
 /** @param {HTMLElement} root - Elemento que contiene el marcador (#display) */
@@ -23,7 +24,6 @@ export function createScoreboard(root) {
   const $ = (selector) => root.querySelector(selector);
   const dom = {
     badge:        $('#d-badge'),
-    dividerLabel: $('#d-divider-label'),
     history:      $('#d-history'),
   };
   ['A', 'B'].forEach((side) => {
@@ -47,7 +47,6 @@ export function createScoreboard(root) {
     renderTeam(state, 'A', finished);
     renderTeam(state, 'B', finished);
     renderBadge(state, finished);
-    dom.dividerLabel.textContent = finished && state.winner ? 'GANADOR' : '';
     root.classList.toggle('is-paused', !!state.paused && !finished);
     renderHistory(state, finished);
     animateChanges(previous, state);
@@ -64,14 +63,10 @@ export function createScoreboard(root) {
     const el = dom[side];
     renderNames(el.names, player.name);
     el.sets.textContent  = player.sets;
-    el.games.textContent = finished ? '–' : player.games;
-    el.pts.textContent   = finished ? '–' : String(player.points);
-    el.games.classList.toggle('is-empty', finished);
-    el.pts.classList.toggle('is-empty', finished);
+    el.games.textContent = player.games;
+    el.pts.textContent   = String(player.points);
     el.pts.classList.toggle('is-advantage', !finished && player.points === 'AD');
     el.row.classList.toggle('is-serving', !finished && state.server === side);
-    el.row.classList.toggle('is-winner',  finished && state.winner === side);
-    el.row.classList.toggle('is-loser',   finished && state.winner !== null && state.winner !== side);
   }
 
   /** Badge de la cabecera; al terminar, "PARTIDO FINALIZADO" (legible también en 416×208) */
@@ -209,9 +204,6 @@ export function createScoreboard(root) {
     if (state.setScores.length > previous.setScores.length) {
       const chip = dom.history.children[state.setScores.length - 1];
       if (chip) play(chip, ANIM.chip);
-    }
-    if (state.status === 'finished' && previous.status !== 'finished' && state.winner) {
-      play(dom[state.winner].row, ANIM.winner);
     }
   }
 

@@ -212,7 +212,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   max-width: 270cqh;             /* en pantallas muy panorámicas no se estira de más */
   height: 100%;
   display: grid;
-  grid-template-rows: 8cqh 1fr 8cqh 1fr;   /* separador: cabe «GANADOR» sin tocar las filas */
+  grid-template-rows: 8cqh 1fr 8cqh 1fr;   /* filas de cada pareja y separador entre ellas */
   animation: fadeIn var(--transition-slow);
 }
 
@@ -262,25 +262,10 @@ html { width: 100%; height: 100%; overflow: hidden; }
 
 .d-row.is-serving::before { background: var(--d-light); }
 
-.d-row.is-winner {
-  background: var(--d-win-row);
-  border-color: var(--d-light);
-  box-shadow: 0 0 2.5cqh rgba(143, 211, 255, 0.4);
-}
-
-.d-row.is-loser { opacity: 0.6; }
-
-/* ── Icono (pelota de saque / trofeo del ganador) ───────────────── */
+/* ── Icono de saque ─────────────────────────────────────────────── */
 .d-icon { display: flex; align-items: center; justify-content: center; }
 .d-icon svg { display: none; width: 88%; aspect-ratio: 1; }
 .d-row.is-serving .icon-ball { display: block; animation: fadeIn var(--transition-normal); }
-.d-row.is-winner .icon-trophy {
-  display: block;
-  width: 100%;
-  color: var(--d-light);
-  filter: drop-shadow(0 0 0.8cqh rgba(143, 211, 255, 0.55));
-  animation: fadeIn var(--transition-slow);
-}
 
 /* ── Nombres: una línea por jugador ─────────────────────────────── */
 .d-names {
@@ -328,26 +313,12 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .d-pts   { font-size: min(26cqh, 17cqw); background: var(--d-light); color: var(--d-ink); }
 
 .d-pts.is-advantage { background: var(--d-gold); }
-.d-cell.is-empty    { opacity: 0.35; }
 
 /* Partido en pausa: el marcador se atenúa (el badge lo explica) */
 .display.is-paused .d-row { opacity: 0.72; }
 
 /* ── Separador entre parejas ────────────────────────────────────── */
 .d-divider { display: flex; align-items: center; justify-content: center; }
-
-.d-divider-label {
-  font-family: var(--font-score);
-  font-weight: 700;
-  font-size: min(5cqh, 2.8cqw);   /* alto total 1,36 × 5 = 6,8cqh < 8cqh del separador */
-  line-height: 1;
-  padding: 0.18em 0.8em;
-  border-radius: 0.3em;
-  color: var(--d-ink);
-  background: var(--d-light);
-}
-
-.d-divider-label:empty { display: none; }
 
 /* ── Sets en la cabecera, junto al logo ─────────────────────────── */
 .d-history {
@@ -401,7 +372,6 @@ html { width: 100%; height: 100%; overflow: hidden; }
   .d-games   { font-size: min(32cqh, 9cqw); }
   .d-pts     { font-size: min(34cqh, 11cqw); }
   .d-cell    { height: 86%; }
-  .d-divider-label { display: none; }   /* el badge de la cabecera ya lo indica */
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -600,13 +570,6 @@ html { width: 100%; height: 100%; overflow: hidden; }
 @keyframes chipIn {
   0%   { opacity: 0; transform: translateY(2cqh) scale(0.8); }
   100% { opacity: 1; transform: none; }
-}
-
-.d-row.anim-winner { animation: winnerGlow 1400ms ease-in-out; }
-
-@keyframes winnerGlow {
-  0%, 100% { box-shadow: 0 0 2.5cqh rgba(143, 211, 255, 0.4); }
-  50%      { box-shadow: 0 0 6cqh rgba(143, 211, 255, 0.85); }
 }
 
 /* ─────────────────────────────────────────────────────────────────

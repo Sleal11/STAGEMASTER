@@ -129,7 +129,7 @@ async function finish(st, matchId) {
     await S.evaluate(() => document.querySelectorAll('[data-match-card] details').forEach((d) => { d.open = true; }));
     await shot(S, 'estacion-panel', {
       card1: '[data-match-card="pista-1"]', card2: '[data-match-card="pista-2"]',
-      qr1: '[data-match-card="pista-1"] .st-qr', pin1: '[data-match-card="pista-1"] .st-pin',
+      qr: '#st-referee-access .st-qr', referee: '#st-referee-access', pin1: '[data-match-card="pista-1"] .st-pin',
       access1: '[data-match-card="pista-1"] .st-access', score1: '[data-match-card="pista-1"] [data-score="pointA"]',
       setup1: '[data-match-card="pista-1"] [data-action="setup"]', pause1: '[data-match-card="pista-1"] [data-action="pause"]',
       tabs: '.st-views', screensHead: '#st-add-screen',
@@ -177,14 +177,18 @@ async function finish(st, matchId) {
     // ── Teléfono del árbitro (enlace del QR → PIN → partido) ──
     const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
     const P = await phone.newPage();
-    await P.goto(`http://localhost:${PORT}/control.html?pista=pista-1`);
-    await P.waitForSelector('#pair-step-pin:not(.hidden)');
+    await P.goto(`http://localhost:${PORT}/control.html`);
+    await P.waitForSelector('#screen-pair:not(.hidden)');
     const pin = st.match('pista-1').pin;
     await P.tap(`#pin-keypad [data-key="${pin[0]}"]`);
     await P.tap(`#pin-keypad [data-key="${pin[1]}"]`);
-    await shot(P, 'telefono-pin', { keypad: '#pin-keypad', display: '#pin-display', court: '#pin-court' });
+    await shot(P, 'telefono-pin', { keypad: '#pin-keypad', display: '#pin-display', title: '.pair-card' });
     await P.tap(`#pin-keypad [data-key="${pin[2]}"]`);
     await P.tap(`#pin-keypad [data-key="${pin[3]}"]`);
+    await P.waitForSelector('#paired-overlay:not(.hidden)', { timeout: 6000 });
+    await P.waitForTimeout(500);
+    await shot(P, 'telefono-conectado', { court: '#paired-court' });
+    await P.waitForSelector('#paired-overlay.hidden', { state: 'attached', timeout: 6000 });
     await P.waitForSelector('#screen-match:not(.hidden)', { timeout: 6000 });
     await P.waitForTimeout(600);
     await shot(P, 'telefono-marcador', { pointA: '#btn-point-a', pointB: '#btn-point-b', undo: '#btn-undo', live: '.live-score, #screen-match .live-score-status', pause: '#btn-pause' });
@@ -206,6 +210,22 @@ async function finish(st, matchId) {
     await shot(D1, 'led-pausa');
     await P.tap('#btn-pause');
     await D1.waitForSelector('#d-board:not(.hidden)');
+
+    // Fin del partido: celebración y resumen en la LED; resumen en el teléfono
+    await st.screen('pantalla-1', { endAds: { enabled: false } });
+    await P.waitForTimeout(500);
+    for (let i = 0; i < 80 && st.match('pista-1').state.status !== 'finished'; i++) {
+      await st.act('pista-1', i % 4 === 2 ? 'pointB' : 'pointA');
+    }
+    await D1.waitForSelector('#d-celebrate:not(.hidden)', { timeout: 5000 });
+    await D1.waitForTimeout(1600);
+    await shot(D1, 'led-celebracion');
+    await D1.waitForSelector('#d-celebrate.hidden', { state: 'attached', timeout: 10000 });
+    await D1.waitForSelector('#d-summary:not(.hidden)', { timeout: 10000 });
+    await D1.waitForTimeout(1500);
+    await shot(D1, 'led-resumen', { left: '.sum-left', right: '.sum-right' });
+    await P.waitForSelector('#screen-finished:not(.hidden)', { timeout: 6000 });
+    await shot(P, 'telefono-final', { stats: '#final-stats', winner: '#winner-name' });
 
     // ── Portátil remoto: estación desde otro portátil (por la IP de red) ──
     const lanIp = Object.values(os.networkInterfaces()).flat().find((n) => n && n.family === 'IPv4' && !n.internal);

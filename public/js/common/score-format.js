@@ -101,13 +101,6 @@ function abbreviateName(name) {
   return words[0] + ' ' + words[1].charAt(0).toUpperCase();
 }
 
-/** Resumen corto para la estación: "40-15 · 3-2 · 1-0" (puntos · games · sets) */
-function compactScore(state) {
-  if (!state) return '';
-  const p = state.players;
-  return p.A.points + '-' + p.B.points + ' · ' + p.A.games + '-' + p.B.games + ' · ' + p.A.sets + '-' + p.B.sets;
-}
-
 // ─────────────────────────────────────────────────────────────────
 // RESUMEN FINAL DEL PARTIDO (pantalla, teléfono e historial)
 // ─────────────────────────────────────────────────────────────────
@@ -191,7 +184,6 @@ function summaryFromRecord(r) {
 }
 
 export {
-  PHASE_LABELS, DECISIVE_POINT_LABELS, SCORING_HELP, formatSetScore, isDecidingSuperTiebreak,
-  badgeFor, splitTeamName, abbreviateName, compactScore,
-  formatDuration, matchSummary, summaryFromState, summaryFromRecord,
+  SCORING_HELP, formatSetScore, isDecidingSuperTiebreak, badgeFor, splitTeamName, abbreviateName,
+  summaryFromState, summaryFromRecord,
 };

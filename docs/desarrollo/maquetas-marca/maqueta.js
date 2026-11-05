@@ -62,7 +62,7 @@ async function themed(browser, theme, options) {
     const D2 = await ctx.newPage(); await D2.goto(`${base}/score.html?pantalla=2`);
     const S = await ctx.newPage();
     await S.goto(`${base}/station.html`);
-    await S.waitForSelector('[data-match-card="pista-2"] .st-qr svg');
+    await S.waitForSelector('#st-referee-access .st-qr svg');
     await H.sleep(800);
     await S.screenshot({ path: shot(`${theme.id}-estacion-panel`) });
     await S.evaluate(() => document.querySelector('[data-screen-card="pantalla-1"]').scrollIntoView({ block: 'start' }));
