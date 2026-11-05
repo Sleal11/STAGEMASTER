@@ -35,12 +35,24 @@ const H = require('./harness');
     const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
     const P = await phoneCtx.newPage();
     H.watchErrors(P, 'teléfono', errors);
-    await P.goto(`http://localhost:${port}/control.html?pista=pista-1`);
-    await P.waitForSelector('#pair-step-pin:not(.hidden)');
-    T.check('El enlace del QR abre directamente el PIN de la Pista 1', (await P.textContent('#pin-court')).includes('Pista 1'));
+    // QR único de la estación → página del árbitro → código de la pista
+    T.check('La estación muestra UN solo QR de acceso (no uno por pista)', st.state.access === null || !!st.state.access.url);
+    await P.goto(`http://localhost:${port}/control.html`);
+    await P.waitForSelector('#screen-pair:not(.hidden)');
+    T.check('El QR abre la pantalla del código de pista', (await P.textContent('.pair-title')).includes('Código de la pista'));
+    const taken = st.state.matches.map((m) => m.pin);
+    const wrong = ['0000', '1111', '2222'].find((c) => !taken.includes(c));
+    for (const digit of wrong) await P.tap(`#pin-keypad [data-key="${digit}"]`);
+    await P.waitForSelector('#pin-error:not(.hidden)');
+    T.check('Código incorrecto → mensaje claro y se puede reintentar',
+      /Código incorrecto/.test(await P.textContent('#pin-error')) && (await P.$$eval('.pin-digit.is-filled', (d) => d.length)) === 0);
     for (const digit of st.match('pista-1').pin) await P.tap(`#pin-keypad [data-key="${digit}"]`);
+    await P.waitForSelector('#paired-overlay:not(.hidden)', { timeout: 5000 });
+    T.check('Código correcto → confirma «Conectado a Pista 1»', (await P.textContent('#paired-court')).includes('Pista 1'));
+    await P.screenshot({ path: `${H.OUT}/telefono-conectado.png` });
     await P.waitForSelector('#screen-setup:not(.hidden)', { timeout: 5000 });
-    T.check('PIN correcto → configuración del partido', true);
+    T.check('…y pasa a la configuración del partido, con la pista siempre visible arriba',
+      (await P.textContent('#court-banner-name')).includes('Pista 1'));
     await H.waitFor(() => st.match('pista-1').controller && st.match('pista-1').controller.connected, 'la estación ve el teléfono');
     T.check('La estación ve el teléfono conectado', true);
 
@@ -108,6 +120,19 @@ const H = require('./harness');
     await D.waitForSelector('#d-media.hidden', { state: 'attached', timeout: 5000 });
     T.check('Partido nuevo → la pantalla vuelve al marcador', await D.isVisible('#d-board'));
     await P.screenshot({ path: `${H.OUT}/telefono.png` });
+
+    // Cambiar de pista: con confirmación, vuelve al código y entra en la Pista 2
+    await P.waitForSelector('#screen-match:not(.hidden)');
+    await P.tap('#btn-change-court');
+    await P.tap('#modal-confirm');
+    await P.waitForSelector('#screen-pair:not(.hidden)');
+    T.check('«Cambiar de pista» pide confirmación y vuelve al código de pista', true);
+    await H.waitFor(() => !st.match('pista-1').controller, 'la Pista 1 queda libre');
+    for (const digit of st.match('pista-2').pin) await P.tap(`#pin-keypad [data-key="${digit}"]`);
+    await P.waitForSelector('#paired-overlay:not(.hidden)', { timeout: 5000 });
+    const court = await P.textContent('#paired-court');
+    await H.waitFor(() => st.match('pista-2').controller && st.match('pista-2').controller.connected, 'Pista 2 con teléfono');
+    T.check('Con el código de la Pista 2 pasa a controlar la Pista 2 (y la 1 queda libre)', court.includes('Pista 2') && !st.match('pista-1').controller, court);
     T.check('Sin errores de JavaScript', errors.length === 0, errors.join(' | '));
   } catch (err) {
     T.check('La prueba se completa sin excepciones', false, err.message.split('\n')[0]);

@@ -187,9 +187,15 @@ function pinOf(station, matchId) {
   return station.stationState.matches.find((m) => m.id === matchId).pin;
 }
 
-/** Vincula un teléfono con el PIN que muestra la estación */
+/** Un código que no es el de ninguna pista */
+function wrongCode() {
+  const taken = estacion.stationState.matches.map((m) => m.pin);
+  return ['0000', '1111', '2222'].find((c) => !taken.includes(c));
+}
+
+/** Vincula un teléfono con el CÓDIGO de pista que muestra la estación (el código decide la pista) */
 async function pair(phone, matchId, { force = false, pin } = {}) {
-  const res = await send(phone, 'pair', { matchId, pin: pin || pinOf(estacion, matchId), deviceName: phone.nombre, force });
+  const res = await send(phone, 'pair', { code: pin || pinOf(estacion, matchId), deviceName: phone.nombre, force });
   if (res.ok) {
     phone.token = res.token;
     phone.socket.auth.token = res.token;
@@ -293,19 +299,37 @@ test('La estación configura los DOS partidos; cada pantalla recibe solo el suyo
   assert.strictEqual(pantalla2.states['pista-1'], undefined, 'La pantalla 2 NO recibe la pista 1');
 });
 
-test('Teléfono sin vincular: ve las pistas pero no puede puntuar (NOT_PAIRED)', async () => {
+test('Teléfono sin vincular: no puede puntuar (NOT_PAIRED)', async () => {
   telefono1 = await connectPhone('Árbitro 1');
-  const lista = await send(telefono1, 'listCourts');
-  assert.deepStrictEqual(lista.courts.map((c) => c.id), ['pista-1', 'pista-2']);
-  assert.ok(!('pin' in lista.courts[0]), 'La lista pública NO incluye el PIN');
   const res = await send(telefono1, 'matchAction', { matchId: 'pista-1', action: 'pointA', version: 1 });
   assert.strictEqual(res.code, 'NOT_PAIRED');
 });
 
-test('PIN incorrecto se rechaza indicando los intentos restantes', async () => {
-  const res = await pair(telefono1, 'pista-1', { pin: '0000' === pinOf(estacion, 'pista-1') ? '1111' : '0000' });
+test('Código de pista incorrecto se rechaza con un mensaje claro y los intentos restantes', async () => {
+  const res = await pair(telefono1, 'pista-1', { pin: wrongCode() });
   assert.strictEqual(res.code, 'INVALID_PIN');
-  assert.match(res.message, /intento/);
+  assert.match(res.message, /Código incorrecto.*intento/);
+});
+
+test('QR único: el CÓDIGO decide la pista; los códigos de las pistas nunca se repiten', async () => {
+  const [c1, c2] = estacion.stationState.matches.map((m) => m.pin);
+  assert.ok(/^\d{4}$/.test(c1) && c1 !== c2, 'Dos códigos distintos de 4 cifras');
+  // El código de la Pista 2 lleva a la Pista 2 aunque el teléfono «pida» otra (versión anterior)
+  const prueba = await connectPhone('Árbitro de prueba');
+  let res = await send(prueba, 'pair', { code: c2, deviceName: 'prueba' });
+  assert.ok(res.ok && res.matchId === 'pista-2' && res.label === 'Pista 2', res.message);
+  res = await send(prueba, 'unpair', {});
+  assert.ok(res.ok);
+  prueba.socket.close();
+  // Nuevo código: distinto del de la otra pista; el viejo deja de servir
+  for (let i = 0; i < 25; i++) {
+    res = await send(estacion, 'station:newPin', { matchId: 'pista-1' });
+    assert.ok(res.ok, res.message);
+  }
+  await sleep(150);
+  const [n1, n2] = estacion.stationState.matches.map((m) => m.pin);
+  assert.ok(n1 !== n2, 'Nunca coinciden');
+  return `códigos ${n1} y ${n2}`;
 });
 
 test('Árbitro 1 se vincula a la Pista 1 con su PIN', async () => {
@@ -1077,13 +1101,13 @@ test('Sin aplicación de escritorio (npm start), las órdenes de monitor se rech
   assert.strictEqual(res.code, 'FORBIDDEN');
 });
 
-test('Código QR por pista: lleva directo al PIN de esa pista', async () => {
-  await waitFor(() => estacion.stationState.matches.every((m) => m.qrSvg), 'QR generados');
-  const [p1, p2] = estacion.stationState.matches;
-  if (!p1.qrUrl) return { skip: 'este equipo no tiene red local' };
-  assert.match(p1.qrUrl, /\/control\.html\?pista=pista-1$/);
-  assert.match(p2.qrUrl, /\/control\.html\?pista=pista-2$/);
-  assert.ok(p1.qrSvg.startsWith('<svg'));
+test('Un solo QR para todos los árbitros: abre la página del árbitro (sin pista fija)', async () => {
+  if (!estacion.stationState.network.primary) return { skip: 'este equipo no tiene red local' };
+  await waitFor(() => estacion.stationState.access && estacion.stationState.access.qrSvg, 'QR generado');
+  const { access, matches } = estacion.stationState;
+  assert.match(access.url, /\/control\.html$/);
+  assert.ok(access.qrSvg.startsWith('<svg'));
+  assert.ok(matches.every((m) => !('qrSvg' in m)), 'Ya no hay un QR por pista');
 });
 
 // ── Aplicación de escritorio: el servidor con un adaptador de monitores SIMULADO ──

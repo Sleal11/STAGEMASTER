@@ -2,7 +2,7 @@
  * control.js — Teléfono del árbitro (control.html)
  *
  * Responsabilidad:
- *   1. Vincular el teléfono a UNA pista con el PIN de la estación
+ *   1. Vincular el teléfono a UNA pista con su CÓDIGO (QR único de la estación)
  *   2. Mostrar siempre qué pista controla (barra de color fija)
  *   3. Leer la configuración del formulario de setup
  *   4. Enviar las acciones del árbitro al servidor (Socket.IO)
@@ -15,7 +15,7 @@
  * muestran exactamente el mismo estado.
  *
  * VINCULACIÓN:
- *   Pista + PIN → servidor devuelve un token → se guarda en el teléfono
+ *   Código de la pista → el servidor sabe qué pista es y devuelve un token → se guarda en el teléfono
  *   (localStorage) y se envía al reconectar. Si la estación desvincula el
  *   teléfono o otro lo reemplaza, llega 'controllerRevoked' y se vuelve a
  *   la pantalla de vinculación.
@@ -47,14 +47,11 @@ var TOKEN_STORAGE_KEY = 'stagemaster.controllerToken';
 /** Pista que controla este teléfono: { matchId, label, color } o null si no está vinculado */
 var myCourt = null;
 
-/** Pista elegida en la pantalla de vinculación (antes de introducir el PIN) */
-var selectedCourt = null;
-
-/** Dígitos del PIN tecleados */
+/** Dígitos del código de pista tecleados */
 var pinDigits = '';
 
-/** Pista indicada en la dirección (QR de la estación): control.html?pista=pista-1 */
-var courtFromUrl = new URLSearchParams(window.location.search).get('pista');
+/** Tiempo que se ve la confirmación «Conectado a PISTA X» */
+var PAIRED_CONFIRM_MS = 1600;
 
 /** Estado actual del partido (recibido del servidor). null = no hay partido. */
 var matchState = null;
@@ -452,7 +449,7 @@ function connectToServer() {
 
   socket.on('connect', function () {
     setConnectionStatus('connected', myCourt ? 'Conectado · ' + myCourt.label : 'Conectado');
-    // Sin token: elegir pista. Con token: el servidor responderá con
+    // Sin token: código de pista. Con token: el servidor responderá con
     // 'controllerSession' (sigue vinculado) o 'controllerRevoked'.
     if (!socket.auth.token) showPairing();
   });
@@ -569,7 +566,7 @@ function applyServerState(state) {
 
 /** Decide qué pantalla mostrar según el estado del partido */
 function routeToScreen() {
-  // Teléfono sin vincular: primero elegir pista y PIN
+  // Teléfono sin vincular: primero el código de la pista
   if (!myCourt) {
     showPairing();
     return;
@@ -651,101 +648,43 @@ function showCourtBanner() {
   banner.classList.remove('hidden');
 }
 
-/** Pantalla de vinculación, paso 1: lista de pistas (desde el servidor) */
+/** Pantalla de acceso: el código de la pista */
 function showPairing() {
   showScreen('pair');
-  showPairStep('court');
-  if (!socket || !socket.connected) return;
-
-  socket.timeout(REQUEST_TIMEOUT_MS).emit('listCourts', {}, function (err, response) {
-    if (err || !response.ok) return;
-    renderCourtList(response.courts);
-
-    // Si se llegó escaneando el QR de una pista, se salta la elección de pista
-    var fromQr = response.courts.filter(function (c) { return c.id === courtFromUrl; })[0];
-    if (fromQr) {
-      courtFromUrl = null;   // solo la primera vez
-      selectCourt(fromQr);
-    }
-  });
-}
-
-function showPairStep(step) {
-  document.getElementById('pair-step-court').classList.toggle('hidden', step !== 'court');
-  document.getElementById('pair-step-pin').classList.toggle('hidden', step !== 'pin');
-}
-
-/** Un botón grande por pista, con su color y su estado */
-function renderCourtList(courts) {
-  var list = document.getElementById('court-list');
-  list.innerHTML = '';
-  document.getElementById('court-list-empty').classList.toggle('hidden', courts.length > 0);
-
-  courts.forEach(function (court) {
-    var btn = document.createElement('button');
-    btn.className = 'court-option';
-    btn.style.setProperty('--court-color', court.color);
-
-    var name = document.createElement('span');
-    name.className   = 'court-option-name';
-    name.textContent = court.label;
-
-    var info = document.createElement('span');
-    info.className   = 'court-option-info';
-    info.textContent = describeCourt(court);
-
-    btn.appendChild(name);
-    btn.appendChild(info);
-    btn.addEventListener('click', function () { selectCourt(court); });
-    list.appendChild(btn);
-  });
-}
-
-function describeCourt(court) {
-  var match = court.names ? court.names.join('  vs  ') : 'Sin partido configurado';
-  return court.controllerConnected ? match + ' · ya tiene un teléfono conectado' : match;
-}
-
-/** Paso 2: introducir el PIN de la pista elegida */
-function selectCourt(court) {
-  selectedCourt = court;
   pinDigits = '';
-  var title = document.getElementById('pin-court');
-  title.textContent = court.label;
-  title.style.setProperty('--court-color', court.color);
-  document.getElementById('pin-error').classList.add('hidden');
   renderPin();
-  showPairStep('pin');
 }
 
 function renderPin() {
   var cells = document.querySelectorAll('#pin-display .pin-digit');
   Array.prototype.forEach.call(cells, function (cell, i) {
-    cell.textContent = pinDigits.charAt(i) ? '•' : '';
+    var filled = !!pinDigits.charAt(i);
+    cell.textContent = pinDigits.charAt(i);
+    cell.classList.toggle('is-filled', filled);
   });
 }
 
-/** Teclado numérico del PIN; al completar 4 dígitos se envía solo */
+/** Teclado numérico del código; al completar 4 dígitos se envía solo */
 function handlePinKey(key) {
   if (key === 'back') pinDigits = pinDigits.slice(0, -1);
   else if (key === 'clear') pinDigits = '';
   else if (pinDigits.length < 4) pinDigits += key;
+  document.getElementById('pin-error').classList.add('hidden');
   renderPin();
-  if (pinDigits.length === 4) submitPin(false);
+  if (pinDigits.length === 4) submitPin(pinDigits, false);
 }
 
 /**
- * Envía pista + PIN al servidor.
+ * Envía el código de pista al servidor: él decide la pista.
+ * @param {string}  code  - Código de 4 cifras
  * @param {boolean} force - true si el árbitro confirmó reemplazar a otro teléfono conectado
  */
-function submitPin(force) {
-  if (!selectedCourt) return;
+function submitPin(code, force) {
   var keypad = document.getElementById('pin-keypad');
   keypad.classList.add('is-busy');
 
   sendRequest('pair', {
-    matchId:    selectedCourt.id,
-    pin:        pinDigits,
+    code:       code,
     deviceName: guessDeviceName(),
     force:      force,
   }, {
@@ -758,19 +697,33 @@ function submitPin(force) {
       // 'controllerSession' y 'matchUpdate' llegan del servidor: abrir el marcador
       myCourt = { matchId: response.matchId, label: response.label, color: response.color };
       showCourtBanner();
-      showToast('Teléfono vinculado a ' + response.label, false);
-      routeToScreen();
+      showPairedConfirmation(myCourt);
     },
     onError: function (response) {
       keypad.classList.remove('is-busy');
       if (response.code === 'CONTROLLER_ACTIVE') {
-        showModal('Pista ocupada', response.message, function () { submitPin(true); });
+        // Se vacía el código: si cancela, puede escribir otro
+        pinDigits = '';
+        renderPin();
+        showModal('Pista ocupada', response.message, function () { submitPin(code, true); });
         return true;
       }
       showPinError(response.message);
       return true;
     },
   });
+}
+
+/** «Conectado a PISTA X» en grande, con su color; después, su marcador */
+function showPairedConfirmation(court) {
+  var overlay = document.getElementById('paired-overlay');
+  overlay.style.setProperty('--court-color', court.color);
+  document.getElementById('paired-court').textContent = court.label;
+  overlay.classList.remove('hidden');
+  setTimeout(function () {
+    overlay.classList.add('hidden');
+    routeToScreen();
+  }, PAIRED_CONFIRM_MS);
 }
 
 function showPinError(message) {
@@ -798,7 +751,7 @@ function handleChangeCourt() {
   if (!myCourt) return;
   showModal(
     'Cambiar de pista',
-    'Este teléfono dejará de controlar ' + myCourt.label + '. Para volver necesitarás el PIN.',
+    'Este teléfono dejará de controlar ' + myCourt.label + '. Para dirigir otra pista (o volver a esta) escribirás su código.',
     function () {
       sendRequest('unpair', {}, {
         onSuccess: function () {
@@ -911,11 +864,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('btn-change-court').addEventListener('click', handleChangeCourt);
 
-  // ── Vinculación: teclado del PIN y volver a la lista de pistas ─
+  // ── Acceso: teclado del código de pista ───────────────────────
   document.querySelectorAll('#pin-keypad .pin-key').forEach(function (key) {
     key.addEventListener('click', function () { handlePinKey(key.getAttribute('data-key')); });
   });
-  document.getElementById('btn-pair-back').addEventListener('click', showPairing);
 
   // ── Botones de pantalla "finalizado" ─────────────────────────
   document.getElementById('btn-new-match').addEventListener('click', handleNewMatch);

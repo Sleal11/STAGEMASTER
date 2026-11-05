@@ -295,6 +295,26 @@ test('Partido inexistente → UNKNOWN_MATCH', () => {
   assertCode(() => freshRegistry().get('pista-9'), 'UNKNOWN_MATCH');
 });
 
+test('Código de pista: nunca se repite entre pistas (también si dos guardados coincidían)', () => {
+  let registry = freshRegistry();
+  quiet(() => registry.get('pista-1').setup(validConfig()));
+  quiet(() => registry.get('pista-2').setup(validConfig({ nameA: 'Otro' })));
+  // Datos de una versión anterior con el MISMO código en las dos pistas
+  const dir = path.join(TEST_DATA_DIR, 'matches');
+  const f2 = JSON.parse(fs.readFileSync(path.join(dir, 'pista-2.json'), 'utf8'));
+  f2.pin = registry.get('pista-1').pin;
+  fs.writeFileSync(path.join(dir, 'pista-2.json'), JSON.stringify(f2));
+  registry = restartRegistry();
+  assert.notStrictEqual(registry.get('pista-1').pin, registry.get('pista-2').pin);
+  assert.strictEqual(registry.get('pista-2').getPublicState().players.A.name, 'Otro', 'El partido se conserva');
+  // Nuevo código: siempre distinto del de la otra pista; findByCode encuentra la pista
+  for (let i = 0; i < 200; i++) quiet(() => registry.newPin('pista-1'));
+  assert.notStrictEqual(registry.get('pista-1').pin, registry.get('pista-2').pin);
+  assert.strictEqual(registry.findByCode(registry.get('pista-2').pin).id, 'pista-2');
+  assert.strictEqual(registry.findByCode('abcd'), null);
+  assert.strictEqual(registry.findByCode(undefined), null);
+});
+
 // ═════════════════════════════════════════════════════════════════
 console.log('\nTELÉFONOS: PIN Y TOKEN');
 // ═════════════════════════════════════════════════════════════════

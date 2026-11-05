@@ -41,7 +41,7 @@
 7b. [ ] Portátiles remotos: abrir StageMaster en cada uno; en la estación, *Portátiles remotos*
        debe mostrarlos **Conectados** y qué pantalla muestra cada uno.
 8. [ ] Cada árbitro (bloqueo automático "Nunca", modo avión + Wi-Fi) escanea el
-       **QR** de su pista y escribe el **PIN**. La estación debe mostrar
+       **QR único** y escribe el **código de su pista**. La estación debe mostrar
        "conectado" en las dos pistas.
 9. [ ] Prueba cruzada: un punto en la Pista 1 → **solo** cambia su pantalla.
        Deshacer. Repetir con la Pista 2.
@@ -54,7 +54,7 @@ Ver el botón **Ayuda** de la estación ("Si algo falla"). Lo más habitual:
 
 | Problema | Solución |
 |---|---|
-| Un teléfono no abre la página («el servidor no responde») | Misma Wi-Fi que indica la tarjeta de la pista (no datos móviles ni red de invitados); si la estación muestra el aviso rojo, **Permitir teléfonos**; o escribir la dirección que aparece junto al QR |
+| Un teléfono no abre la página («el servidor no responde») | Misma Wi-Fi que indica «Acceso de los árbitros» (no datos móviles ni red de invitados); si la estación muestra el aviso rojo, **Permitir teléfonos**; o escribir la dirección que aparece junto al QR |
 | Pantalla "Sin conexión" | **Abrir ventana** en su tarjeta |
 | La LED se ve cortada o con bordes | **Salida → Formato** LED correcto y posición del controlador |
 | El marcador llena la LED pero la publicidad sale cortada o con bandas | **Salida → Publicidad: Automático** (o «Estirar siempre»): ocupa lo mismo que el marcador |

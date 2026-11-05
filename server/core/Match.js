@@ -194,9 +194,13 @@ class Match {
     this.persist();
   }
 
-  /** Genera un PIN nuevo (el teléfono ya vinculado sigue funcionando) */
-  regeneratePin() {
-    this.pin = auth.generatePin();
+  /**
+   * Genera un código de pista nuevo (el teléfono ya vinculado sigue funcionando).
+   * @param {string[]} [taken] - Códigos de las otras pistas: nunca se repiten,
+   *   porque el árbitro solo escribe el código y este decide la pista
+   */
+  regeneratePin(taken = []) {
+    do { this.pin = auth.generatePin(); } while (taken.includes(this.pin));
     this.persist();
     return this.pin;
   }

@@ -22,6 +22,7 @@ const STATUS = {
 const backupOpen = {};
 
 export function renderMatches(state) {
+  patch(document.getElementById('st-referee-access'), refereeAccessHtml(state));
   const container = document.getElementById('st-matches');
   state.matches.forEach((match) => {
     let card = container.querySelector(`[data-match-card="${match.id}"]`);
@@ -127,16 +128,36 @@ function phoneHtml(match) {
   }
   return `
     <div class="st-access">
-      ${match.qrSvg ? `<div class="st-qr" title="${esc(match.qrUrl)}">${match.qrSvg}</div>` : ''}
+      <div class="st-code-box">
+        <span class="st-code-label">Código de ${esc(match.label)}</span>
+        <span class="st-pin" aria-label="Código de ${esc(match.label)}">${esc(match.pin)}</span>
+      </div>
       <div class="st-access-text">
         <div class="st-phone">${icon('phone')}<span>${status}</span></div>
-        <span class="muted">${match.qrSvg ? 'El árbitro escanea el código con la cámara del teléfono y escribe el PIN:'
-          : `El árbitro abre la dirección de arriba, elige ${esc(match.label)} y escribe el PIN:`}</span>
+        <span class="muted">El árbitro escanea el QR de arriba y escribe este código.</span>
         <div class="st-actions">
-          <span class="st-pin" aria-label="PIN">${esc(match.pin)}</span>
-          <button type="button" class="btn btn-ghost btn-sm" data-action="newPin" data-match="${match.id}">${icon('key')}Nuevo PIN</button>
-          ${c ? `<button type="button" class="btn btn-ghost btn-sm" data-action="unpair" data-match="${match.id}">${icon('unlink')}Desvincular</button>` : ''}
+          <button type="button" class="btn btn-ghost btn-sm" data-action="newPin" data-match="${match.id}">${icon('key')}Nuevo código</button>
+          ${c ? `<button type="button" class="btn btn-ghost btn-sm" data-action="unpair" data-match="${match.id}">${icon('unlink')}Desvincular teléfono</button>` : ''}
         </div>
+      </div>
+    </div>`;
+}
+
+/**
+ * Un solo QR para todos los árbitros: abre la página del árbitro, que pide el
+ * código de la pista (cada tarjeta muestra el suyo).
+ */
+function refereeAccessHtml(state) {
+  const access = state.access;
+  return `<div class="st-referee">
+      ${access ? `<div class="st-qr" title="${esc(access.url)}">${access.qrSvg}</div>` : ''}
+      <div class="st-referee-text">
+        <h3 class="st-referee-title">${icon('phone')}Acceso de los árbitros</h3>
+        <ol class="st-steps">
+          <li><strong>Escanea este QR</strong> con la cámara del teléfono.</li>
+          <li>Escribe el <strong>código de su pista</strong> (está en cada tarjeta).</li>
+          <li>Listo: el teléfono muestra la pista que controla.</li>
+        </ol>
         ${accessHint()}
       </div>
     </div>`;
@@ -208,8 +229,8 @@ export function onMatchClick(event) {
       matchAction(matchId, el.dataset.score, el);
       break;
     case 'newPin':
-      confirmDialog(`Nuevo PIN para ${match.label}`,
-        'El PIN actual dejará de servir para vincular teléfonos. El teléfono ya vinculado seguirá funcionando.', 'Cambiar PIN')
+      confirmDialog(`Nuevo código para ${match.label}`,
+        'El código actual dejará de servir para conectar teléfonos. El teléfono ya conectado seguirá funcionando.', 'Cambiar código')
         .then((ok) => { if (ok) send('station:newPin', { matchId }); });
       break;
     case 'unpair':

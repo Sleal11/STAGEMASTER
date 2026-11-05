@@ -305,7 +305,28 @@ details.st-backup {
 details.st-backup summary { cursor: pointer; font-size: 0.86rem; font-weight: 600; color: var(--st-accent); }
 details.st-backup .st-actions { margin-top: 10px; }
 
-/* ── Acceso del árbitro: QR + PIN ───────────────────────────────── */
+/* ── Acceso de los árbitros: UN QR (arriba) + código de cada pista ── */
+.st-referee {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 18px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: var(--st-surface-2);
+  border: 1px solid var(--st-border);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+.st-referee .st-qr { width: 148px; height: 148px; }
+.st-referee-text { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.st-referee-title { display: flex; align-items: center; gap: 10px; margin: 0; font-family: var(--font-score);
+  font-size: 1.45rem; letter-spacing: 0.02em; text-transform: uppercase; color: #FFFFFF; }
+.st-referee-title .icon { width: 24px; height: 24px; color: var(--st-accent); }
+.st-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; font-size: 1rem; color: var(--st-soft); }
+.st-steps strong { color: #FFFFFF; }
+.st-code-box { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+.st-code-label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--st-accent); }
+
 .st-access {
   display: flex;
   align-items: center;
@@ -331,12 +352,12 @@ details.st-backup .st-actions { margin-top: 10px; }
 .st-phone > span { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .st-pin {
-  padding: 2px 12px;
-  border-radius: 8px;
+  padding: 4px 16px;
+  border-radius: 10px;
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: 1.8rem;
-  letter-spacing: 6px;
+  font-size: 2.4rem;
+  letter-spacing: 8px;
   color: #FFFFFF;
   background: #0E2A57;
   border: 1px solid var(--st-border);

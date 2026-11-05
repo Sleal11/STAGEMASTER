@@ -30,36 +30,29 @@
 
 
 <!-- ═══════════════════════════════════════════════════════════════
-     PANTALLA 0: VINCULAR EL TELÉFONO A UNA PISTA
-     Paso 1: elegir la pista · Paso 2: introducir el PIN de la estación
+     PANTALLA 0: ACCESO DEL ÁRBITRO
+     Un solo QR para todas las pistas: el árbitro escribe el CÓDIGO de la
+     pista que va a dirigir (lo muestra la estación) y el código decide la pista.
      ═══════════════════════════════════════════════════════════════ -->
 <div id="screen-pair" class="screen hidden">
 
   <div class="header">
     <div class="logo">
       <div class="logo-text" data-brand-logo>STAGE<span>MASTER</span></div>
-      <div class="logo-subtitle">Teléfono del árbitro</div>
+      <div class="logo-subtitle">Árbitro</div>
     </div>
   </div>
 
-  <!-- Paso 1: pista -->
-  <div id="pair-step-court">
-    <div class="pair-title">¿Qué pista vas a controlar?</div>
-    <div id="court-list" class="court-list"></div>
-    <div id="court-list-empty" class="pair-hint hidden">Conectando con la estación…</div>
-  </div>
+  <div class="pair-card">
+    <div class="pair-icon" aria-hidden="true"><svg class="icon"><use href="img/icons.svg#key"></use></svg></div>
+    <h1 class="pair-title">Código de la pista</h1>
+    <p class="pair-hint">Escribe el código de 4 cifras de la pista que vas a dirigir. Lo ves en la estación del operador.</p>
 
-  <!-- Paso 2: PIN -->
-  <div id="pair-step-pin" class="hidden">
-    <div id="pin-court" class="pin-court">PISTA</div>
-    <div class="pair-title">Introduce el PIN de la pista</div>
-    <div class="pair-hint">Lo muestra la estación operadora (portátil)</div>
-
-    <div id="pin-display" class="pin-display">
+    <div id="pin-display" class="pin-display" aria-live="polite">
       <span class="pin-digit"></span><span class="pin-digit"></span>
       <span class="pin-digit"></span><span class="pin-digit"></span>
     </div>
-    <div id="pin-error" class="error-msg pin-error hidden"></div>
+    <div id="pin-error" class="error-msg pin-error hidden" role="alert"></div>
 
     <div id="pin-keypad" class="pin-keypad">
       <button class="pin-key" data-key="1">1</button>
@@ -71,12 +64,10 @@
       <button class="pin-key" data-key="7">7</button>
       <button class="pin-key" data-key="8">8</button>
       <button class="pin-key" data-key="9">9</button>
-      <button class="pin-key pin-key-muted" data-key="back" aria-label="Borrar"><svg class="icon"><use href="img/icons.svg#backspace"></use></svg></button>
+      <button class="pin-key pin-key-muted" data-key="clear" aria-label="Borrar todo">C</button>
       <button class="pin-key" data-key="0">0</button>
-      <button class="pin-key pin-key-muted" data-key="clear">C</button>
+      <button class="pin-key pin-key-muted" data-key="back" aria-label="Borrar"><svg class="icon"><use href="img/icons.svg#backspace"></use></svg></button>
     </div>
-
-    <button class="btn-secondary pair-back" id="btn-pair-back"><svg class="icon"><use href="img/icons.svg#back"></use></svg>Elegir otra pista</button>
   </div>
 
   <div class="status-bar">
@@ -84,6 +75,14 @@
     <span id="pair-status-text">Conectando con el servidor…</span>
   </div>
 </div><!-- /screen-pair -->
+
+<!-- Confirmación de la pista conectada (1,6 s, después el marcador) -->
+<div id="paired-overlay" class="paired-overlay hidden" role="status">
+  <div class="paired-check"><svg class="icon"><use href="img/icons.svg#check"></use></svg></div>
+  <div class="paired-label">Conectado a</div>
+  <div id="paired-court" class="paired-court">PISTA</div>
+  <div class="paired-sub">Este teléfono controla solo esta pista</div>
+</div>
 
 
 <!-- ═══════════════════════════════════════════════════════════════

@@ -46,7 +46,7 @@ que puede quedar corriendo sola).
 - **Modo avión + Wi-Fi activado**: evita llamadas que tapen el panel.
 - Modo de bajo consumo **desactivado**.
 - Navegador → dirección que muestra la estación → *Añadir a pantalla de inicio*.
-- Elegir la pista e introducir su **PIN** (lo muestra la estación).
+- Escanear el QR único e introducir el **código de la pista** (lo muestra la estación).
 
 ---
 
@@ -71,7 +71,7 @@ Anota el resultado de cada prueba en la tabla del final.
    **Identificar** cada pantalla; si alguna está mal, cámbiala en **Salida → Monitor**.
    En pantallas LED, elige en **Salida → Formato** el tamaño de la LED (832 × 416 o 416 × 208).
 4. Configura un partido en cada pista desde la estación.
-5. Vincula cada teléfono a su pista con el PIN.
+5. Vincula cada teléfono a su pista con su código.
 
 **Aprobado:** en menos de 5 min, cada pantalla en su monitor mostrando su
 partido, y la estación con los dos teléfonos "conectado".
@@ -124,7 +124,7 @@ router, el teléfono se reconecta solo y se puede seguir.
 2. Vuelve a abrir StageMaster.
 
 **Aprobado:** al reabrir, las pantallas vuelven solas a su monitor y, junto con el
-teléfono (sin recargarlo ni volver a escribir el PIN), muestran **30-15 exacto**;
+teléfono (sin recargarlo ni volver a escribir el código), muestran **30-15 exacto**;
 **Deshacer** sigue funcionando.
 
 ### S9 · Corte de luz del PC (el peor caso)
@@ -148,15 +148,15 @@ teléfono (sin recargarlo ni volver a escribir el PIN), muestran **30-15 exacto*
 2. Comprueba que cada pantalla solo cambia con su teléfono.
 3. En la estación, asigna la **Pista 1 a las dos pantallas**; después vuelve a
    dejar cada una con la suya.
-4. Con el teléfono de la Pista 1, intenta elegir la Pista 2 con un PIN
+4. Con el teléfono de la Pista 1, pulsa «Cambiar de pista» y escribe un código
    incorrecto.
 
 **Aprobado:** ninguna acción de una pista cambia la otra; las dos pantallas
-pueden mostrar el mismo partido; el PIN incorrecto se rechaza.
+pueden mostrar el mismo partido; el código incorrecto se rechaza con un mensaje claro.
 
 ### S11b · Teléfono de respaldo
-1. Con el árbitro de la Pista 1 conectado, en un tercer teléfono elige la
-   Pista 1 y su PIN.
+1. Con el árbitro de la Pista 1 conectado, en un tercer teléfono escanea el QR
+   y escribe el código de la Pista 1.
 2. Confirma "reemplazar".
 
 **Aprobado:** el teléfono original muestra que ya no está vinculado y no puede

@@ -64,9 +64,9 @@ móviles durante el partido.
 | Situación | Qué ocurre |
 |---|---|
 | El teléfono pierde la Wi-Fi | Barra roja "Desconectado"; los toques **no** se envían (evita puntos tardíos). Al volver se reconecta solo, sigue vinculado (token) y recibe el marcador actual. |
-| Se cierra el servidor o se va la luz | Las pantallas mantienen el último marcador. Al arrancar, cada partido, PIN, teléfono vinculado y configuración de pantallas se recupera de `data/`. |
+| Se cierra el servidor o se va la luz | Las pantallas mantienen el último marcador. Al arrancar, cada partido, código de pista, teléfono vinculado y configuración de pantallas se recupera de `data/`. |
 | Una pantalla se desconecta | No afecta a la otra ni a los partidos. La estación la muestra "Sin conexión" con un botón para reabrirla. |
-| El teléfono del árbitro falla | Otro teléfono se vincula con el PIN (pide confirmación para reemplazar) o el operador puntúa desde la estación. |
+| El teléfono del árbitro falla | Otro teléfono se vincula con el código de la pista (pide confirmación para reemplazar) o el operador puntúa desde la estación. |
 
 ## 5. Seguridad básica
 
@@ -78,8 +78,9 @@ móviles durante el partido.
   principal (resolución, firewall, carpeta): `MAIN_ONLY`. Desvincularlo corta
   su estación al momento. La red local va sin cifrar (HTTP): usar una red
   propia del evento, no la de invitados.
-- **PIN por pista** (4 dígitos, mostrado en la estación) para vincular un
-  teléfono. Tras 5 PIN fallidos desde un mismo dispositivo, bloqueo de 1 minuto.
+- **Un QR único + código por pista** (4 dígitos, mostrado en la estación,
+  nunca repetido entre pistas): el código decide la pista. Tras 5 códigos
+  fallidos desde un mismo dispositivo, bloqueo de 1 minuto.
 - **Token por teléfono:** aleatorio de 192 bits; en disco solo se guarda su hash.
   Un teléfono solo puede modificar **su** partido (`WRONG_MATCH`).
 - **Pantallas de solo lectura y solo desde el portátil:** no pueden modificar

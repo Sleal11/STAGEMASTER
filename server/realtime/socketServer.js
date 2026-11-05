@@ -36,8 +36,8 @@
  *
  * EVENTOS cliente → servidor (todos responden con ack { ok, ... } o
  * { ok: false, code, message, state }):
- *   listCourts                                      cualquiera
- *   pair { matchId, pin, deviceName, force }        teléfono
+ *   pair { code, deviceName, force }                teléfono: el código de pista decide la pista
+ *                                                   (también { matchId, pin }, versiones anteriores)
  *   unpair                                          teléfono
  *   setupMatch { matchId, config, force }           teléfono vinculado / estación
  *   matchAction { matchId, action, version }        teléfono vinculado / estación
@@ -198,9 +198,6 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     if (role === 'controller') onControllerConnected(socket);
     if (role === 'remote')     onRemoteConnected(socket);
 
-    // ── Eventos comunes ──────────────────────────────────────────
-    handle(socket, 'listCourts', () => ({ courts: registry.list().map(courtSummary) }));
-
     // ── Marcador (teléfono vinculado o estación) ─────────────────
     handle(socket, 'setupMatch', ({ matchId, config, force } = {}) => {
       const match = authorizeMatch(socket, matchId);
@@ -238,7 +235,8 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     // ── Estación operadora ───────────────────────────────────────
     handle(socket, 'station:newPin', ({ matchId } = {}) => {
       requireStation(socket, 'station:newPin');
-      registry.get(matchId).regeneratePin();
+      registry.get(matchId);   // UNKNOWN_MATCH si no existe
+      registry.newPin(matchId);
       scheduleStationState();
     });
 
@@ -599,19 +597,25 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
   // TELÉFONOS: VINCULACIÓN Y PERMISOS
   // ─────────────────────────────────────────────────────────────
 
-  function pairController(socket, { matchId, pin, deviceName, force } = {}) {
+  /**
+   * Vincula el teléfono a la pista de ese código (QR único → código de pista).
+   * 5 códigos incorrectos desde un mismo teléfono bloquean 1 minuto.
+   */
+  function pairController(socket, { code, matchId, pin, deviceName, force } = {}) {
     if (socket.data.role !== 'controller') {
       throw appError('FORBIDDEN', 'Solo un teléfono árbitro puede vincularse a una pista');
     }
     const ip = socket.handshake.address;
     pinGuard.check(ip);
 
-    const match = registry.get(matchId);
-    if (!match.checkPin(pin)) {
+    const given = String(code !== undefined ? code : pin || '').replace(/\D/g, '');
+    const match = code !== undefined ? registry.findByCode(given)
+      : (registry.get(matchId).checkPin(given) ? registry.get(matchId) : null);
+    if (!match) {
       const left = pinGuard.fail(ip);
       throw appError('INVALID_PIN', left > 0
-        ? `PIN incorrecto para ${match.label}. Te quedan ${left} intento(s).`
-        : 'PIN incorrecto. Demasiados intentos: espera un minuto.');
+        ? `Código incorrecto. Revisa el código de tu pista en la estación. Te quedan ${left} intento(s).`
+        : 'Código incorrecto. Demasiados intentos: espera un minuto y vuelve a intentarlo.');
     }
     pinGuard.success(ip);
 
@@ -858,15 +862,11 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     return {
       matches: registry.list().map((match) => {
         const presence = controllerPresence.get(match.id);
-        // QR para el teléfono del árbitro: abre directamente el PIN de esta pista
-        const qrUrl = network.primary ? `${network.primary.controlUrl}?pista=${match.id}` : null;
         return {
           id:     match.id,
           label:  match.label,
           color:  match.color,
           pin:    match.pin,
-          qrUrl,
-          qrSvg:  qrUrl ? getQrSvg(qrUrl, scheduleStationState) : null,
           state:  match.getPublicState(),
           controller: match.controller && {
             deviceName: match.controller.deviceName,
@@ -895,6 +895,10 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
           })),
         };
       }),
+      // QR ÚNICO de acceso para los árbitros: el código de pista decide la pista
+      access: network.primary
+        ? { url: network.primary.controlUrl, qrSvg: getQrSvg(network.primary.controlUrl, scheduleStationState) }
+        : null,
       ads:     library,
       maxScreens: MAX_SCREENS,
       // Fijos, guardados por el operador y «personalizado»
@@ -953,18 +957,6 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     return now - match.changedAt > SYNC_TOLERANCE_MS ? 'stale' : 'pending';
   }
 
-  function courtSummary(match) {
-    const state = match.getPublicState();
-    return {
-      id:          match.id,
-      label:       match.label,
-      color:       match.color,
-      status:      state ? state.status : 'empty',
-      names:       state ? [state.players.A.name, state.players.B.name] : null,
-      hasController: !!match.controller,
-      controllerConnected: controllerPresence.get(match.id).sockets.size > 0,
-    };
-  }
 
   return { buildStationState, refreshAds };
 }

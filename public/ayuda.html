@@ -48,8 +48,9 @@
 
   <h2><svg class="icon"><use href="img/icons.svg#phone"></use></svg>2 · Teléfonos de los árbitros</h2>
   <ol>
-    <li>El árbitro escanea con la cámara el <strong>código QR</strong> de su pista y escribe el <strong>PIN</strong> de 4 cifras.</li>
-    <li>En su teléfono verá arriba <strong>CONTROLAS PISTA 1</strong> (o 2): suma puntos, deshace, cambia el saque y puede pausar.</li>
+    <li>El árbitro escanea con la cámara el <strong>QR de «Acceso de los árbitros»</strong> (uno solo para todas las pistas).</li>
+    <li>Escribe el <strong>código de su pista</strong> (4 cifras, en la tarjeta de cada pista). El código decide la pista: su teléfono confirma <strong>CONECTADO A PISTA 1</strong> (o 2).</li>
+    <li>Arriba verá siempre <strong>CONTROLAS PISTA 1</strong>: suma puntos, deshace, cambia el saque y puede pausar. Para dirigir otra pista: <strong>Cambiar de pista</strong> y el código de la otra.</li>
   </ol>
   <p class="tip">Teléfonos: bloqueo automático en <strong>Nunca</strong> y modo avión con la Wi-Fi activada.</p>
 
@@ -93,17 +94,17 @@
 
   <h2><svg class="icon"><use href="img/icons.svg#alert"></use></svg>Si algo falla</h2>
   <table>
-    <tr><td>El QR no abre: «el servidor no responde»</td><td>1) El teléfono debe estar en la Wi-Fi que indica la tarjeta de la pista (no con datos móviles ni en la red de invitados). 2) Si la estación muestra el aviso rojo, pulsa <strong>Permitir teléfonos</strong>. 3) También puedes escribir en el navegador del teléfono la dirección que aparece junto al QR (ej. 192.168.1.10:3000).</td></tr>
+    <tr><td>El QR no abre: «el servidor no responde»</td><td>1) El teléfono debe estar en la Wi-Fi que indica «Acceso de los árbitros» (no con datos móviles ni en la red de invitados). 2) Si la estación muestra el aviso rojo, pulsa <strong>Permitir teléfonos</strong>. 3) También puedes escribir en el navegador del teléfono la dirección que aparece junto al QR (ej. 192.168.1.10:3000).</td></tr>
     <tr><td>Teléfono "desconectado"</td><td>Espera unos segundos: se reconecta solo. Comprueba que está en la misma Wi-Fi.</td></tr>
-    <tr><td>El teléfono de un árbitro deja de funcionar</td><td>Otro teléfono escanea el QR, escribe el PIN y confirma "reemplazar". O puntúa desde la estación.</td></tr>
+    <tr><td>El teléfono de un árbitro deja de funcionar</td><td>Otro teléfono escanea el QR, escribe el código de la pista y confirma "reemplazar". O puntúa desde la estación.</td></tr>
     <tr><td>Pantalla "Sin conexión"</td><td>Pulsa <strong>Abrir ventana</strong>.</td></tr>
     <tr><td>Pantalla en el monitor equivocado</td><td>Cámbiala en la pestaña <strong>Salida</strong>. Si eliges el monitor de la otra pantalla, se intercambian.</td></tr>
     <tr><td>La LED muestra solo una parte o con bordes</td><td>En <strong>Salida</strong>, elige el formato <strong>Personalizado</strong> con su tamaño exacto (o uno guardado) y ajusta la posición al píxel donde empieza la LED en el controlador. Si la estación avisa «no cabe en el monitor», revisa el tamaño, la posición o la resolución del monitor.</td></tr>
     <tr><td>La LED parpadea</td><td>Pon el monitor a <strong>1920 × 1080 a 60 Hz</strong> (Salida → Cambiar resolución del monitor…). Una resolución que no está en la lista (p. ej. 1920 × 1120) hay que crearla antes en la tarjeta emisora o en la tarjeta gráfica.</td></tr>
     <tr><td>Portátil remoto «Reconectando…»</td><td>Revisa el cable o la Wi-Fi y que StageMaster siga abierto en el principal. La red de invitados de un recinto suele aislar los equipos: usa una red propia.</td></tr>
     <tr><td>Un anuncio o vídeo no se ve</td><td>La estación indica cuál y se salta. Usa PNG/JPG y vídeos MP4 (H.264) o WEBM; los .mov del iPhone conviértelos a MP4.</td></tr>
-    <tr><td>Se cerró StageMaster o se fue la luz</td><td>Vuelve a abrirlo: partidos, PIN, teléfonos y pantallas se recuperan solos.</td></tr>
-    <tr><td>Alguien vio un PIN</td><td><strong>Nuevo PIN</strong> (el teléfono ya vinculado sigue funcionando).</td></tr>
+    <tr><td>Se cerró StageMaster o se fue la luz</td><td>Vuelve a abrirlo: partidos, códigos de pista, teléfonos y pantallas se recuperan solos.</td></tr>
+    <tr><td>Alguien que no debía vio el código de una pista</td><td><strong>Nuevo código</strong> en esa pista (el teléfono ya conectado sigue funcionando).</td></tr>
   </table>
   <p id="version" class="version"></p>
 </main>
