@@ -90,27 +90,30 @@ jobs:
             dist/*.zip
           retention-days: 30
 
-      # Versión de prueba: la etiqueta "prueba" se mueve a este commit y su
-      # .exe se sustituye. El enlace de descarga nunca cambia.
+      # Versión de prueba: la etiqueta se mueve a este commit y su .exe se
+      # sustituye; el enlace de descarga nunca cambia. PRUEBA_TAG elige el
+      # enlace: "prueba" (habitual) o "prueba-nueva" mientras se valida una
+      # versión grande, para conservar la anterior en "prueba".
       - name: Publicar la versión de prueba
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          PRUEBA_TAG: prueba-nueva
         run: |
           set -e
-          cp dist/StageMaster-*.exe dist/StageMaster-prueba.exe
-          cp dist/StageMaster-*.zip dist/StageMaster-prueba.zip
+          cp dist/StageMaster-*.exe "dist/StageMaster-$PRUEBA_TAG.exe"
+          cp dist/StageMaster-*.zip "dist/StageMaster-$PRUEBA_TAG.zip"
           VERSION=$(node -p "require('./package.json').version")
           FECHA=$(date -u +'%Y-%m-%d %H:%M UTC')
-          git tag -f prueba
-          git push -f origin refs/tags/prueba
+          git tag -f "$PRUEBA_TAG"
+          git push -f origin "refs/tags/$PRUEBA_TAG"
           NOTAS="Versión de PRUEBA $VERSION · rama ${GITHUB_REF_NAME} · commit ${GITHUB_SHA::7} · $FECHA. Se actualiza sola con cada cambio. Si el navegador bloquea el .exe, descarga el .zip (lleva instrucciones dentro). Para el cliente, usar la última versión de Releases."
-          if gh release view prueba >/dev/null 2>&1; then
-            gh release edit prueba --prerelease --title "StageMaster · versión de prueba ($VERSION)" --notes "$NOTAS"
-            gh release upload prueba dist/StageMaster-prueba.exe dist/StageMaster-prueba.zip --clobber
+          if gh release view "$PRUEBA_TAG" >/dev/null 2>&1; then
+            gh release edit "$PRUEBA_TAG" --prerelease --title "StageMaster · versión de prueba ($VERSION)" --notes "$NOTAS"
+            gh release upload "$PRUEBA_TAG" "dist/StageMaster-$PRUEBA_TAG.exe" "dist/StageMaster-$PRUEBA_TAG.zip" --clobber
           else
-            gh release create prueba dist/StageMaster-prueba.exe dist/StageMaster-prueba.zip --prerelease --latest=false \
+            gh release create "$PRUEBA_TAG" "dist/StageMaster-$PRUEBA_TAG.exe" "dist/StageMaster-$PRUEBA_TAG.zip" --prerelease --latest=false \
               --title "StageMaster · versión de prueba ($VERSION)" --notes "$NOTAS"
           fi
 
