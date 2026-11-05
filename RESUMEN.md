@@ -17,7 +17,7 @@ Versión **2.6.1**.
 
 1. Conecta las LED al portátil (**Windows + P → Extender**) y el portátil a la red del evento.
 2. Abre `StageMaster.exe`: se abren la estación y las pantallas.
-3. En cada pista, **Nuevo partido…**: parejas, sets y reglas FIP (ventaja, punto de oro o punto estrella).
+3. En cada pista, **Nuevo partido…**: parejas, sets y reglas FIP (ventaja, punto de oro o FIP 2026).
 4. El árbitro **escanea el QR** con su teléfono y escribe el **código de su pista**: cada punto llega a la LED al instante.
 5. En cada pantalla elige **Marcador** o **Publicidad y vídeos**; en **Salida**, el monitor,
    el formato LED, el brillo y que la publicidad **llene toda la LED**.

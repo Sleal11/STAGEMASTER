@@ -18,7 +18,7 @@ portátil en la central de un evento:
 - **Portátiles remotos** para pistas lejanas: muestran pantallas por la red y pueden
   abrir la estación del principal para controlar a la vez.
 - Funciona **sin Internet**: todo va por la red local (Wi‑Fi o cable).
-- Reglas **FIP**: ventaja, punto de oro, punto estrella; tie break y súper tie break.
+- Reglas **FIP**: ventaja, punto de oro, FIP 2026; tie break y súper tie break.
 
 ```
  📱 Árbitro Pista 1 ─┐                                  ┌─► 📺 LED Pista 1
@@ -129,7 +129,7 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 
 | Área | Qué hace |
 |---|---|
-| Partidos | 2 pistas simultáneas; nombres, games por set (1‑6), 1/3/5 sets, ventaja · punto de oro · punto estrella, tie break · súper tie break, saque; pausar, finalizar, reiniciar, deshacer |
+| Partidos | 2 pistas simultáneas; nombres, games por set (1‑6), 1/3/5 sets, ventaja · punto de oro · FIP 2026, tie break · súper tie break, saque; pausar, finalizar, reiniciar, deshacer |
 | Teléfono | QR → PIN de 4 cifras → configurar y puntuar; deshacer con doble toque; pausa; un teléfono por pista (reemplazar pide confirmación); reconexión sola |
 | Pantallas | Hasta 8; espejos; marcador con sets en la cabecera, saque, punto de oro, ganador; identificar; pantalla «Próximo partido» |
 | Publicidad | Cinta (logos sin fondo blanco, vídeos cortos, mensajes, cambio o desplazamiento); lista de reproducción (imágenes y vídeos en bucle, con o sin sonido); publicidad automática en la pausa y al terminar; subir arrastrando; **ajuste a la salida** (llena la LED como el marcador) |

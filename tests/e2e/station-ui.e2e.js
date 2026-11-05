@@ -85,8 +85,8 @@ const MODES = [[1920, 1080, 100], [1920, 1080, 85], [1920, 1080, 60], [1920, 108
     await S.setViewportSize({ width: 1018, height: 1100 });
 
     // ── Junto al QR: Wi-Fi y dirección; aviso del firewall ──
-    const hint = await S.textContent('[data-match-card="pista-1"] .st-access-hint');
-    T.check('Junto al QR: en qué Wi-Fi debe estar el teléfono y la dirección para escribirla',
+    const hint = await S.textContent('#st-referee-access .st-access-hint');
+    T.check('Junto al QR único: en qué Wi-Fi debe estar el teléfono y la dirección para escribirla',
       hint.includes('Club Padel 5G') && /\d+\.\d+\.\d+\.\d+:3408/.test(hint), hint.trim());
     await S.waitForSelector('#st-phones-alert .st-phones-alert');
     T.check('El firewall bloquea StageMaster → aviso claro en el Panel', (await S.textContent('#st-phones-alert')).includes('bloqueando StageMaster'));

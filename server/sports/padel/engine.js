@@ -30,10 +30,10 @@ const PUNTOS = [0, 15, 30, 40];
 const VENTAJA = 'AD';
 
 /**
- * Punto Estrella (reglamento FIP 2026): en el TERCER 40-40 de un game
+ * FIP 2026 (antes llamado «FIP 2026»): en el TERCER 40-40 de un game
  * ya no se juega ventaja, sino un único punto decisivo.
  */
-const IGUALES_PUNTO_ESTRELLA = 3;
+const IGUALES_FIP_2026 = 3;
 
 /** Máximo de estados guardados en el historial (para undo) */
 const MAX_HISTORIAL = 50;
@@ -79,8 +79,8 @@ function createMatch(config) {
     status:     'playing',   // 'playing' | 'finished'
     phase:      'normal',    // 'normal' | 'tiebreak' | 'superTiebreak'
     winner:     null,        // null | 'A' | 'B'
-    deuceCount: 0,           // Veces que se llegó a 40-40 en el game actual (Punto Estrella)
-    decisivePoint: false,    // true si el próximo punto decide el game (oro/estrella). Solo informativo para la UI
+    deuceCount: 0,           // Veces que se llegó a 40-40 en el game actual (FIP 2026)
+    decisivePoint: false,    // true si el próximo punto decide el game (punto de oro / FIP 2026). Solo informativo para la UI
     setScores:  [],          // Historial: [{A: 6, B: 3}, {A: 4, B: 6}, ...]
     history:    [],          // Stack de estados anteriores (para undo)
   };
@@ -210,7 +210,7 @@ function withHistory(state) {
 
 /**
  * Procesa un punto durante un game normal (fase 'normal').
- * Aplica la secuencia 0→15→30→40 y maneja deuce/ventaja/punto de oro/punto estrella.
+ * Aplica la secuencia 0→15→30→40 y maneja deuce/ventaja/punto de oro/FIP 2026.
  */
 function processNormalPoint(state, scorer) {
   const opp = opponent(scorer);      // El otro jugador
@@ -227,14 +227,14 @@ function processNormalPoint(state, scorer) {
     const s = deepCopy(state);
     s.players[scorer].points = 40;
     s.players[opp].points    = 40;
-    s.deuceCount += 1;       // Nuevo 40-40 (cuenta para el Punto Estrella)
+    s.deuceCount += 1;       // Nuevo 40-40 (cuenta para el FIP 2026)
     return s;
   }
 
   // ── Caso 3: Ambos en 40 → situación de DEUCE ──────────────────
   if (sp === 40 && op === 40) {
     if (isDecisivePoint(state)) {
-      // Punto de oro, o Punto Estrella en el tercer 40-40:
+      // Punto de oro, o FIP 2026 en el tercer 40-40:
       // el anotador gana el game directamente
       return processGameWon(state, scorer);
     }
@@ -263,13 +263,13 @@ function processNormalPoint(state, scorer) {
 /**
  * true si, estando 40-40, el siguiente punto decide el game sin ventaja:
  *   - Punto de oro: siempre
- *   - Punto Estrella: a partir del tercer 40-40 del game
+ *   - FIP 2026: a partir del tercer 40-40 del game
  *   - Ventaja: nunca
  */
 function isDecisivePoint(state) {
   const sistema = state.config.scoringSystem;
   if (sistema === 'goldenPoint') return true;
-  if (sistema === 'starPoint')   return state.deuceCount >= IGUALES_PUNTO_ESTRELLA;
+  if (sistema === 'starPoint')   return state.deuceCount >= IGUALES_FIP_2026;
   return false;
 }
 

@@ -233,7 +233,7 @@ function renderMatch() {
     ? 'SUPER TIE BREAK DECISIVO'
     : 'SET ' + matchState.currentSet + ' · EN CURSO';
 
-  // TIE BREAK / SUPER TIE BREAK / PUNTO DE ORO / PUNTO ESTRELLA (texto compartido con las pantallas)
+  // TIE BREAK / SUPER TIE BREAK / PUNTO DE ORO (también el decisivo de FIP 2026; texto compartido con las pantallas)
   var badgeInfo = ScoreFormat.badgeFor(matchState);
   badge.classList.toggle('hidden', !badgeInfo);
   if (badgeInfo) badge.textContent = badgeInfo.text;

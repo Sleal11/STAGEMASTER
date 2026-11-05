@@ -11,13 +11,14 @@
  * instantes (ms) al servidor (core/history.js), que guarda los partidos.
  */
 
+import * as ScoreFormat from '../common/score-format.js';
 import { esc, icon } from '../common/ui.js';
 import { send, toast } from './context.js';
 
 const $ = (id) => document.getElementById(id);
 const DAY = 24 * 60 * 60 * 1000;
 
-const SCORING = { advantage: 'Ventaja', goldenPoint: 'Punto de oro', starPoint: 'Punto Estrella' };
+const SCORING = ScoreFormat.SCORING_NAMES;
 const TIEBREAK = { tiebreak: 'Tie Break', superTiebreak: 'Súper Tie Break', none: 'Sin desempate' };
 
 const dayFormat  = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });

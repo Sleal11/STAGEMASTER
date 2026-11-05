@@ -100,7 +100,7 @@ function requestSetup(matchId, config, force, button) {
   });
 }
 
-/** Explica el sistema de puntuación elegido (Punto de oro ≠ Punto Estrella) */
+/** Explica el sistema de puntuación elegido (Punto de oro ≠ FIP 2026) */
 function showScoringHelp() {
   $('scoring-help').textContent = ScoreFormat.SCORING_HELP[$('form-setup').scoringSystem.value];
 }

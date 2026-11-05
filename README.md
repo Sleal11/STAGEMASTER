@@ -96,7 +96,7 @@ También queda en **Actions** → la ejecución → **Artifacts** → `StageMast
 
 ## Reglas implementadas (reglamento FIP 2026)
 
-- Puntos 0 · 15 · 30 · 40 con **Ventaja**, **Punto de oro** o **Punto Estrella**
+- Puntos 0 · 15 · 30 · 40 con **Ventaja**, **Punto de oro** o **FIP 2026**
   (ventaja en el 1.er y 2.º 40-40; en el 3.º, punto decisivo, que la pantalla
   anuncia como **PUNTO DE ORO**).
 - Sets de 1–6 games con 2 de diferencia; **Tie Break** a 7 y **Súper Tie Break**

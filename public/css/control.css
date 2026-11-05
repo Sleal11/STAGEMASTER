@@ -1042,7 +1042,7 @@ body.is-offline .btn-secondary {
   gap: var(--space-sm);
 }
 
-/* Explicación del sistema de puntuación (Punto de oro ≠ Punto Estrella) */
+/* Explicación del sistema de puntuación (Punto de oro ≠ FIP 2026) */
 .scoring-help {
   margin-top: var(--space-sm);
   font-size: 0.75rem;

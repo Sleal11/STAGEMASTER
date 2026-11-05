@@ -18,8 +18,19 @@ const PHASE_LABELS = {
 };
 
 /**
+ * Nombre de cada sistema de puntuación en TODAS las interfaces (estación,
+ * teléfono, historial). El valor interno 'starPoint' se conserva (partidos
+ * guardados e historial); su nombre visible es «FIP 2026».
+ */
+export const SCORING_NAMES = {
+  advantage:   'Ventaja',
+  goldenPoint: 'Punto de oro',
+  starPoint:   'FIP 2026',
+};
+
+/**
  * Texto del badge cuando el siguiente punto decide el game (40-40 decisivo).
- * Con Punto Estrella, el punto decisivo del 3.er iguales se anuncia también
+ * Con FIP 2026, el punto decisivo del 3.er iguales se anuncia también
  * como PUNTO DE ORO: es el término que entiende el público.
  */
 const DECISIVE_POINT_LABELS = {
@@ -29,13 +40,13 @@ const DECISIVE_POINT_LABELS = {
 
 /**
  * Explicación de cada sistema de puntuación (reglamento FIP), para que el
- * moderador y el árbitro sepan qué eligen. Punto de oro y Punto Estrella NO son
+ * moderador y el árbitro sepan qué eligen. Punto de oro y FIP 2026 NO son
  * lo mismo: cambian en qué 40-40 se juega el punto decisivo.
  */
 const SCORING_HELP = {
   advantage:   'Ventaja: en cada 40-40 se juega ventaja; hay que ganar el game por 2 puntos.',
   goldenPoint: 'Punto de oro: en el PRIMER 40-40, el siguiente punto gana el game (no hay ventaja).',
-  starPoint:   'Punto Estrella (FIP 2026): ventaja en el 1.er y el 2.º 40-40; en el TERCER 40-40, ' +
+  starPoint:   'FIP 2026 (reglamento actual): ventaja en el 1.er y el 2.º 40-40; en el TERCER 40-40, ' +
                'el siguiente punto gana el game. La pantalla lo anuncia como PUNTO DE ORO.',
 };
 

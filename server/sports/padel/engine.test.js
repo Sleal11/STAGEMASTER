@@ -755,12 +755,12 @@ test('Undo del primer punto del Super Tie Break no rompe la fase', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════
-// REGLAMENTO FIP 2026: PUNTO ESTRELLA
+// REGLAMENTO FIP 2026 (antes «FIP 2026»)
 // 1er y 2º 40-40 → se juega ventaja | 3er 40-40 → punto decisivo
 // ═════════════════════════════════════════════════════════════════
-console.log('\nREGLAMENTO FIP 2026: Punto Estrella');
+console.log('\nREGLAMENTO FIP 2026');
 
-/** Partido con Punto Estrella en el primer 40-40 del primer game */
+/** Partido con FIP 2026 en el primer 40-40 del primer game */
 function primerIguales() {
   const estado = createMatch(config({ scoringSystem: 'starPoint' }));
   return applyMany(estado, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB']);
@@ -781,17 +781,17 @@ test('Segundo 40-40 → todavía se juega ventaja', () => {
   assert.strictEqual(estado.players.B.points, 'AD', 'En el 2º iguales sigue habiendo ventaja');
 });
 
-test('Tercer 40-40 → el siguiente punto (Punto Estrella) gana el game', () => {
+test('Tercer 40-40 → el siguiente punto (FIP 2026) gana el game', () => {
   let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointB', 'pointA']); // 3er 40-40
   assert.strictEqual(estado.deuceCount, 3);
   assert.strictEqual(estado.players.A.points, 40);
   assert.strictEqual(estado.players.B.points, 40);
   estado = applyAction(estado, 'pointB');
-  assert.strictEqual(estado.players.B.games, 1, 'B gana el game con el Punto Estrella');
+  assert.strictEqual(estado.players.B.games, 1, 'B gana el game con el FIP 2026');
   assert.strictEqual(estado.players.B.points, 0);
 });
 
-test('El game más largo posible con Punto Estrella dura 11 puntos', () => {
+test('El game más largo posible con FIP 2026 dura 11 puntos', () => {
   let estado = applyMany(primerIguales(), ['pointA', 'pointB', 'pointA', 'pointB']); // 10 puntos
   assert.strictEqual(estado.players.A.games + estado.players.B.games, 0, '10 puntos: aún sin game');
   estado = applyAction(estado, 'pointA'); // punto 11
@@ -817,13 +817,13 @@ test('Undo desde el 3er 40-40 restaura el contador de iguales', () => {
   assert.strictEqual(estado.players.B.points, 'AD');
 });
 
-test('decisivePoint: solo es true en el 3er 40-40 (estrella) o en cualquier 40-40 (oro)', () => {
-  let estrella = primerIguales();
-  assert.strictEqual(estrella.decisivePoint, false, '1er iguales con estrella: no decisivo');
-  estrella = applyMany(estrella, ['pointA', 'pointB', 'pointB', 'pointA']);
-  assert.strictEqual(estrella.decisivePoint, true, '3er iguales con estrella: decisivo');
-  estrella = applyAction(estrella, 'pointA');
-  assert.strictEqual(estrella.decisivePoint, false, 'Game nuevo: ya no es decisivo');
+test('decisivePoint: solo es true en el 3er 40-40 (FIP 2026) o en cualquier 40-40 (oro)', () => {
+  let fip = primerIguales();
+  assert.strictEqual(fip.decisivePoint, false, '1er iguales con FIP 2026: no decisivo');
+  fip = applyMany(fip, ['pointA', 'pointB', 'pointB', 'pointA']);
+  assert.strictEqual(fip.decisivePoint, true, '3er iguales con FIP 2026: decisivo');
+  fip = applyAction(fip, 'pointA');
+  assert.strictEqual(fip.decisivePoint, false, 'Game nuevo: ya no es decisivo');
 
   const oro = applyMany(createMatch(config({ scoringSystem: 'goldenPoint' })),
     ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB']);

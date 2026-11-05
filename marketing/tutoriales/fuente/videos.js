@@ -57,7 +57,7 @@
 
     V.scene(6, (s) => {
       s.device('laptop', { img: 'estacion-nuevo-partido', ...LAPTOP }).focus(0.8, 'dialog', { padding: 30 }).highlight(2.6, 5.8, 'scoring', { tag: 'Reglas FIP' });
-      s.caption(0.5, 1, 'Parejas, sets y puntuación: <b>ventaja, punto de oro o punto estrella</b>');
+      s.caption(0.5, 1, 'Parejas, sets y puntuación: <b>ventaja, punto de oro o FIP 2026</b>');
     });
 
     V.scene(9, (s) => {
@@ -135,7 +135,7 @@
 
     V.scene(7, (s) => {
       s.device('laptop', { img: 'estacion-nuevo-partido', ...LAPTOP }).focus(0.2, 'dialog', { padding: 30, dur: 0.01 }).highlight(1.0, 6.8, 'scoring', { tag: 'Puntuación' });
-      s.caption(0.5, 3, 'Reglas FIP: <b>ventaja</b>, <b>punto de oro</b> o <b>punto estrella</b>; tie break o súper tie break');
+      s.caption(0.5, 3, 'Reglas FIP: <b>ventaja</b>, <b>punto de oro</b> o <b>FIP 2026</b>; tie break o súper tie break');
     });
 
     V.scene(8, (s) => {
