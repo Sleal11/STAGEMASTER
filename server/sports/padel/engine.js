@@ -82,8 +82,29 @@ function createMatch(config) {
     deuceCount: 0,           // Veces que se llegó a 40-40 en el game actual (FIP 2026)
     decisivePoint: false,    // true si el próximo punto decide el game (punto de oro / FIP 2026). Solo informativo para la UI
     setScores:  [],          // Historial: [{A: 6, B: 3}, {A: 4, B: 6}, ...]
+    stats:      emptyStats(),
     history:    [],          // Stack de estados anteriores (para undo)
   };
+}
+
+/**
+ * Estadísticas del partido, calculadas punto a punto (solo lo que el
+ * marcador sabe con certeza). Viajan dentro del estado: «Deshacer» las
+ * corrige igual que el marcador.
+ *   points      puntos ganados (también los del tie break)
+ *   decisive    puntos decisivos ganados (punto de oro / 3.er 40-40 de FIP 2026)
+ *   holds       juegos ganados con su saque
+ *   breaks      juegos ganados al resto (rompiendo el saque del rival)
+ *   bestStreak  mayor racha de puntos seguidos
+ *   streak      racha actual { side, count }
+ * Un partido empezado con una versión anterior no las tiene desde el
+ * principio: se marcan partial (las pantallas no las muestran).
+ */
+function emptyStats(partial = false) {
+  const pair = () => ({ A: 0, B: 0 });
+  const stats = { points: pair(), decisive: pair(), holds: pair(), breaks: pair(), bestStreak: pair(), streak: { side: null, count: 0 } };
+  if (partial) stats.partial = true;
+  return stats;
 }
 
 /**
@@ -123,6 +144,14 @@ function applyPoint(state, scorer) {
 
   // ── 1 y 2. Copia de trabajo con el estado actual guardado en el historial
   let s = withHistory(state);
+
+  // ── Estadísticas del punto (antes de aplicarlo: ¿era decisivo?) ──
+  const st = s.stats || emptyStats(true);
+  st.points[scorer] += 1;
+  if (state.decisivePoint === true) st.decisive[scorer] += 1;
+  st.streak = { side: scorer, count: st.streak.side === scorer ? st.streak.count + 1 : 1 };
+  st.bestStreak[scorer] = Math.max(st.bestStreak[scorer], st.streak.count);
+  s.stats = st;
 
   // ── 3. Aplicar lógica según la fase actual ─────────────────────
   if (s.phase === 'normal') {
@@ -332,6 +361,8 @@ function processGameWon(state, scorer) {
 
   // ── Sumar game al ganador ─────────────────────────────────────
   s.players[scorer].games += 1;
+  // Con su saque (hold) o con el del rival (break): el saque aún no ha rotado
+  if (s.stats) s.stats[scorer === s.server ? 'holds' : 'breaks'][scorer] += 1;
 
   // ── Rotar servidor (en pádel cambia tras cada game) ───────────
   s.server = toggleServer(s.server);

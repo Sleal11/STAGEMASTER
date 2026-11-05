@@ -19,13 +19,14 @@
  *
  * Módulos:
  *   scoreboard.js    marcador          ribbon.js   cinta publicitaria
- *   media-player.js  imágenes y vídeos
+ *   media-player.js  imágenes y vídeos     finale.js   celebración y resumen final
  */
 
 import { applyLogo }         from '../common/brand.js';
 import { createScoreboard }  from './scoreboard.js';
 import { createRibbon }      from './ribbon.js';
 import { createMediaPlayer } from './media-player.js';
+import { createFinale }      from './finale.js';
 
 const IDENTIFY_MS = 6000;
 
@@ -42,6 +43,8 @@ const dom = {
   standby:  $('d-standby'),
   identify: $('d-identify'),
   dimmer:   $('d-dimmer'),
+  summary:  $('d-summary'),
+  celebrate: $('d-celebrate'),
 };
 
 const screenId    = readScreenId();
@@ -52,6 +55,7 @@ const remoteToken = new URLSearchParams(window.location.hash.slice(1)).get('remo
 const board    = createScoreboard(dom.display);
 const ribbon   = createRibbon(dom.ribbon, { onChange: () => updateLayout() });
 const player   = createMediaPlayer(dom.media, { onChange: () => updateLayout() });
+const finale   = createFinale({ summary: dom.summary, celebrate: dom.celebrate }, () => updateLayout());
 
 let socket         = null;
 let config         = null;   // Configuración enviada por la estación
@@ -109,6 +113,7 @@ function connectToServer() {
     // Solo el partido asignado (el servidor ya filtra por sala)
     if (!config || payload.matchId !== config.matchId) return;
     board.render(payload.state);
+    finale.update(payload.state, payload.matchId);
     updateLayout();
   });
   if (!preview) socket.on('identify', showIdentify);
@@ -119,7 +124,10 @@ function connectToServer() {
 // ─────────────────────────────────────────────────────────────────
 
 function applyScreenConfig(next) {
-  if (!config || config.matchId !== next.matchId) board.forget();   // otro partido: no animar
+  if (!config || config.matchId !== next.matchId) {   // otro partido: no animar ni celebrar
+    board.forget();
+    finale.reset();
+  }
   config = next;
 
   dom.court.textContent = next.matchLabel;
@@ -187,17 +195,20 @@ function applyOutput() {
 
 /**
  *   Lista de reproducción  si la vista es "Publicidad y vídeos", si terminó
- *                          el partido o está en pausa (con la opción activada),
- *                          o si no hay partido
+ *                          el partido (tras la celebración) o está en pausa
+ *                          (con la opción activada), o si no hay partido
  *   Logo                   vista "Publicidad y vídeos" sin nada reproducible
  *                          (nunca una pantalla en negro)
- *   Marcador (+ cinta)     en los demás casos; sin partido, "Próximo partido"
+ *   Marcador (+ cinta)     en los demás casos; sin partido, "Próximo partido";
+ *                          partido terminado: celebración y después el resumen
  */
 function updateLayout() {
   if (!config) return;
   const hasMatch   = board.hasMatch();
   const hasItems   = config.media.items.length > 0;
-  const wantsMedia = config.view === 'media' || (postMatchReady && !!config.postMatch) || config.pauseMedia || !hasMatch;
+  // La publicidad al terminar espera a que acabe la celebración
+  const postMatchAds = postMatchReady && !!config.postMatch && !finale.isCelebrating();
+  const wantsMedia = config.view === 'media' || postMatchAds || config.pauseMedia || !hasMatch;
 
   player.setActive(wantsMedia && hasItems);
   const showMedia   = wantsMedia && hasItems && player.hasPlayable();
@@ -207,7 +218,11 @@ function updateLayout() {
 
   dom.media.classList.toggle('hidden', !showMedia);
   dom.standby.classList.toggle('hidden', !showStandby);
-  dom.board.classList.toggle('hidden', !hasMatch);
+  // Partido terminado: el resumen sustituye al marcador (la celebración va encima)
+  const finished = hasMatch && finale.isFinished();
+  dom.board.classList.toggle('hidden', !hasMatch || finished);
+  dom.summary.classList.toggle('hidden', !finished);
+  dom.celebrate.classList.toggle('hidden', !(showScore && finale.isCelebrating()));
   dom.waiting.classList.toggle('hidden', hasMatch);
 
   const ribbonChanged = dom.display.classList.contains('has-ribbon') !== showRibbon;
@@ -216,6 +231,7 @@ function updateLayout() {
   ribbon.setActive(showRibbon);
   // El espacio del marcador cambió (aparece/desaparece la cinta): reajustar nombres
   if (ribbonChanged || showScore) board.fitAll();
+  if (finished && showScore) finale.fit();
   sendReport();
 }
 

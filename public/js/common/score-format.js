@@ -108,7 +108,90 @@ function compactScore(state) {
   return p.A.points + '-' + p.B.points + ' · ' + p.A.games + '-' + p.B.games + ' · ' + p.A.sets + '-' + p.B.sets;
 }
 
+// ─────────────────────────────────────────────────────────────────
+// RESUMEN FINAL DEL PARTIDO (pantalla, teléfono e historial)
+// ─────────────────────────────────────────────────────────────────
+
+/** "1 h 12 min" · "48 min" · "menos de 1 min" */
+function formatDuration(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return '';
+  const min = Math.round(ms / 60000);
+  if (min < 1) return 'menos de 1 min';
+  const h = Math.floor(min / 60);
+  return h ? `${h} h ${String(min % 60).padStart(2, '0')} min` : `${min} min`;
+}
+
+/**
+ * Resumen del partido terminado. SOLO datos registrados: si el partido no
+ * tiene estadísticas completas (empezó con una versión anterior), solo se
+ * muestran el resultado, los juegos y la duración.
+ *
+ * @param {Object} m - { names: {A,B}, winner, setsWon: {A,B}, setScores, unfinishedSet,
+ *                       stats, scoringSystem, startedAt, finishedAt, pausedMs }
+ * @returns {{ winner, loser, names, setsWon, sets: string[], duration: string,
+ *            rows: Array<{ key, label, A, B }> }}
+ */
+function matchSummary(m) {
+  const winner = m.winner === 'A' || m.winner === 'B' ? m.winner : null;
+  const sets = (m.setScores || []).map(formatSetScore);
+  if (m.unfinishedSet) sets.push(`${m.unfinishedSet.A}-${m.unfinishedSet.B}`);
+  // Juegos ganados: los de cada set (un súper tie break decisivo cuenta como 1 juego)
+  const games = { A: 0, B: 0 };
+  (m.setScores || []).forEach((set) => {
+    if (set.superTiebreak) games[set.tiebreak.A > set.tiebreak.B ? 'A' : 'B'] += 1;
+    else { games.A += set.A; games.B += set.B; }
+  });
+  if (m.unfinishedSet) { games.A += m.unfinishedSet.A; games.B += m.unfinishedSet.B; }
+
+  const rows = [{ key: 'games', label: 'Juegos ganados', A: games.A, B: games.B }];
+  const st = m.stats && !m.stats.partial ? m.stats : null;
+  if (st) {
+    rows.push({ key: 'points', label: 'Puntos ganados', A: st.points.A, B: st.points.B });
+    if (m.scoringSystem && m.scoringSystem !== 'advantage') {
+      rows.push({ key: 'decisive', label: 'Puntos de oro ganados', A: st.decisive.A, B: st.decisive.B });
+    }
+    rows.push({ key: 'breaks', label: 'Breaks (juegos al resto)', A: st.breaks.A, B: st.breaks.B });
+    rows.push({ key: 'streak', label: 'Mejor racha de puntos', A: st.bestStreak.A, B: st.bestStreak.B });
+  }
+  const played = m.startedAt && m.finishedAt ? m.finishedAt - m.startedAt - (m.pausedMs || 0) : null;
+  return {
+    winner,
+    loser: winner ? (winner === 'A' ? 'B' : 'A') : null,
+    names: m.names,
+    setsWon: m.setsWon,
+    sets,
+    duration: formatDuration(played),
+    rows,
+  };
+}
+
+/** Resumen desde el estado del partido (pantalla y teléfono) */
+function summaryFromState(state) {
+  const t = state.timing || {};
+  const current = { A: state.players.A.games, B: state.players.B.games };
+  return matchSummary({
+    names: { A: state.players.A.name, B: state.players.B.name },
+    winner: state.winner,
+    setsWon: { A: state.players.A.sets, B: state.players.B.sets },
+    setScores: state.setScores,
+    unfinishedSet: current.A || current.B ? current : null,
+    stats: state.stats,
+    scoringSystem: state.config && state.config.scoringSystem,
+    startedAt: t.startedAt, finishedAt: t.finishedAt, pausedMs: t.pausedMs,
+  });
+}
+
+/** Resumen desde un registro del historial (estación) */
+function summaryFromRecord(r) {
+  return matchSummary({
+    names: r.teams, winner: r.winner, setsWon: r.sets, setScores: r.setScores, unfinishedSet: r.unfinishedSet,
+    stats: r.stats, scoringSystem: (r.config || {}).scoringSystem,
+    startedAt: r.startedAt, finishedAt: r.finishedAt, pausedMs: r.pausedMs,
+  });
+}
+
 export {
   PHASE_LABELS, DECISIVE_POINT_LABELS, SCORING_HELP, formatSetScore, isDecidingSuperTiebreak,
   badgeFor, splitTeamName, abbreviateName, compactScore,
+  formatDuration, matchSummary, summaryFromState, summaryFromRecord,
 };

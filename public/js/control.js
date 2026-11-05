@@ -35,7 +35,7 @@
 
 import * as ScoreFormat from './common/score-format.js';
 import { applyLogo }    from './common/brand.js';
-import { icon }         from './common/ui.js';
+import { icon, esc }    from './common/ui.js';
 
 // ─────────────────────────────────────────────────────────────────
 // ESTADO GLOBAL DEL PANEL
@@ -259,11 +259,19 @@ function renderFinished() {
 
   document.getElementById('winner-name').textContent = winnerName;
 
-  // Construir resultado de sets
-  var setsStr = matchState.setScores
-    .map(ScoreFormat.formatSetScore)
-    .join(' · ');
-  document.getElementById('final-sets').textContent = setsStr;
+  // Resultado por set y estadísticas: el mismo resumen que la pantalla
+  var sum = ScoreFormat.summaryFromState(matchState);
+  document.getElementById('final-sets').textContent = sum.sets.join(' · ');
+  var head = '<div class="fs-row fs-head"><span>' + esc(ScoreFormat.splitTeamName(sum.names.A)[0]) + '</span><span></span><span>' +
+    esc(ScoreFormat.splitTeamName(sum.names.B)[0]) + '</span></div>';
+  var rows = sum.rows.map(function (r) {
+    return '<div class="fs-row"><span class="fs-val' + (r.A > r.B ? ' is-lead' : '') + '">' + r.A + '</span>' +
+      '<span class="fs-label">' + esc(r.label) + '</span>' +
+      '<span class="fs-val' + (r.B > r.A ? ' is-lead' : '') + '">' + r.B + '</span></div>';
+  }).join('');
+  var duration = sum.duration
+    ? '<div class="fs-duration">' + icon('clock') + 'Duración: ' + esc(sum.duration) + '</div>' : '';
+  document.getElementById('final-stats').innerHTML = head + rows + duration;
 }
 
 // ─────────────────────────────────────────────────────────────────

@@ -58,6 +58,7 @@ class Match {
     this.paused     = false;  // Pausa (lesión, lluvia…): el marcador no admite puntos
     this.uid        = null;   // Identificador único de ESTE partido (historial, sin duplicados)
     this.startedAt  = null;   // Hora de inicio (ms)
+    this.finishedAt = null;   // Hora a la que terminó (ms) o null si sigue en juego
     this.pausedMs   = 0;      // Tiempo total en pausa
     this.pausedSince = null;  // Inicio de la pausa actual
     this.pin        = null;
@@ -148,11 +149,15 @@ class Match {
     return this.getPublicState();
   }
 
-  /** Estado PÚBLICO (sin historial), o null si no hay partido */
+  /**
+   * Estado PÚBLICO (sin historial), o null si no hay partido. timing: inicio,
+   * final y tiempo en pausa (para la duración del resumen final).
+   */
   getPublicState() {
     if (!this.state) return null;
     const { history, ...publicState } = this.state;
-    return { ...publicState, version: this.version, canUndo: history.length > 0, paused: this.paused };
+    const timing = { startedAt: this.startedAt, finishedAt: this.finishedAt, pausedMs: this.pausedMs };
+    return { ...publicState, version: this.version, canUndo: history.length > 0, paused: this.paused, timing };
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -215,7 +220,7 @@ class Match {
    */
   historyRecord(finishType) {
     const s = this.state;
-    const finishedAt = Date.now();
+    const finishedAt = this.finishedAt || Date.now();
     const current = { A: s.players.A.games, B: s.players.B.games };
     return {
       uid:        this.uid,
@@ -231,6 +236,8 @@ class Match {
       winner:     s.winner,
       sets:       { A: s.players.A.sets, B: s.players.B.sets },
       setScores:  s.setScores,
+      // Estadísticas completas del partido (sin las parciales de versiones anteriores)
+      stats:      s.stats && !s.stats.partial ? publicStats(s.stats) : null,
       // Finalizado a mano a mitad de set: games del set que se estaba jugando
       unfinishedSet: finishType === 'manual' && (current.A || current.B) ? current : null,
       config: {
@@ -267,6 +274,9 @@ class Match {
 
   /** ÚNICO punto donde cambia el marcador: estado, versión y guardado */
   commit(newState) {
+    // Hora del final: se fija al terminar y se borra si se deshace el final
+    if (newState.status === 'finished') this.finishedAt = this.finishedAt || Date.now();
+    else this.finishedAt = null;
     this.state     = newState;
     this.version  += 1;
     this.changedAt = Date.now();
@@ -276,7 +286,7 @@ class Match {
   persist() {
     this.store.save({
       version: this.version, state: this.state, paused: this.paused, pin: this.pin, controller: this.controller,
-      uid: this.uid, startedAt: this.startedAt, pausedMs: this.pausedMs, pausedSince: this.pausedSince,
+      uid: this.uid, startedAt: this.startedAt, finishedAt: this.finishedAt, pausedMs: this.pausedMs, pausedSince: this.pausedSince,
     });
   }
 
@@ -292,6 +302,7 @@ class Match {
     // Partidos guardados por versiones anteriores: sin hora de inicio conocida
     this.uid         = saved.uid || (this.state ? crypto.randomUUID() : null);
     this.startedAt   = Number.isFinite(saved.startedAt) ? saved.startedAt : null;
+    this.finishedAt  = Number.isFinite(saved.finishedAt) && this.state && this.state.status === 'finished' ? saved.finishedAt : null;
     this.pausedMs    = Number.isFinite(saved.pausedMs) ? saved.pausedMs : 0;
     this.pausedSince = this.paused && Number.isFinite(saved.pausedSince) ? saved.pausedSince : null;
     if (this.state) {
@@ -320,6 +331,11 @@ function isValidSavedMatch(data) {
   if (typeof data.version !== 'number') return false;
   if (data.state === null || data.state === undefined) return true;
   return !!(data.state.players && Array.isArray(data.state.history));
+}
+
+/** Estadísticas para el historial: sin la racha en curso (dato interno) */
+function publicStats({ streak, partial, ...stats }) {
+  return stats;
 }
 
 module.exports = { Match, MATCH_ACTIONS, isValidSavedMatch };

@@ -192,6 +192,7 @@ function openDetail(r) {
     </div>
     <table class="hist-table"><thead><tr><th></th><th>Pareja A</th><th>Pareja B</th><th></th></tr></thead>
       <tbody>${setRows}${unfinished || ''}</tbody></table>
+    ${statsTable(r)}
     <dl class="hist-facts">
       <dt>Ganador</dt><dd>${esc(winnerText(r))}</dd>
       <dt>Horario</dt><dd>${timeRange(r)}</dd>
@@ -200,6 +201,14 @@ function openDetail(r) {
       <dt>Formato</dt><dd>${plural(c.totalSets, 'set', 'sets')} · ${plural(c.gamesPerSet, 'game', 'games')} · ${esc(SCORING[c.scoringSystem] || '')} · ${esc(TIEBREAK[c.tiebreakType] || '')}</dd>
     </dl>`;
   $('dlg-match').showModal();
+}
+
+/** Estadísticas registradas del partido (las mismas que la pantalla y el teléfono) */
+function statsTable(r) {
+  if (!r.stats) return '';   // partidos de versiones anteriores: sin estadísticas
+  const rows = ScoreFormat.summaryFromRecord(r).rows;
+  return `<table class="hist-table hist-stats"><thead><tr><th>Estadísticas</th><th>Pareja A</th><th>Pareja B</th><th></th></tr></thead>
+    <tbody>${rows.map((row) => `<tr><td>${esc(row.label)}</td><td>${row.A}</td><td>${row.B}</td><td></td></tr>`).join('')}</tbody></table>`;
 }
 
 // ─────────────────────────────────────────────────────────────────

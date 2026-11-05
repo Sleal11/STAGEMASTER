@@ -30,8 +30,8 @@ const STATES = [
   { name: 'set2', label: 'Set 2 (un set terminado)', current: 'SET 2', done: 1 },
   { name: 'supertb', label: 'Súper tie-break, nombres largos, punto de oro', current: 'SUPER TB', done: 2 },
   { name: 'pausa', label: 'En pausa', current: 'SET 2', done: 1, badge: 'PAUSA' },
-  { name: 'final', label: 'Terminado', done: 2, badge: 'FINALIZADO' },
-  { name: 'ganador', label: 'Ganado 2-0 (fila del ganador y «GANADOR»)', done: 2, badge: 'FINALIZADO', winner: true },
+  { name: 'final', label: 'Terminado sin ganador (resumen)', done: 2, badge: 'FINALIZADO', summary: true },
+  { name: 'ganador', label: 'Ganado 2-0 (celebración y resumen)', done: 2, badge: 'FINALIZADO', winner: true, summary: true },
 ];
 
 const OUT = path.join(H.OUT, 'matriz');
@@ -58,9 +58,19 @@ fs.mkdirSync(OUT, { recursive: true });
 
     for (const s of STATES) {
       await prepare(st, s);
+      // Ganado: primero la celebración (6 s), después el resumen
+      if (s.winner) {
+        await H.sleep(1500);
+        for (const { f, page } of pages) {
+          const shown = await page.isVisible('#d-celebrate');
+          T.check(`${f.name} · ${s.name}: celebración del ganador`, shown);
+          await page.screenshot({ path: path.join(OUT, `${f.name}-celebracion.png`) });
+        }
+        await H.sleep(5200);
+      }
       for (const { f, page } of pages) {
         if (!page.url().includes('score.html')) await page.goto(`http://localhost:${port}/score.html?pantalla=1`);
-        await page.waitForSelector('#d-board:not(.hidden)');
+        await page.waitForSelector(s.summary ? '#d-summary:not(.hidden)' : '#d-board:not(.hidden)');
         await H.sleep(900);
         const r = await page.evaluate(measure);
         const tag = `${f.name} · ${s.name}`;
@@ -73,8 +83,9 @@ fs.mkdirSync(OUT, { recursive: true });
         }
         if (s.badge) T.check(`${tag}: indicador «${s.badge}»`, r.badge.includes(s.badge), r.badge);
         T.check(`${tag}: nada se sale de la caja ni se solapa con el logo`, r.overflow.length === 0, r.overflow.join(', '));
-        if (s.winner && r.label) {
-          T.check(`${tag}: «GANADOR» cabe entre las dos filas (no invade ninguna)`, r.label.fits, r.label.detail);
+        if (s.summary) {
+          T.check(`${tag}: el resumen sustituye al marcador`, r.summary.shown, r.summary.detail);
+          T.check(`${tag}: el resumen cabe (nada se recorta ni se solapa)`, r.summary.fits, r.summary.detail);
         }
         T.check(`${tag}: los nombres caben`, r.namesFit, r.names);
         T.check(`${tag}: cinta ${Math.round(f.ribbon * 100)} % del alto`, Math.abs(r.ribbonRatio - f.ribbon) < 0.012, (r.ribbonRatio * 100).toFixed(1) + ' %');
@@ -122,7 +133,7 @@ function measure() {
     .map((c) => ({ text: c.textContent.replace(/\s+/g, ' ').trim(), rect: c.getBoundingClientRect() }));
   const overflow = [];
   const inside = (r, outer) => r.left >= outer.left - 1 && r.right <= outer.right + 1 && r.top >= outer.top - 1 && r.bottom <= outer.bottom + 1;
-  ['.d-logo', '#d-court', '#d-badge', '#row-a', '#row-b', '#d-ribbon'].forEach((sel) => {
+  ['.d-logo', '#d-court', '#d-badge', '#row-a', '#row-b', '#d-ribbon', '.sum-left', '.sum-right'].forEach((sel) => {
     const el = document.querySelector(sel);
     if (!el || el.classList.contains('hidden') || !el.offsetWidth) return;
     if (!inside(el.getBoundingClientRect(), box)) overflow.push(sel);
@@ -133,15 +144,28 @@ function measure() {
   });
   const right = document.querySelector('.d-header-right').getBoundingClientRect();
   chips.forEach((c) => { if (c.rect.right > right.left + 1) overflow.push('chip encima de la pista: ' + c.text); });
-  const names = [...document.querySelectorAll('.d-name-line')];
-  const labelEl = document.getElementById('d-divider-label');
-  let label = null;
-  if (labelEl.textContent && getComputedStyle(labelEl).display !== 'none') {
-    const l = labelEl.getBoundingClientRect();
-    const a = document.getElementById('row-a').getBoundingClientRect();
-    const b = document.getElementById('row-b').getBoundingClientRect();
-    label = { fits: l.top >= a.bottom - 0.5 && l.bottom <= b.top + 0.5,
-      detail: `fila 1 acaba en ${a.bottom.toFixed(1)}, etiqueta ${l.top.toFixed(1)}–${l.bottom.toFixed(1)}, fila 2 empieza en ${b.top.toFixed(1)}` };
+  const summaryEl = document.getElementById('d-summary');
+  const summaryShown = !summaryEl.classList.contains('hidden');
+  const visible = (el) => getComputedStyle(el).display !== 'none' && el.offsetWidth > 0;
+  // Con el resumen, los nombres son los del resumen; si no, los del marcador
+  const names = summaryShown ? [...document.querySelectorAll('.sum-name')] : [...document.querySelectorAll('.d-name-line')];
+  let summary = { shown: false, fits: true, detail: '' };
+  if (summaryShown) {
+    const panels = [...summaryEl.querySelectorAll('.sum-left, .sum-right')].filter(visible);
+    const parts = [...summaryEl.querySelectorAll('.sum-team, .sum-row, .sum-title, .sum-kicker, .sum-sets-list, .sum-duration')].filter(visible);
+    const stage = document.getElementById('d-stage').getBoundingClientRect();
+    const out = parts.filter((el) => {
+      const r = el.getBoundingClientRect();
+      const p = el.closest('.sum-left, .sum-right').getBoundingClientRect();
+      return r.top < p.top - 1 || r.bottom > p.bottom + 1 || r.left < p.left - 1 || r.right > p.right + 1;
+    }).map((el) => el.className);
+    const panelsOut = panels.filter((el) => { const r = el.getBoundingClientRect(); return r.top < stage.top - 1 || r.bottom > stage.bottom + 1; });
+    const rows = summaryEl.querySelectorAll('.sum-row');
+    summary = {
+      shown: document.getElementById('d-board').classList.contains('hidden'),
+      fits: out.length === 0 && panelsOut.length === 0,
+      detail: `${[...rows].filter(visible).length} estadísticas · ${out.concat(panelsOut.map((p) => p.className)).join(', ') || 'todo dentro'}`,
+    };
   }
   const ribbon = document.getElementById('d-ribbon');
   return {
@@ -151,7 +175,7 @@ function measure() {
     overflow,
     namesFit: names.every((n) => n.scrollWidth <= n.clientWidth + 1),
     names: names.map((n) => `${n.textContent} (${n.scrollWidth}/${n.clientWidth})`).join(' · '),
-    label,
+    summary,
     ribbonRatio: ribbon.classList.contains('hidden') ? 0 : ribbon.getBoundingClientRect().height / box.height,
   };
 }

@@ -755,7 +755,47 @@ test('Undo del primer punto del Super Tie Break no rompe la fase', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════
-// REGLAMENTO FIP 2026 (antes «FIP 2026»)
+// ESTADÍSTICAS DEL PARTIDO
+// ─────────────────────────────────────────────────────────────────
+console.log('\nESTADÍSTICAS DEL PARTIDO');
+
+test('Estadísticas: puntos, juegos con saque, breaks y mejor racha; «Deshacer» las corrige', () => {
+  let s = createMatch(config({ initialServer: 'A' }));
+  assert.deepStrictEqual(s.stats.points, { A: 0, B: 0 });
+  s = applyMany(s, ['pointA', 'pointA', 'pointA', 'pointA']);           // A gana su saque (hold)
+  s = applyMany(s, ['pointA', 'pointB', 'pointA', 'pointA', 'pointA']); // A rompe el saque de B (break)
+  assert.deepStrictEqual(s.stats.points, { A: 8, B: 1 });
+  assert.deepStrictEqual(s.stats.holds, { A: 1, B: 0 });
+  assert.deepStrictEqual(s.stats.breaks, { A: 1, B: 0 });
+  assert.strictEqual(s.stats.bestStreak.A, 5, '4 del primer game + 1');
+  assert.deepStrictEqual(s.stats.streak, { side: 'A', count: 3 });
+  const before = JSON.stringify(s.stats);
+  s = applyAction(s, 'pointB');
+  s = applyAction(s, 'undo');
+  assert.strictEqual(JSON.stringify(s.stats), before, 'Deshacer deja las estadísticas exactas');
+});
+
+test('Estadísticas: puntos de oro ganados (y con FIP 2026, solo el del 3.er 40-40)', () => {
+  let oro = createMatch(config({ scoringSystem: 'goldenPoint' }));
+  oro = applyMany(oro, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB', 'pointB']);
+  assert.deepStrictEqual(oro.stats.decisive, { A: 0, B: 1 }, 'B gana el punto de oro');
+  let fip = createMatch(config({ scoringSystem: 'starPoint' }));
+  fip = applyMany(fip, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB', 'pointA', 'pointB', 'pointB', 'pointA']);
+  assert.deepStrictEqual(fip.stats.decisive, { A: 0, B: 0 }, '1.er y 2.º 40-40: ventaja, no son decisivos');
+  fip = applyAction(fip, 'pointA');
+  assert.deepStrictEqual(fip.stats.decisive, { A: 1, B: 0 }, 'El 3.er 40-40 sí');
+});
+
+test('Estadísticas: un partido de una versión anterior las cuenta como parciales', () => {
+  const viejo = createMatch(config());
+  delete viejo.stats;
+  const s = applyAction(viejo, 'pointA');
+  assert.strictEqual(s.stats.partial, true);
+  assert.strictEqual(s.stats.points.A, 1);
+});
+
+// ═════════════════════════════════════════════════════════════════
+// REGLAMENTO FIP 2026 (antes «Punto Estrella»)
 // 1er y 2º 40-40 → se juega ventaja | 3er 40-40 → punto decisivo
 // ═════════════════════════════════════════════════════════════════
 console.log('\nREGLAMENTO FIP 2026');

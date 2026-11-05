@@ -717,7 +717,7 @@ body.is-offline .btn-secondary {
 }
 
 .winner-label {
-  font-size: 0.75rem;
+  font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 3px;
   text-transform: uppercase;
@@ -734,10 +734,32 @@ body.is-offline .btn-secondary {
 }
 
 .final-sets {
-  font-size: 1.1rem;
-  color: var(--text-secondary);
-  letter-spacing: 3px;
+  font-family: var(--font-score);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 2px;
 }
+
+/* Estadísticas del partido terminado */
+.final-stats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+}
+.final-stats:empty { display: none; }
+.fs-row { display: grid; grid-template-columns: 64px 1fr 64px; align-items: center; gap: 8px; }
+.fs-head span { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-val { font-family: var(--font-score); font-size: 1.6rem; font-weight: 700; color: var(--text-primary); }
+.fs-val.is-lead { color: #FFD54A; }
+.fs-label { font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); }
+.fs-duration { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; font-size: 1rem; font-weight: 600; color: var(--text-secondary); }
+.fs-duration .icon { width: 18px; height: 18px; }
 
 .finished-actions {
   display: flex;
