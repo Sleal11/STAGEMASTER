@@ -129,6 +129,7 @@ function applyScreenConfig(next) {
     finale.reset();
   }
   config = next;
+  finale.setStatsEnabled(next.showStats);
 
   dom.court.textContent = next.matchLabel;
   dom.court.style.setProperty('--court-color', next.matchColor);

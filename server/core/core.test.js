@@ -551,7 +551,7 @@ test('Validación de pantalla: partido, vista, tiempos, formato y posición inv�
     { ribbon: { enabled: 'si' } }, { ribbon: { texts: Array(11).fill('x') } }, { media: { imageSeconds: 500 } },
     { ribbon: { cleanLogos: 'no' } }, { output: { brightness: 5 } }, { output: { brightness: 101 } }, { pauseAds: { enabled: 1 } },
     { media: { sound: 1 } }, { endAds: { delay: -1 } }, { output: { format: '4k' } }, { output: { y: 1.5 } },
-    { output: { fit: 'zoom' } }, { output: { fit: true } },
+    { output: { fit: 'zoom' } }, { output: { fit: true } }, { endStats: { enabled: 'no' } },
     { ribbon: 'todo' }, null,
   ].forEach((changes) => assertCode(() => screens.update('pantalla-1', changes, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG'));
   assertCode(() => screens.get('pantalla-7'), 'UNKNOWN_SCREEN');
@@ -889,6 +889,20 @@ test('Formato personalizado: ancho × alto a mano, validado; la pantalla lo reci
   screens.update('pantalla-1', { output: { width: 900 } }, EMPTY_LIBRARY);
   const out = screenConfig.resolveOutput(screens.get('pantalla-1').output);
   assert.deepStrictEqual([out.format, out.width, out.height], ['custom', 900, 416]);
+});
+
+test('Estadísticas al terminar: activadas por defecto, se pueden quitar por pantalla y los espejos siguen a su origen', () => {
+  const screens = freshScreens();
+  assert.strictEqual(screens.get('pantalla-1').endStats.enabled, true, 'Activadas por defecto');
+  screens.update('pantalla-1', { endStats: { enabled: false } }, EMPTY_LIBRARY);
+  assert.strictEqual(screens.get('pantalla-1').endStats.enabled, false);
+  assert.strictEqual(screens.get('pantalla-2').endStats.enabled, true, 'Cada pantalla tiene la suya');
+  screens.update('pantalla-2', { mirrorOf: 'pantalla-1' }, EMPTY_LIBRARY);
+  assert.strictEqual(screens.effective('pantalla-2').endStats.enabled, false, 'Un espejo muestra lo mismo que su origen');
+  const { normalizeSaved } = require('./screenConfig');
+  const BASE = { id: 'pantalla-1', label: 'Pantalla 1', matchId: 'pista-1', matchIds: ['pista-1', 'pista-2'] };
+  assert.strictEqual(normalizeSaved({ endStats: { enabled: false } }, BASE).endStats.enabled, false, 'Se guarda');
+  assert.strictEqual(normalizeSaved({}, BASE).endStats.enabled, true, 'Configuraciones antiguas: activadas');
 });
 
 test('Formatos guardados: con nombre y validados; elegir uno copia su tamaño; borrarlo deja la pantalla igual', () => {

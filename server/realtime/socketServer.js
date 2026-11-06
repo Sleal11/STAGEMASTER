@@ -803,6 +803,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       // Tiempo restante (no la hora): así no importa si el reloj de la pantalla va desajustado
       postMatch:  postMatch && { remainingMs: Math.max(0, postMatch.since + endAds.delay * 1000 - Date.now()) },
       pauseMedia: !!config.pauseMedia,
+      showStats:  config.endStats.enabled,   // al terminar: estadísticas alternándose con el marcador
       output:     resolveOutput(config.output),
       missingAds: ribbon.missing.concat(media.missing),
     };

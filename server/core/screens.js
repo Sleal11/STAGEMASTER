@@ -43,7 +43,7 @@ const MAX_SCREENS    = 8;
  * Lo que un espejo toma de su pantalla origen. Lo demás (id, nombre, formato
  * de salida y brillo) es propio de cada pantalla.
  */
-const CONTENT_FIELDS = ['matchId', 'view', 'ribbon', 'media', 'endAds', 'pauseAds', 'playback', 'playId',
+const CONTENT_FIELDS = ['matchId', 'view', 'ribbon', 'media', 'endAds', 'pauseAds', 'endStats', 'playback', 'playId',
   'postMatch', 'lastFinishKey', 'pauseMedia', 'pauseDismissed'];
 
 const screenNumber = (id) => Number(String(id).replace('pantalla-', ''));

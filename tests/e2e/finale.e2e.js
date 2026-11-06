@@ -77,6 +77,18 @@ const H = require('./harness');
     await D2.screenshot({ path: `${H.OUT}/final-resumen-416.png`, clip: { x: 0, y: 0, width: 416, height: 208 } });
     await D2.waitForSelector('#d-board:not(.hidden)', { timeout: 12000 });
     T.check('…y vuelve el marcador (se alternan)', await D2.isHidden('#d-summary'));
+    // Opción «Mostrar las estadísticas» desactivada: se queda el marcador con el ganador
+    await st.screen('pantalla-2', { endStats: { enabled: false } });
+    await H.sleep(500);
+    await D2.evaluate(() => window.dispatchEvent(new CustomEvent('stagemaster:fase-final', { detail: 'stats' })));
+    await H.sleep(800);
+    T.check('Sin la opción «Mostrar las estadísticas»: solo el marcador con el ganador',
+      await D2.isHidden('#d-summary') && await D2.isVisible('#d-board'));
+    await st.screen('pantalla-2', { endStats: { enabled: true } });
+    await H.sleep(500);
+    await D2.evaluate(() => window.dispatchEvent(new CustomEvent('stagemaster:fase-final', { detail: 'stats' })));
+    await D2.waitForSelector('#d-summary:not(.hidden)', { timeout: 3000 });
+    T.check('…y al volver a activarla, las estadísticas vuelven a salir', true);
 
     // Pantalla grande: las estadísticas registradas
     await st.screen('pantalla-1', { endAds: { enabled: false } });

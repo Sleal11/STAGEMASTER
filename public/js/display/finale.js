@@ -92,6 +92,7 @@ export function createFinale({ summary, celebrate }, onChange) {
   let timer = null;
   let summaryHtml = '';
   let phase = 'score';      // 'score' (marcador) | 'stats' (estadísticas)
+  let statsEnabled = true;  // opción de la pantalla: mostrar o no las estadísticas
   let cycleTimer = null;
 
   /** Nuevo estado del partido que muestra la pantalla (null = sin partido) */
@@ -237,7 +238,9 @@ export function createFinale({ summary, celebrate }, onChange) {
     isFinished: () => !!state && state.status === 'finished',
     isCelebrating: () => celebrating,
     /** Toca ver las estadísticas (en lugar del marcador) */
-    isShowingStats: () => !!state && state.status === 'finished' && !celebrating && phase === 'stats',
+    isShowingStats: () => statsEnabled && !!state && state.status === 'finished' && !celebrating && phase === 'stats',
+    /** Opción de la pantalla: sin estadísticas, se queda el marcador con el ganador */
+    setStatsEnabled: (enabled) => { statsEnabled = enabled !== false; },
     /** Cambió el tamaño de la salida o se mostraron las estadísticas: reajustar los nombres */
     fit,
   };

@@ -19,6 +19,8 @@
  *   endAds    Publicidad al terminar el partido: enabled · delay (segundos que
  *             se ve el resultado antes de la lista de reproducción)
  *   pauseAds  Publicidad mientras el partido está en pausa: enabled
+ *   endStats  Estadísticas al terminar el partido (se alternan con el marcador
+ *             del ganador): enabled
  *   output    Formato de salida: 'fill' (todo el monitor), un formato LED de
  *             tamaño fijo (OUTPUT_FORMATS), 'custom' (width × height a mano) o
  *             un formato guardado (id 'f-…', ver formats.js), en la posición
@@ -84,6 +86,7 @@ function defaultConfig({ id, label, matchId }) {
     media:  { items: [], imageSeconds: 10, sound: false },
     endAds: { enabled: false, delay: 15 },
     pauseAds: { enabled: true },
+    endStats: { enabled: true },
     output: { format: 'fill', x: 0, y: 0, brightness: 100, width: 832, height: 416, fit: 'auto' },
     playback:      'playing',
     playId:        0,
@@ -123,6 +126,7 @@ function normalizeSaved(saved, base) {
   const oneOf = (list) => (v) => list.includes(v);
   const r = saved.ribbon || {}, m = saved.media || {}, e = saved.endAds || {}, o = saved.output || {};
   const pa = saved.pauseAds || {};
+  const es = saved.endStats || {};
 
   config.mirrorOf = typeof saved.mirrorOf === 'string' && /^pantalla-\d+$/.test(saved.mirrorOf) ? saved.mirrorOf : null;
   config.matchId = pick(saved.matchId, oneOf(base.matchIds), config.matchId);
@@ -146,6 +150,7 @@ function normalizeSaved(saved, base) {
     delay:   pick(e.delay, inRange(LIMITS.delay), 15),
   };
   config.pauseAds = { enabled: pick(pa.enabled, bool, true) };
+  config.endStats = { enabled: pick(es.enabled, bool, true) };
   config.output = {
     format: pick(o.format, (v) => v in OUTPUT_FORMATS || v === 'custom' || PRESET_ID.test(v), 'fill'),
     x:      pick(o.x, inRange(LIMITS.offset), 0),
@@ -188,6 +193,7 @@ function applyChanges(config, changes, { matchIds, library, formats = [] }) {
     media:  { ...config.media },
     endAds: { ...config.endAds },
     pauseAds: { ...config.pauseAds },
+    endStats: { ...config.endStats },
     output: { ...config.output },
   };
 
@@ -253,6 +259,9 @@ function applyChanges(config, changes, { matchIds, library, formats = [] }) {
 
   const pauseAds = section('pauseAds');
   if (pauseAds && pauseAds.enabled !== undefined) next.pauseAds.enabled = boolean(pauseAds.enabled, 'Publicidad en la pausa');
+
+  const endStats = section('endStats');
+  if (endStats && endStats.enabled !== undefined) next.endStats.enabled = boolean(endStats.enabled, 'Estadísticas al terminar');
 
   const output = section('output');
   if (output) {

@@ -390,7 +390,10 @@ function contentPanel(screen, state) {
       field('Al terminar', toggle('endAds', screen.id, screen.endAds.enabled, 'Mostrar la lista de reproducción al terminar el partido')) +
       (screen.endAds.enabled ? field('Resultado',
         number('endDelay', screen.id, screen.endAds.delay, state.limits.delay, 'segundos con el resultado antes de la publicidad')) : ''),
-    { note: 'Sale sola y vuelve sola al marcador. Usa los archivos de «Lista de reproducción».' });
+    { note: 'Sale sola y vuelve sola al marcador. Usa los archivos de «Lista de reproducción».' }) +
+    group('Final del partido', 'trophy',
+      field('Estadísticas', toggle('endStats', screen.id, screen.endStats.enabled, 'Mostrar las estadísticas del partido'),
+        'Tras la celebración, el marcador con el ganador y las estadísticas se alternan cada 10 s. Desactivado: se queda el marcador con el ganador.'));
 }
 
 /**
@@ -794,6 +797,7 @@ export function onScreenChange(event) {
     case 'fit':            update(screenId, { output: { fit: el.value } }); break;
     case 'endAds':         update(screenId, { endAds: { enabled: el.checked } }); break;
     case 'pauseAds':       update(screenId, { pauseAds: { enabled: el.checked } }); break;
+    case 'endStats':       update(screenId, { endStats: { enabled: el.checked } }); break;
     case 'endDelay':       update(screenId, { endAds: { delay: value } }); break;
     case 'ribbonEnabled':  update(screenId, { ribbon: { enabled: el.checked } }); break;
     case 'ribbonInterval': update(screenId, { ribbon: { interval: value } }); break;
