@@ -30,8 +30,8 @@ const STATES = [
   { name: 'set2', label: 'Set 2 (un set terminado)', current: 'SET 2', done: 1 },
   { name: 'supertb', label: 'Súper tie-break, nombres largos, punto de oro', current: 'SUPER TB', done: 2 },
   { name: 'pausa', label: 'En pausa', current: 'SET 2', done: 1, badge: 'PAUSA' },
-  { name: 'final', label: 'Terminado sin ganador (resumen)', done: 2, badge: 'FINALIZADO', summary: true },
-  { name: 'ganador', label: 'Ganado 2-0 (celebración y resumen)', done: 2, badge: 'FINALIZADO', winner: true, summary: true },
+  { name: 'final', label: 'Terminado sin ganador (marcador y estadísticas)', done: 2, badge: 'FINALIZADO', summary: true },
+  { name: 'ganador', label: 'Ganado 2-0 (celebración, marcador con el ganador y estadísticas)', done: 2, badge: 'FINALIZADO', winner: true, summary: true },
 ];
 
 const OUT = path.join(H.OUT, 'matriz');
@@ -58,7 +58,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
     for (const s of STATES) {
       await prepare(st, s);
-      // Ganado: primero la celebración (6 s), después el resumen
+      // Ganado: primero la celebración (6 s), después el marcador con el ganador
       if (s.winner) {
         await H.sleep(1500);
         for (const { f, page } of pages) {
@@ -70,10 +70,18 @@ fs.mkdirSync(OUT, { recursive: true });
       }
       for (const { f, page } of pages) {
         if (!page.url().includes('score.html')) await page.goto(`http://localhost:${port}/score.html?pantalla=1`);
-        await page.waitForSelector(s.summary ? '#d-summary:not(.hidden)' : '#d-board:not(.hidden)');
+        await page.waitForSelector('#d-board:not(.hidden)');
         await H.sleep(900);
         const r = await page.evaluate(measure);
         const tag = `${f.name} · ${s.name}`;
+        if (s.winner) {
+          const win = await page.evaluate(() => ({
+            row: document.getElementById('row-a').classList.contains('is-winner'),
+            trophy: getComputedStyle(document.querySelector('#row-a .icon-trophy')).display !== 'none',
+            label: document.getElementById('d-divider-label').textContent,
+          }));
+          T.check(`${tag}: marcador con el ganador (fila destacada y trofeo)`, win.row && win.trophy, JSON.stringify(win));
+        }
         const chips = r.chips.map((c) => c.text);
         if (s.current) {
           T.check(`${tag}: «${s.current} · EN JUEGO» arriba junto al logo`,
@@ -83,13 +91,21 @@ fs.mkdirSync(OUT, { recursive: true });
         }
         if (s.badge) T.check(`${tag}: indicador «${s.badge}»`, r.badge.includes(s.badge), r.badge);
         T.check(`${tag}: nada se sale de la caja ni se solapa con el logo`, r.overflow.length === 0, r.overflow.join(', '));
-        if (s.summary) {
-          T.check(`${tag}: el resumen sustituye al marcador`, r.summary.shown, r.summary.detail);
-          T.check(`${tag}: el resumen cabe (nada se recorta ni se solapa)`, r.summary.fits, r.summary.detail);
-        }
         T.check(`${tag}: los nombres caben`, r.namesFit, r.names);
         T.check(`${tag}: cinta ${Math.round(f.ribbon * 100)} % del alto`, Math.abs(r.ribbonRatio - f.ribbon) < 0.012, (r.ribbonRatio * 100).toFixed(1) + ' %');
         await page.screenshot({ path: path.join(OUT, `${f.name}-${s.name}.png`) });
+        if (s.summary) {
+          // Después, las estadísticas (se alternan con el marcador; aquí sin esperar los 10 s)
+          await page.evaluate(() => window.dispatchEvent(new CustomEvent('stagemaster:fase-final', { detail: 'stats' })));
+          await page.waitForSelector('#d-summary:not(.hidden)');
+          await H.sleep(900);
+          const q = await page.evaluate(measure);
+          T.check(`${tag}: las estadísticas sustituyen al marcador`, q.summary.shown, q.summary.detail);
+          T.check(`${tag}: las estadísticas caben (nada se recorta ni se solapa)`, q.summary.fits && q.overflow.length === 0, q.summary.detail + ' ' + q.overflow.join(', '));
+          T.check(`${tag}: estadísticas legibles (datos a ${f.h <= 220 ? 14 : 18} px o más)`, q.summary.minLabel >= (f.h <= 220 ? 14 : 18), q.summary.minLabel + ' px');
+          T.check(`${tag}: nombres de las estadísticas caben`, q.namesFit, q.names);
+          await page.screenshot({ path: path.join(OUT, `${f.name}-${s.name}-estadisticas.png`) });
+        }
       }
     }
     T.check('Sin errores de JavaScript', errors.length === 0, errors.join(' | '));
@@ -133,7 +149,7 @@ function measure() {
     .map((c) => ({ text: c.textContent.replace(/\s+/g, ' ').trim(), rect: c.getBoundingClientRect() }));
   const overflow = [];
   const inside = (r, outer) => r.left >= outer.left - 1 && r.right <= outer.right + 1 && r.top >= outer.top - 1 && r.bottom <= outer.bottom + 1;
-  ['.d-logo', '#d-court', '#d-badge', '#row-a', '#row-b', '#d-ribbon', '.sum-left', '.sum-right'].forEach((sel) => {
+  ['.d-logo', '#d-court', '#d-badge', '#row-a', '#row-b', '#d-ribbon', '#d-summary'].forEach((sel) => {
     const el = document.querySelector(sel);
     if (!el || el.classList.contains('hidden') || !el.offsetWidth) return;
     if (!inside(el.getBoundingClientRect(), box)) overflow.push(sel);
@@ -151,20 +167,21 @@ function measure() {
   const names = summaryShown ? [...document.querySelectorAll('.sum-name')] : [...document.querySelectorAll('.d-name-line')];
   let summary = { shown: false, fits: true, detail: '' };
   if (summaryShown) {
-    const panels = [...summaryEl.querySelectorAll('.sum-left, .sum-right')].filter(visible);
-    const parts = [...summaryEl.querySelectorAll('.sum-team, .sum-row, .sum-title, .sum-kicker, .sum-sets-list, .sum-duration')].filter(visible);
+    const parts = [...summaryEl.querySelectorAll('.sum-team, .sum-row, .sum-title, .sum-foot')].filter(visible);
     const stage = document.getElementById('d-stage').getBoundingClientRect();
+    const p = summaryEl.getBoundingClientRect();
     const out = parts.filter((el) => {
       const r = el.getBoundingClientRect();
-      const p = el.closest('.sum-left, .sum-right').getBoundingClientRect();
       return r.top < p.top - 1 || r.bottom > p.bottom + 1 || r.left < p.left - 1 || r.right > p.right + 1;
     }).map((el) => el.className);
-    const panelsOut = panels.filter((el) => { const r = el.getBoundingClientRect(); return r.top < stage.top - 1 || r.bottom > stage.bottom + 1; });
-    const rows = summaryEl.querySelectorAll('.sum-row');
+    if (p.top < stage.top - 1 || p.bottom > stage.bottom + 1) out.push('d-summary fuera de la zona del marcador');
+    const rows = [...summaryEl.querySelectorAll('.sum-row')].filter(visible);
+    const labels = [...summaryEl.querySelectorAll('.sum-label')].filter(visible).map((el) => parseFloat(getComputedStyle(el).fontSize));
     summary = {
       shown: document.getElementById('d-board').classList.contains('hidden'),
-      fits: out.length === 0 && panelsOut.length === 0,
-      detail: `${[...rows].filter(visible).length} estadísticas · ${out.concat(panelsOut.map((p) => p.className)).join(', ') || 'todo dentro'}`,
+      fits: out.length === 0,
+      minLabel: labels.length ? Math.min(...labels) : 0,
+      detail: `${rows.length} estadísticas · ${out.join(', ') || 'todo dentro'}`,
     };
   }
   const ribbon = document.getElementById('d-ribbon');

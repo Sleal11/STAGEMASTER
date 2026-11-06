@@ -9,9 +9,11 @@
  *      firma de StageMaster. Una sola vez por final: no se repite al
  *      reconectar, al recargar ni al cambiar la configuración. Si se deshace el
  *      final y se vuelve a terminar, es otro final y se celebra.
- *   2. RESUMEN: sustituye al marcador mientras el partido está terminado
- *      (ganadores, resultado por set y estadísticas REGISTRADAS: juegos, puntos,
- *      puntos de oro, breaks, mejor racha y duración; ver matchSummary en common/score-format.js).
+ *   2. MARCADOR y ESTADÍSTICAS, alternándose mientras el partido está terminado:
+ *      el marcador de siempre con el ganador destacado (trofeo y «GANADOR»,
+ *      scoreboard.js) durante SCORE_MS, y las estadísticas REGISTRADAS solas y en
+ *      grande (juegos, puntos, puntos de oro, breaks, mejor racha y duración; ver
+ *      matchSummary en common/score-format.js) durante STATS_MS, y vuelta a empezar.
  *
  * Con la publicidad al terminar activada, la lista de reproducción empieza
  * cuando toca (main.js), pero nunca antes de que acabe la celebración.
@@ -23,6 +25,8 @@ import { esc } from '../common/ui.js';
 import { applyLogo } from '../common/brand.js';
 
 const CELEBRATE_MS = 6000;
+const SCORE_MS = 10000;   // marcador con el ganador
+const STATS_MS = 10000;   // estadísticas
 const GLINTS = 14;   // destellos dorados que suben (discretos)
 
 /** Pista de pádel en perspectiva (vista desde el fondo): las líneas se dibujan al empezar */
@@ -87,6 +91,8 @@ export function createFinale({ summary, celebrate }, onChange) {
   let celebrating = false;
   let timer = null;
   let summaryHtml = '';
+  let phase = 'score';      // 'score' (marcador) | 'stats' (estadísticas)
+  let cycleTimer = null;
 
   /** Nuevo estado del partido que muestra la pantalla (null = sin partido) */
   function update(next, matchId) {
@@ -102,8 +108,29 @@ export function createFinale({ summary, celebrate }, onChange) {
     if (wasPlaying && next.winner && key !== celebratedKey) {
       celebratedKey = key;
       start(next);
+    } else if (!celebrating && !cycleTimer) {
+      startCycle();   // ya estaba terminado (recarga, otra pantalla…): sin celebración
     }
   }
+
+  /** Marcador SCORE_MS → estadísticas STATS_MS → marcador… (empieza por `from`) */
+  function startCycle(from = 'score') {
+    clearTimeout(cycleTimer);
+    phase = from;
+    const next = () => {
+      phase = phase === 'score' ? 'stats' : 'score';
+      cycleTimer = setTimeout(next, phase === 'score' ? SCORE_MS : STATS_MS);
+      onChange();
+    };
+    cycleTimer = setTimeout(next, phase === 'score' ? SCORE_MS : STATS_MS);
+  }
+
+  // Pruebas automáticas: ir a una fase sin esperar (window.dispatchEvent(new CustomEvent('stagemaster:fase-final', { detail: 'stats' })))
+  window.addEventListener('stagemaster:fase-final', (event) => {
+    if (!state || state.status !== 'finished' || celebrating) return;
+    startCycle(event.detail === 'stats' ? 'stats' : 'score');
+    onChange();
+  });
 
   /** Otro partido en esta pantalla: sin celebrar lo anterior */
   function reset() {
@@ -141,10 +168,12 @@ export function createFinale({ summary, celebrate }, onChange) {
     celebrate.classList.remove('hidden');
     celebrating = true;
     clearTimeout(timer);
+    clearTimeout(cycleTimer);
+    cycleTimer = null;
     timer = setTimeout(() => {
       celebrating = false;
       celebrate.classList.add('hidden');
-      summary.classList.add('is-entering');
+      startCycle();   // después de la celebración: primero el marcador con el ganador
       onChange();
     }, CELEBRATE_MS);
     onChange();
@@ -152,46 +181,34 @@ export function createFinale({ summary, celebrate }, onChange) {
 
   function stop() {
     clearTimeout(timer);
-    const was = celebrating;
+    clearTimeout(cycleTimer);
+    cycleTimer = null;
+    const was = celebrating || phase === 'stats';
     celebrating = false;
+    phase = 'score';
     celebrate.classList.add('hidden');
     celebrate.innerHTML = '';
-    summary.classList.remove('is-entering');
     if (was) onChange();
   }
 
+  /** Estadísticas solas y en grande: cabecera con las parejas y una fila por dato */
   function renderSummary(s) {
     const sum = ScoreFormat.summaryFromState(s);
     const team = (side) => {
       const isWinner = sum.winner === side;
-      return `<div class="sum-team${isWinner ? ' is-winner' : ''}">
-          ${isWinner ? '<svg class="sum-trophy" aria-hidden="true"><use href="img/icons.svg#trophy"></use></svg>' : '<span class="sum-trophy"></span>'}
-          <span class="sum-name">${esc(sum.names[side])}</span>
-          <span class="sum-sets">${sum.setsWon[side]}</span>
-        </div>`;
-    };
-    const bar = (a, b, side) => {
-      const total = a + b;
-      return total ? Math.round(((side === 'A' ? a : b) / total) * 100) : 0;
+      const trophy = isWinner ? '<svg class="sum-trophy" aria-hidden="true"><use href="img/icons.svg#trophy"></use></svg>' : '';
+      const name = `<span class="sum-name">${esc(sum.names[side])}</span>`;
+      return `<div class="sum-team is-${side.toLowerCase()}${isWinner ? ' is-winner' : ''}">${side === 'A' ? trophy + name : name + trophy}</div>`;
     };
     const rows = sum.rows.map((r) => `<div class="sum-row" data-stat="${r.key}">
         <span class="sum-val${r.A > r.B ? ' is-lead' : ''}">${r.A}</span>
-        <span class="sum-bar"><i style="width:${bar(r.A, r.B, 'A')}%"></i></span>
         <span class="sum-label">${esc(r.label)}</span>
-        <span class="sum-bar is-b"><i style="width:${bar(r.A, r.B, 'B')}%"></i></span>
         <span class="sum-val${r.B > r.A ? ' is-lead' : ''}">${r.B}</span>
       </div>`).join('');
     const html = `
-      <div class="sum-left">
-        <div class="sum-kicker">${sum.winner ? 'Resultado final' : 'Partido finalizado · sin ganador'}</div>
-        ${team('A')}${team('B')}
-        <div class="sum-sets-list">${sum.sets.map((t) => `<span>${esc(t)}</span>`).join('')}</div>
-        ${sum.duration ? `<div class="sum-duration"><svg aria-hidden="true"><use href="img/icons.svg#clock"></use></svg>${esc(sum.duration)}</div>` : ''}
-      </div>
-      <div class="sum-right">
-        <div class="sum-title">Estadísticas del partido</div>
-        ${rows}
-      </div>`;
+      <div class="sum-head">${team('A')}<div class="sum-title">Estadísticas</div>${team('B')}</div>
+      <div class="sum-rows">${rows}</div>
+      ${sum.duration ? `<div class="sum-foot"><svg aria-hidden="true"><use href="img/icons.svg#clock"></use></svg>Duración ${esc(sum.duration)}</div>` : ''}`;
     if (html !== summaryHtml) {
       summaryHtml = html;
       summary.innerHTML = html;
@@ -216,10 +233,12 @@ export function createFinale({ summary, celebrate }, onChange) {
   return {
     update,
     reset,
-    /** El partido de esta pantalla está terminado (se ve el resumen) */
+    /** El partido de esta pantalla está terminado */
     isFinished: () => !!state && state.status === 'finished',
     isCelebrating: () => celebrating,
-    /** Cambió el tamaño de la salida o se mostró el resumen: reajustar los nombres */
+    /** Toca ver las estadísticas (en lugar del marcador) */
+    isShowingStats: () => !!state && state.status === 'finished' && !celebrating && phase === 'stats',
+    /** Cambió el tamaño de la salida o se mostraron las estadísticas: reajustar los nombres */
     fit,
   };
 }

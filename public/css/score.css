@@ -212,7 +212,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   max-width: 270cqh;             /* en pantallas muy panorámicas no se estira de más */
   height: 100%;
   display: grid;
-  grid-template-rows: 8cqh 1fr 8cqh 1fr;   /* filas de cada pareja y separador entre ellas */
+  grid-template-rows: 8cqh 1fr 8cqh 1fr;   /* separador: cabe «GANADOR» sin tocar las filas */
   animation: fadeIn var(--transition-slow);
 }
 
@@ -262,10 +262,25 @@ html { width: 100%; height: 100%; overflow: hidden; }
 
 .d-row.is-serving::before { background: var(--d-light); }
 
-/* ── Icono de saque ─────────────────────────────────────────────── */
+.d-row.is-winner {
+  background: var(--d-win-row);
+  border-color: var(--d-light);
+  box-shadow: 0 0 2.5cqh rgba(143, 211, 255, 0.4);
+}
+
+.d-row.is-loser { opacity: 0.6; }
+
+/* ── Icono (pelota de saque / trofeo del ganador) ───────────────── */
 .d-icon { display: flex; align-items: center; justify-content: center; }
 .d-icon svg { display: none; width: 88%; aspect-ratio: 1; }
 .d-row.is-serving .icon-ball { display: block; animation: fadeIn var(--transition-normal); }
+.d-row.is-winner .icon-trophy {
+  display: block;
+  width: 100%;
+  color: var(--d-light);
+  filter: drop-shadow(0 0 0.8cqh rgba(143, 211, 255, 0.55));
+  animation: fadeIn var(--transition-slow);
+}
 
 /* ── Nombres: una línea por jugador ─────────────────────────────── */
 .d-names {
@@ -313,12 +328,26 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .d-pts   { font-size: min(26cqh, 17cqw); background: var(--d-light); color: var(--d-ink); }
 
 .d-pts.is-advantage { background: var(--d-gold); }
+.d-cell.is-empty    { opacity: 0.35; }
 
 /* Partido en pausa: el marcador se atenúa (el badge lo explica) */
 .display.is-paused .d-row { opacity: 0.72; }
 
 /* ── Separador entre parejas ────────────────────────────────────── */
 .d-divider { display: flex; align-items: center; justify-content: center; }
+
+.d-divider-label {
+  font-family: var(--font-score);
+  font-weight: 700;
+  font-size: min(5cqh, 2.8cqw);   /* alto total 1,36 × 5 = 6,8cqh < 8cqh del separador */
+  line-height: 1;
+  padding: 0.18em 0.8em;
+  border-radius: 0.3em;
+  color: var(--d-ink);
+  background: var(--d-light);
+}
+
+.d-divider-label:empty { display: none; }
 
 /* ── Sets en la cabecera, junto al logo ─────────────────────────── */
 .d-history {
@@ -372,6 +401,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   .d-games   { font-size: min(32cqh, 9cqw); }
   .d-pts     { font-size: min(34cqh, 11cqw); }
   .d-cell    { height: 86%; }
+  .d-divider-label { display: none; }   /* el badge de la cabecera ya lo indica */
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -572,55 +602,48 @@ html { width: 100%; height: 100%; overflow: hidden; }
   100% { opacity: 1; transform: none; }
 }
 
+.d-row.anim-winner { animation: winnerGlow 1400ms ease-in-out; }
+
+@keyframes winnerGlow {
+  0%, 100% { box-shadow: 0 0 2.5cqh rgba(143, 211, 255, 0.4); }
+  50%      { box-shadow: 0 0 6cqh rgba(143, 211, 255, 0.85); }
+}
+
 /* ─────────────────────────────────────────────────────────────────
    FINAL DEL PARTIDO (finale.js)
-   Resumen: ocupa la zona del marcador (cqh/cqw de .d-stage).
+   Tras la celebración se alternan el MARCADOR (con el ganador destacado) y
+   las ESTADÍSTICAS, que ocupan solas la zona del marcador (cqh/cqw de
+   .d-stage) con letra grande: legibles en una LED pequeña.
    Celebración: sobre toda la salida (cqh/cqw de .output), 6 s.
    ───────────────────────────────────────────────────────────────── */
 .d-summary {
   width: 100%;
   height: 100%;
   max-width: 300cqh;
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: min(4cqh, 2.4cqw);
-  align-items: stretch;
-  animation: fadeIn var(--transition-slow);
-}
-
-.sum-left, .sum-right {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: min(2.6cqh, 1.4cqw);
-  min-width: 0;
-  padding: min(3.5cqh, 2cqw);
+  gap: min(1.6cqh, 1cqw);
+  padding: min(2.6cqh, 1.6cqw) min(3.4cqh, 2.4cqw);
   border-radius: min(2.6cqh, 1.6cqw);
   background: var(--d-row);
   border: max(2px, 0.5cqh) solid var(--d-row-edge);
+  animation: sumIn 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-.sum-kicker, .sum-title {
-  font-family: var(--font-score);
-  font-weight: 700;
-  font-size: min(6.5cqh, 3.2cqw);
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
-  color: var(--d-light);
-}
-
-.sum-team {
+/* Cabecera: pareja A · ESTADÍSTICAS · pareja B (trofeo junto al ganador) */
+.sum-head {
   display: grid;
-  grid-template-columns: min(11cqh, 5.5cqw) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: min(2cqh, 1.2cqw);
-  padding: min(1.6cqh, 0.9cqw) min(2cqh, 1.2cqw);
-  border-radius: min(1.8cqh, 1.1cqw);
-  opacity: 0.62;
+  gap: min(2.4cqh, 1.6cqw);
+  padding-bottom: min(1.4cqh, 0.9cqw);
+  border-bottom: max(2px, 0.4cqh) solid var(--d-row-edge);
 }
-.sum-team.is-winner { opacity: 1; background: var(--d-win-row); box-shadow: 0 0 2.5cqh rgba(143, 211, 255, 0.35); }
-.sum-trophy { width: 100%; aspect-ratio: 1; color: var(--d-gold); filter: drop-shadow(0 0 0.8cqh rgba(255, 213, 74, 0.6)); }
+.sum-team { display: flex; align-items: center; gap: min(1.6cqh, 1cqw); min-width: 0; opacity: 0.8; }
+.sum-team.is-b { justify-content: flex-end; }
+.sum-team.is-winner { opacity: 1; }
+.sum-trophy { flex-shrink: 0; width: min(9cqh, 4cqw); height: min(9cqh, 4cqw); color: var(--d-gold);
+  filter: drop-shadow(0 0 0.8cqh rgba(255, 213, 74, 0.6)); }
 .sum-name {
   min-width: 0;
   overflow: hidden;
@@ -628,112 +651,79 @@ html { width: 100%; height: 100%; overflow: hidden; }
   text-overflow: ellipsis;
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: min(10cqh, 4.6cqw);
+  font-size: min(8.5cqh, 3.8cqw);
   line-height: 1.1;
   text-transform: uppercase;
   color: #FFFFFF;
 }
-.sum-sets {
-  min-width: min(13cqh, 6cqw);
-  text-align: center;
+.sum-team.is-winner .sum-name { color: var(--d-light); }
+.sum-title {
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: min(12cqh, 5.6cqw);
+  font-size: min(7cqh, 3.2cqw);
+  letter-spacing: 0.12em;
   line-height: 1;
-  color: #FFFFFF;
-  padding: min(0.6cqh, 0.4cqw) min(1.4cqh, 0.8cqw);
-  border-radius: min(1.4cqh, 0.9cqw);
-  background: var(--d-sets-bg);
-}
-.sum-team.is-winner .sum-sets { background: var(--d-light); color: var(--d-ink); }
-
-.sum-sets-list { display: flex; flex-wrap: wrap; gap: min(1.6cqh, 1cqw); }
-.sum-sets-list span {
-  font-family: var(--font-score);
-  font-weight: 700;
-  font-size: min(7.5cqh, 3.4cqw);
-  line-height: 1;
-  color: var(--d-ink);
-  background: var(--d-light-soft);
-  padding: min(0.9cqh, 0.5cqw) min(1.8cqh, 1cqw);
-  border-radius: min(1.2cqh, 0.8cqw);
+  text-transform: uppercase;
+  color: var(--d-gold);
 }
 
-.sum-duration {
-  display: flex;
-  align-items: center;
-  gap: min(1.4cqh, 0.8cqw);
-  font-weight: 700;
-  font-size: min(5.6cqh, 2.6cqw);
-  color: var(--d-light-soft);
-}
-.sum-duration svg { width: 1.2em; height: 1.2em; fill: none; stroke: currentColor; stroke-width: 2.2; }
-
-/* Filas de estadísticas: valor A · barra · nombre · barra · valor B */
+/* Filas: valor A · nombre del dato · valor B (sin barras: todo grande) */
+.sum-rows { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; }
 .sum-row {
   display: grid;
-  grid-template-columns: min(13cqh, 6cqw) minmax(0, 1fr) auto minmax(0, 1fr) min(13cqh, 6cqw);
+  grid-template-columns: min(22cqh, 12cqw) minmax(0, 1fr) min(22cqh, 12cqw);
   align-items: center;
   gap: min(1.6cqh, 1cqw);
 }
+.sum-row + .sum-row { border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .sum-val {
   text-align: center;
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: min(9cqh, 4cqw);
-  line-height: 1;
+  font-size: min(12cqh, 5.4cqw);
+  line-height: 1.05;
   color: #FFFFFF;
 }
 .sum-val.is-lead { color: var(--d-gold); }
 .sum-label {
   text-align: center;
   white-space: nowrap;
-  font-weight: 700;
-  font-size: min(5.2cqh, 2.3cqw);
-  color: var(--d-light-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 800;
+  font-size: min(7cqh, 3.2cqw);
+  color: #FFFFFF;
 }
-.sum-bar { height: min(1.6cqh, 1cqw); border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; display: flex; justify-content: flex-end; }
-.sum-bar.is-b { justify-content: flex-start; }
-.sum-bar i { display: block; height: 100%; border-radius: 999px; background: var(--d-light); }
+.sum-foot { display: flex; align-items: center; justify-content: center; gap: min(1.4cqh, 0.8cqw);
+  font-weight: 700; font-size: min(5.6cqh, 2.6cqw); color: var(--d-light-soft); }
+.sum-foot svg { width: 1.2em; height: 1.2em; fill: none; stroke: currentColor; stroke-width: 2.2; }
 
-/* Entrada tras la celebración: las filas aparecen una tras otra */
-.d-summary.is-entering .sum-left { animation: sumIn 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.d-summary.is-entering .sum-right { animation: sumIn 600ms 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.d-summary.is-entering .sum-row { animation: sumIn 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.d-summary.is-entering .sum-row:nth-of-type(2) { animation-delay: 300ms; }
-.d-summary.is-entering .sum-row:nth-of-type(3) { animation-delay: 420ms; }
-.d-summary.is-entering .sum-row:nth-of-type(4) { animation-delay: 540ms; }
-.d-summary.is-entering .sum-row:nth-of-type(5) { animation-delay: 660ms; }
-.d-summary.is-entering .sum-row:nth-of-type(6) { animation-delay: 780ms; }
-.d-summary.is-entering .sum-bar i { animation: barGrow 900ms 500ms ease-out both; }
+/* Las filas aparecen una tras otra */
+.sum-row { animation: sumIn 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.sum-row:nth-child(2) { animation-delay: 120ms; }
+.sum-row:nth-child(3) { animation-delay: 240ms; }
+.sum-row:nth-child(4) { animation-delay: 360ms; }
+.sum-row:nth-child(5) { animation-delay: 480ms; }
+.sum-row:nth-child(6) { animation-delay: 600ms; }
 
 @keyframes sumIn  { from { opacity: 0; transform: translateY(3cqh); } to { opacity: 1; transform: none; } }
-@keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.sum-bar i { transform-origin: right; }
-.sum-bar.is-b i { transform-origin: left; }
 
-/* Poco alto (LED 832 × 416 con cinta): sin barras, letra más grande, 4 datos */
+/* Poco alto (LED 832 × 416 con cinta): sin la duración, letra a la altura */
 @container (max-height: 260px) {
-  .sum-row { grid-template-columns: min(15cqh, 6.5cqw) minmax(0, 1fr) min(15cqh, 6.5cqw); }
-  .sum-bar { display: none; }
-  .sum-row:nth-of-type(n+6) { display: none; }   /* 1.º es el título: hasta 4 filas */
-  .sum-val { font-size: min(12.5cqh, 4.6cqw); }
-  .sum-label { font-size: min(7.5cqh, 2.7cqw); }
-  .sum-kicker, .sum-title { font-size: min(8cqh, 3cqw); }
-  .sum-name { font-size: min(12.5cqh, 4.6cqw); }
-  .sum-sets { font-size: min(14cqh, 5.2cqw); }
-  .sum-sets-list span { font-size: min(10cqh, 3.6cqw); }
-  .sum-duration { display: none; }
+  .sum-foot { display: none; }
+  .sum-val { font-size: min(13cqh, 5.6cqw); }
+  .sum-label { font-size: min(8.5cqh, 3.4cqw); }
+  .sum-name { font-size: min(10cqh, 4cqw); }
+  .sum-title { font-size: min(8cqh, 3.2cqw); }
 }
-/* Muy poco alto (LED 416 × 208): solo ganadores y resultado, en grande */
+/* Muy poco alto (LED 416 × 208): los 3 primeros datos, en grande */
 @container (max-height: 170px) {
-  .d-summary { grid-template-columns: 1fr; }
-  .sum-right { display: none; }
-  .sum-kicker { display: none; }
-  .sum-team { grid-template-columns: min(16cqh, 6cqw) minmax(0, 1fr) auto; }
-  .sum-name { font-size: min(19cqh, 6.4cqw); }
-  .sum-sets { font-size: min(19cqh, 6.4cqw); }
-  .sum-sets-list span { font-size: min(16cqh, 5.4cqw); }
+  .sum-row:nth-child(n+4) { display: none; }
+  .sum-val { font-size: min(19cqh, 7cqw); }
+  .sum-label { font-size: min(12cqh, 4.6cqw); }
+  .sum-name { font-size: min(13cqh, 4.8cqw); }
+  .sum-title { font-size: min(11cqh, 4cqw); }
+  .sum-trophy { width: 12cqh; height: 12cqh; }
 }
 
 /* ── Celebración (estilo retransmisión deportiva, todo en SVG/CSS) ── */

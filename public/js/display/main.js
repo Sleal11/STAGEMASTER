@@ -200,7 +200,8 @@ function applyOutput() {
  *   Logo                   vista "Publicidad y vídeos" sin nada reproducible
  *                          (nunca una pantalla en negro)
  *   Marcador (+ cinta)     en los demás casos; sin partido, "Próximo partido";
- *                          partido terminado: celebración y después el resumen
+ *                          partido terminado: celebración y después marcador y
+ *                          estadísticas, alternándose
  */
 function updateLayout() {
   if (!config) return;
@@ -218,10 +219,11 @@ function updateLayout() {
 
   dom.media.classList.toggle('hidden', !showMedia);
   dom.standby.classList.toggle('hidden', !showStandby);
-  // Partido terminado: el resumen sustituye al marcador (la celebración va encima)
-  const finished = hasMatch && finale.isFinished();
-  dom.board.classList.toggle('hidden', !hasMatch || finished);
-  dom.summary.classList.toggle('hidden', !finished);
+  // Partido terminado: el marcador (con el ganador) y las estadísticas se alternan;
+  // la celebración va encima
+  const stats = hasMatch && finale.isShowingStats();
+  dom.board.classList.toggle('hidden', !hasMatch || stats);
+  dom.summary.classList.toggle('hidden', !stats);
   dom.celebrate.classList.toggle('hidden', !(showScore && finale.isCelebrating()));
   dom.waiting.classList.toggle('hidden', hasMatch);
 
@@ -231,7 +233,7 @@ function updateLayout() {
   ribbon.setActive(showRibbon);
   // El espacio del marcador cambió (aparece/desaparece la cinta): reajustar nombres
   if (ribbonChanged || showScore) board.fitAll();
-  if (finished && showScore) finale.fit();
+  if (stats && showScore) finale.fit();
   sendReport();
 }
 

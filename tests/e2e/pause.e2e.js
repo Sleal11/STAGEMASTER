@@ -97,8 +97,8 @@ const H = require('./harness');
     await D.waitForSelector('#d-media:not(.hidden)');
     await st.act('pista-1', 'finishMatch');
     await H.sleep(800);
-    T.check('Finalizar en pausa → fin de la pausa: se ve el resultado, con su resumen (publicidad final desactivada)',
-      await D.isVisible('#d-summary') && await D.isHidden('#d-media') && (await D.textContent('#d-badge')).includes('FINALIZADO'));
+    T.check('Finalizar en pausa → fin de la pausa: se ve el resultado en el marcador (publicidad final desactivada)',
+      await D.isVisible('#d-board') && await D.isHidden('#d-media') && (await D.textContent('#d-badge')).includes('FINALIZADO'));
     T.check('Sin errores de JavaScript', errors.length === 0, errors.join(' | '));
   } catch (err) {
     T.check('La prueba se completa sin excepciones', false, err.message.split('\n')[0]);

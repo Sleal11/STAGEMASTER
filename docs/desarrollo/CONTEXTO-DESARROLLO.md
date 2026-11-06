@@ -273,3 +273,8 @@ Ronda 8 (versión 2.8.0) — **estética del panel y fallos de la prueba real** 
 - Historial: `historyChanged {court, saved}` + aviso; recarga al reconectar, al ver un
   final en stationState y cada minuto; reintento y número de petición.
 - Pruebas: `tests/e2e/panel.e2e.js` (21) — incluye una resolución que tarda 5 s.
+- Ajuste tras probar en la LED: el resumen combinado era poco legible. Ahora, tras la
+  celebración, se alternan (finale.js, SCORE_MS / STATS_MS = 10 s) el marcador de
+  antes con el ganador (fila, trofeo, «GANADOR»; restaurado en scoreboard.js) y las
+  estadísticas solas y en grande (#d-summary). Pruebas: evento
+  `stagemaster:fase-final` para ir a una fase sin esperar.

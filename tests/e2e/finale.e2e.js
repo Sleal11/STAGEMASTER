@@ -60,34 +60,48 @@ const H = require('./harness');
     T.check('…y empieza al acabar la celebración', true);
     T.check('La celebración salió una sola vez', (await D1.evaluate(() => window.celebrations)) === 1);
 
-    // Pantalla 2 (sin publicidad final, LED 416 × 208): el resumen sustituye al marcador
-    await D2.waitForSelector('#d-summary:not(.hidden)');
-    T.check('Resumen en lugar del marcador (pantalla sin publicidad final)', await D2.isHidden('#d-board'));
+    // Pantalla 2 (sin publicidad final, LED 416 × 208): tras la celebración, primero
+    // el marcador con el ganador destacado; después las estadísticas, y se alternan
+    await D2.waitForSelector('#d-celebrate.hidden', { state: 'attached', timeout: 4000 });
+    await D2.waitForSelector('#d-board:not(.hidden)');
+    T.check('Tras la celebración: el marcador con el ganador (fila destacada, trofeo y «GANADOR»)',
+      await D2.isHidden('#d-summary') && (await D2.$eval('#row-a', (el) => el.classList.contains('is-winner'))) &&
+      await D2.isVisible('#row-a .icon-trophy') && (await D2.textContent('#d-divider-label')) === 'GANADOR');
+    await D2.screenshot({ path: `${H.OUT}/final-marcador-416.png`, clip: { x: 0, y: 0, width: 416, height: 208 } });
+    await D2.waitForSelector('#d-summary:not(.hidden)', { timeout: 12000 });
+    T.check('A los 10 s: las estadísticas en lugar del marcador', await D2.isHidden('#d-board'));
     const fits = await D2.$$eval('.sum-name', (els) => els.every((el) => el.scrollWidth <= el.clientWidth + 1));
-    T.check('LED 416 × 208: el resumen cabe (nombres sin desbordar)', fits);
+    T.check('LED 416 × 208: las estadísticas caben (nombres sin desbordar)', fits);
+    const small = await D2.$$eval('.sum-label', (els) => els.filter((el) => el.offsetParent).map((el) => parseFloat(getComputedStyle(el).fontSize)));
+    T.check('LED 416 × 208: letra legible (los datos a 14 px o más)', small.length >= 3 && Math.min(...small) >= 14, small.join(', '));
     await D2.screenshot({ path: `${H.OUT}/final-resumen-416.png`, clip: { x: 0, y: 0, width: 416, height: 208 } });
+    await D2.waitForSelector('#d-board:not(.hidden)', { timeout: 12000 });
+    T.check('…y vuelve el marcador (se alternan)', await D2.isHidden('#d-summary'));
 
-    // Pantalla grande: resumen con las estadísticas registradas
+    // Pantalla grande: las estadísticas registradas
     await st.screen('pantalla-1', { endAds: { enabled: false } });
+    await D1.waitForSelector('#d-board:not(.hidden)', { timeout: 5000 });
+    await D1.evaluate(() => window.dispatchEvent(new CustomEvent('stagemaster:fase-final', { detail: 'stats' })));
     await D1.waitForSelector('#d-summary:not(.hidden)', { timeout: 5000 });
     const rows = await D1.$$eval('.sum-row', (els) => els.map((el) => el.innerText.replace(/\s+/g, ' ').trim()));
     const points = rows.find((r) => r.includes('Puntos ganados')) || '';
     T.check('Estadísticas reales: puntos ganados = los del marcador',
       points.startsWith(String(state.stats.points.A)) && points.endsWith(String(state.stats.points.B)), points);
     T.check('Con punto de oro: incluye los puntos de oro ganados', rows.some((r) => r.includes('Puntos de oro')), rows.join(' | '));
-    T.check('El ganador está destacado (trofeo y fila del ganador)', (await D1.textContent('.sum-team.is-winner')).includes('Leal'));
+    T.check('El ganador está destacado (trofeo junto a su nombre)', (await D1.textContent('.sum-team.is-winner')).includes('Leal') && !!(await D1.$('.sum-team.is-winner .sum-trophy')));
     await D1.screenshot({ path: `${H.OUT}/final-resumen.png` });
 
     // Recargar: no se repite la celebración
     await D1.reload();
-    await D1.waitForSelector('#d-summary:not(.hidden)');
+    await D1.waitForSelector('#d-board:not(.hidden)');
     await H.sleep(800);
-    T.check('Recargar la pantalla no repite la celebración', await D1.isHidden('#d-celebrate'));
+    T.check('Recargar la pantalla no repite la celebración (sale el marcador con el ganador)',
+      await D1.isHidden('#d-celebrate') && (await D1.textContent('#d-divider-label')) === 'GANADOR');
 
     // Deshacer el final → vuelve el marcador; terminar otra vez → otro final, se celebra
     await st.act('pista-1', 'undo');
     await D1.waitForSelector('#d-board:not(.hidden)');
-    T.check('Deshacer el último punto: vuelve el marcador', await D1.isHidden('#d-summary'));
+    T.check('Deshacer el último punto: vuelve el marcador (sin ganador)', await D1.isHidden('#d-summary') && (await D1.textContent('#d-divider-label')) === '');
     await finish();
     await D1.waitForSelector('#d-celebrate:not(.hidden)', { timeout: 4000 });
     T.check('Volver a terminar es otro final: se celebra de nuevo', true);
