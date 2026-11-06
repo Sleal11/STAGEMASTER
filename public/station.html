@@ -66,35 +66,80 @@
   <main id="view-panel" class="st-main">
     <!-- Aviso: el firewall de Windows no deja entrar a los teléfonos (main.js) -->
     <div id="st-phones-alert"></div>
-    <section class="st-section">
-      <div class="st-section-head">
-        <h2 class="st-section-title">Partidos</h2>
-      </div>
-      <!-- Acceso de los árbitros: UN solo QR; el código de cada pista decide la pista -->
-      <div id="st-referee-access"></div>
-      <div id="st-matches" class="st-grid"></div>
-    </section>
-
-    <section class="st-section">
-      <div class="st-section-head">
-        <h2 class="st-section-title">Pantallas</h2>
+    <!--
+      Dos zonas bien distintas: PISTAS (partidos, árbitros) y PANTALLAS (lo que ve
+      el público). Cada zona, el acceso de los árbitros y cada tarjeta se pueden
+      minimizar con su botón ⌄ (js/station/collapse.js); se recuerda en este portátil.
+    -->
+    <section class="st-section st-zone st-zone-courts" data-collapsible="zona-pistas">
+      <div class="st-section-head st-zone-head">
+        <div class="st-zone-title">
+          <span class="st-zone-icon"><svg class="icon"><use href="img/icons.svg#court"></use></svg></span>
+          <div>
+            <h2 class="st-section-title">Pistas y partidos</h2>
+            <p class="st-zone-sub">El partido de cada pista, el árbitro y su código</p>
+          </div>
+        </div>
         <div class="st-section-actions">
-          <button id="st-add-screen" class="btn btn-secondary btn-sm" type="button">
-            <svg class="icon"><use href="img/icons.svg#plus"></use></svg>Añadir pantalla
-          </button>
-          <button id="st-refresh-ads" class="btn btn-ghost btn-sm" type="button">
-            <svg class="icon"><use href="img/icons.svg#refresh"></use></svg>Actualizar publicidad
+          <span id="st-courts-summary" class="st-zone-summary"></span>
+          <button type="button" class="collapse-btn" data-collapse="zona-pistas" aria-expanded="true" aria-label="Minimizar las pistas">
+            <svg class="icon"><use href="img/icons.svg#chevron"></use></svg>
           </button>
         </div>
       </div>
-      <div id="st-screens" class="st-grid"></div>
+      <div class="st-zone-body">
+        <!-- Acceso de los árbitros: UN solo QR; el código de cada pista decide la pista -->
+        <div id="st-referee-access"></div>
+        <div id="st-matches" class="st-grid"></div>
+      </div>
     </section>
 
-    <section id="st-remotes-section" class="st-section hidden">
-      <div class="st-section-head">
-        <h2 class="st-section-title">Portátiles remotos</h2>
+    <section class="st-section st-zone st-zone-screens" data-collapsible="zona-pantallas">
+      <div class="st-section-head st-zone-head">
+        <div class="st-zone-title">
+          <span class="st-zone-icon"><svg class="icon"><use href="img/icons.svg#monitor"></use></svg></span>
+          <div>
+            <h2 class="st-section-title">Pantallas LED</h2>
+            <p class="st-zone-sub">Lo que ve el público: marcador, cinta y publicidad de cada pantalla</p>
+          </div>
+        </div>
+        <div class="st-section-actions">
+          <span id="st-screens-summary" class="st-zone-summary"></span>
+          <button id="st-add-screen" class="btn btn-secondary btn-sm st-zone-tool" type="button">
+            <svg class="icon"><use href="img/icons.svg#plus"></use></svg>Añadir pantalla
+          </button>
+          <button id="st-refresh-ads" class="btn btn-ghost btn-sm st-zone-tool" type="button">
+            <svg class="icon"><use href="img/icons.svg#refresh"></use></svg>Actualizar publicidad
+          </button>
+          <button type="button" class="collapse-btn" data-collapse="zona-pantallas" aria-expanded="true" aria-label="Minimizar las pantallas">
+            <svg class="icon"><use href="img/icons.svg#chevron"></use></svg>
+          </button>
+        </div>
       </div>
-      <div id="st-remotes" class="st-card st-remotes"></div>
+      <div class="st-zone-body">
+        <div id="st-screens" class="st-grid"></div>
+      </div>
+    </section>
+
+    <section id="st-remotes-section" class="st-section st-zone st-zone-remotes hidden" data-collapsible="zona-remotos">
+      <div class="st-section-head st-zone-head">
+        <div class="st-zone-title">
+          <span class="st-zone-icon"><svg class="icon"><use href="img/icons.svg#wifi"></use></svg></span>
+          <div>
+            <h2 class="st-section-title">Portátiles remotos</h2>
+            <p class="st-zone-sub">Otros portátiles que muestran pantallas o controlan la estación</p>
+          </div>
+        </div>
+        <div class="st-section-actions">
+          <span id="st-remotes-summary" class="st-zone-summary"></span>
+          <button type="button" class="collapse-btn" data-collapse="zona-remotos" aria-expanded="true" aria-label="Minimizar los portátiles remotos">
+            <svg class="icon"><use href="img/icons.svg#chevron"></use></svg>
+          </button>
+        </div>
+      </div>
+      <div class="st-zone-body">
+        <div id="st-remotes" class="st-card st-remotes"></div>
+      </div>
     </section>
   </main>
 

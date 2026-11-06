@@ -1,4 +1,4 @@
-# StageMaster · Informe del proyecto (versión 2.7.0)
+# StageMaster · Informe del proyecto (versión 2.8.0)
 
 > Estado a **noviembre de 2026**. Versión que está operando en eventos reales.
 > Resumen corto: [`RESUMEN.md`](../RESUMEN.md). Historial del desarrollo:
@@ -123,7 +123,7 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 - Cada cambio en la rama de trabajo compila el `.exe` y el `.zip` **en un Windows real**
   (GitHub Actions) tras pasar las pruebas, y los publica en el enlace fijo de prueba:
   `releases/download/prueba/StageMaster-prueba.exe` (y `.zip`).
-- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.7.0` → Releases.
+- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.8.0` → Releases.
 - Mientras se valida una versión grande, la prueba se publica en `prueba-nueva`
   (la anterior sigue en `prueba`); variable `PRUEBA_TAG` del flujo de compilación.
 
@@ -150,13 +150,16 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 | Núcleo del servidor | 74 | Partidos, versiones, códigos de pista únicos, tokens, pantallas, publicidad, formatos, migraciones |
 | Monitores | 14 | Qué pantalla va en qué monitor al conectar/desconectar |
 | Integración | 47 | Servidor real + estación + teléfonos (el código decide la pista) + pantallas + portátil remoto por la IP de red |
-| Navegador y Electron (e2e) | 13 conjuntos · 315 comprobaciones | Estación, teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
+| Navegador y Electron (e2e) | 14 conjuntos · 337 comprobaciones | Estación (zonas, minimizar, pestañas con resumen, Todos/Ninguno, Historial al instante, resolución lenta), teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
 | Windows real (CI) | 2 | Cambio de resolución y firewall en un Windows de verdad |
 
 ## 5. Análisis de errores (y su corrección)
 
 | Problema | Efecto | Corrección |
 |---|---|---|
+| Cambiar la resolución avisaba «El servidor no respondió» (2.8.0) | Windows tarda 5-10 s (3 llamadas a PowerShell) y la estación solo esperaba 4 s; el modo sí se aplicaba | Espera hasta 45 s en las órdenes que van a Windows, comprobar y aplicar en una sola llamada, lista de monitores reutilizada, «Aplicando…» en el diálogo |
+| «Permitir teléfonos» podía decir lo mismo (2.8.0) | El aviso de administrador de Windows tarda lo que tarde el operador | Espera hasta 2 min |
+| El Historial podía no mostrar el último partido hasta reiniciar (2.8.0) | Un aviso perdido (reconexión), una carga lenta que pisaba a la nueva o una respuesta fallida sin reintento | Se recarga al reconectar, al ver un final en el estado, cada minuto con la vista abierta; reintento a los 3 s; solo cuenta la última carga; aviso «partido guardado» |
 | Dos pistas podían tener el mismo PIN (1 de 10 000) (2.7.0) | Con el código único que decide la pista, el árbitro podría entrar en la pista equivocada | Códigos nunca repetidos (al crear, al arrancar y con «Nuevo código») |
 | Grises de texto con poco contraste (2.7.0) | Teléfono 2,4:1 y estación 4,6:1: difíciles de leer | 5,1:1 y 6,3:1; errores en rojo claro |
 | Textos de 9-11 px en el teléfono (2.7.0) | Nombres de las parejas en los botones casi ilegibles | Tamaños por prioridad (nombres 16 px) |
@@ -191,7 +194,7 @@ ya era atómico y todas las órdenes validan sus datos.
 2. **Router propio** para el evento (sin Internet, con contraseña) y el portátil enchufado a la corriente.
 3. Publicidad en **2:1** (832 × 416 o 1664 × 832, como `marketing/videos-led/`) y vídeos MP4 H.264.
 4. Hacer el **simulacro** de [`SIMULACRO-EVENTO.md`](SIMULACRO-EVENTO.md) antes de cada evento grande.
-5. Publicar la versión para el cliente en **Releases** (`v2.7.0`) y usar ese enlace fijo.
+5. Publicar la versión para el cliente en **Releases** (`v2.8.0`) y usar ese enlace fijo.
 
 ### Mejoras de funcionalidad (por orden de valor)
 | # | Mejora | Valor | Esfuerzo |

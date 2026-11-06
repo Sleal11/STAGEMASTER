@@ -222,9 +222,23 @@ async function monitorOf(screenId) {
   const monitor = list.find((m) => m.key === monitorKey);
   if (!monitor) throw modeError('Ese monitor ya no está conectado');
   if (monitor.primary) throw modeError('La resolución de la pantalla del portátil no se cambia desde aquí (en ella está la estación)');
-  const device = displayModes.matchDevices(list, await displayModes.list())[monitorKey];
+  const device = displayModes.matchDevices(list, await windowsDevices())[monitorKey];
   if (!device) throw modeError('No se pudo identificar este monitor en Windows. Cambia la resolución en Configuración de pantalla de Windows');
   return { monitor, device };
+}
+
+/**
+ * Monitores de Windows. Leerlos tarda 1-3 s (PowerShell): al abrir el diálogo de
+ * resolución se leen y «Probar», justo después, reutiliza esa lectura.
+ * Cualquier cambio de modo la invalida.
+ */
+let devicesCache = null;   // { at, devices }
+const DEVICES_CACHE_MS = 60000;
+async function windowsDevices({ fresh = false } = {}) {
+  if (!fresh && devicesCache && Date.now() - devicesCache.at < DEVICES_CACHE_MS) return devicesCache.devices;
+  const devices = await displayModes.list();
+  devicesCache = { at: Date.now(), devices };
+  return devices;
 }
 
 /** Un fallo de Windows (PowerShell) se explica en vez de "error interno" */
@@ -239,6 +253,7 @@ async function revertPendingMode() {
   if (!pending) return;
   clearTimeout(pending.timer);
   pendingMode = null;
+  devicesCache = null;
   const result = await displayModes.apply(pending.device, pending.previous, 'dynamic').catch((err) => ({ ok: false, message: err.message }));
   if (!result.ok) console.warn('[Escritorio] No se pudo volver a la resolución anterior:', result.message);
   listeners.forEach((listener) => listener());
@@ -302,6 +317,7 @@ const desktopAdapter = {
 
   /** Modos (ancho × alto @ Hz) que admite el monitor de una pantalla */
   listModes: explained(async (screenId) => {
+    devicesCache = null;   // al abrir el diálogo, siempre la lista real
     const { monitor, device } = await monitorOf(screenId);
     return { monitor: monitor.label, name: device.monitor, adapter: device.adapter, current: device.current, modes: device.modes };
   }),
@@ -312,10 +328,10 @@ const desktopAdapter = {
     const { monitor, device } = await monitorOf(screenId);
     const next = device.modes.find((m) => m.width === mode.width && m.height === mode.height && m.hz === mode.hz);
     if (!next) throw modeError('Ese modo no está en la lista del monitor');
-    const tested = await displayModes.apply(device.device, next, 'test');
-    if (!tested.ok) throw modeError(`Windows no acepta ese modo: ${tested.message}`);
-    const applied = await displayModes.apply(device.device, next, 'dynamic');
-    if (!applied.ok) throw modeError(applied.message);
+    // Comprobar y aplicar en una sola llamada a Windows (antes eran dos: tardaba el doble)
+    devicesCache = null;
+    const applied = await displayModes.apply(device.device, next, 'try');
+    if (!applied.ok) throw modeError(applied.stage === 'test' ? `Windows no acepta ese modo: ${applied.message}` : applied.message);
     const revertAt = Date.now() + REVERT_SECONDS * 1000;
     pendingMode = {
       screenId, label: monitor.label, device: device.device, previous: device.current, next, revertAt,
@@ -331,6 +347,7 @@ const desktopAdapter = {
     if (!pending) throw modeError('No hay ningún cambio de resolución pendiente');
     clearTimeout(pending.timer);
     pendingMode = null;
+    devicesCache = null;
     const saved = await displayModes.apply(pending.device, pending.next, 'persist');
     listeners.forEach((listener) => listener());
     if (!saved.ok) throw modeError(`Se ve, pero Windows no lo guardó (${saved.message}): al reiniciar volverá al anterior`);

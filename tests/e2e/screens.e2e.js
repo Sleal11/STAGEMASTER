@@ -46,7 +46,7 @@ const score = (page) => page.evaluate(() =>
     await D3.goto(`http://localhost:${port}/score.html?pantalla=3`);
     await D1.waitForSelector('#d-board:not(.hidden)');
     await D3.waitForSelector('#d-board:not(.hidden)');
-    await S.waitForSelector('[data-screen-card="pantalla-3"] .dot.ok');
+    await S.waitForSelector('[data-screen-card="pantalla-3"] [data-part="status"] .dot.ok');
     T.check('La estación ve conectada la Pantalla 3', true);
 
     // ── Espejo ──

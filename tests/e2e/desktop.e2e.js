@@ -48,7 +48,7 @@ const isScreen = (page, n) => page.url().includes(`/score.html?pantalla=${n}`);
     const D1 = await opened;
     await D1.waitForSelector('#d-waiting:not(.hidden), #d-board:not(.hidden)');
     T.check('«Ventana de prueba» abre la Pantalla 1', isScreen(D1, 1));
-    await S.waitForSelector('[data-screen-card="pantalla-1"] .dot.ok');
+    await S.waitForSelector('[data-screen-card="pantalla-1"] [data-part="status"] .dot.ok');
     T.check('La estación la ve conectada «en este portátil»',
       (await S.textContent('[data-screen-card="pantalla-1"] [data-part="status"]')).includes('en este portátil'));
 

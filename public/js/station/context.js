@@ -16,6 +16,19 @@
  */
 
 const REQUEST_TIMEOUT_MS = 4000;
+/**
+ * Órdenes que esperan a Windows (PowerShell, permiso de administrador): pueden
+ * tardar bastante más que el resto. Con 4 s salía «El servidor no respondió»
+ * mientras Windows aún cambiaba la resolución (y el cambio sí se hacía).
+ */
+const SLOW_REQUESTS_MS = {
+  'station:listModes':    30000,
+  'station:applyMode':    45000,   // comprobar + cambiar el modo (el monitor se resincroniza)
+  'station:confirmMode':  30000,
+  'station:revertMode':   30000,
+  'station:allowPhones': 120000,   // el operador tiene que aceptar el aviso de Windows
+  'station:checkNetwork': 30000,
+};
 /** Errores que el módulo que envía la orden gestiona por su cuenta (con un diálogo) */
 const HANDLED_CODES = ['MATCH_IN_PROGRESS'];
 
@@ -46,8 +59,9 @@ export function send(eventName, payload, button) {
     return Promise.resolve({ ok: false, message: 'Sin conexión' });
   }
   setLoading(button, true);
-  return ctx.socket.timeout(REQUEST_TIMEOUT_MS).emitWithAck(eventName, payload)
-    .catch(() => ({ ok: false, message: 'El servidor no respondió' }))
+  const slow = SLOW_REQUESTS_MS[eventName];
+  return ctx.socket.timeout(slow || REQUEST_TIMEOUT_MS).emitWithAck(eventName, payload)
+    .catch(() => ({ ok: false, message: slow ? 'Windows tardó demasiado en responder. Revisa la pantalla y vuelve a intentarlo' : 'El servidor no respondió' }))
     .then((response) => {
       setLoading(button, false);
       if (!response.ok && !HANDLED_CODES.includes(response.code)) {

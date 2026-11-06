@@ -26,7 +26,8 @@ import { renderScreens, onScreenClick, onScreenChange, onScreenInput } from './s
 import { initUploads } from './uploads.js';
 import { renderRemotes, onRemotesClick } from './remotes.js';
 import { renderLive, setLiveVisible } from './live.js';
-import { initHistory, updateCourts, setHistoryVisible, onHistoryChanged } from './history.js';
+import { initHistory, updateCourts, setHistoryVisible, onHistoryChanged, onReconnected as historyReconnected } from './history.js';
+import { initCollapse, expand } from './collapse.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -42,6 +43,7 @@ function connectToServer() {
   socket.on('connect', () => {
     setConnection('ok', 'Servidor conectado');
     $('st-blocked').classList.add('hidden');
+    historyReconnected();
   });
   socket.on('disconnect', () => setConnection('bad', 'Sin conexión con el servidor · Reconectando…'));
   socket.on('connect_error', (err) => {
@@ -80,9 +82,28 @@ function render(state) {
   renderMatches(state);
   renderScreens(state);
   renderRemotes(state);
+  renderZoneSummaries(state);
   renderLive(state);
   updateCourts(state);
   tick();
+}
+
+/** Resumen de cada zona del Panel (se lee también con la zona minimizada) */
+function renderZoneSummaries(state) {
+  const count = (list, test) => list.filter(test).length;
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const playing  = count(state.matches, (m) => m.state && m.state.status === 'playing');
+  const finished = count(state.matches, (m) => m.state && m.state.status === 'finished');
+  patch($('st-courts-summary'), [plural(state.matches.length, 'pista', 'pistas'),
+    playing && `<span class="dot ok"></span>${playing} en juego`, finished && `${finished} ${finished === 1 ? 'finalizada' : 'finalizadas'}`]
+    .filter(Boolean).join(' · '));
+  const online = count(state.screens, (s) => s.displays.length > 0);
+  patch($('st-screens-summary'), `${plural(state.screens.length, 'pantalla', 'pantallas')} · ` +
+    `<span class="dot ${online === state.screens.length ? 'ok' : online ? 'warn' : 'bad'}"></span>${online} ${online === 1 ? 'conectada' : 'conectadas'}`);
+  if (state.remotes) {
+    const linked = state.remotes.list.length;
+    patch($('st-remotes-summary'), linked ? plural(linked, 'portátil enlazado', 'portátiles enlazados') : 'Ninguno enlazado');
+  }
 }
 
 /**
@@ -159,6 +180,7 @@ function showView(view) {
 }
 
 applyLogo();
+initCollapse();
 initDialogs();
 initUploads();
 initHistory();
@@ -188,6 +210,7 @@ $('live-grid').addEventListener('click', (event) => {
   if (button.dataset.action === 'identify') send('station:identify', { screenId: screen }, button);
   if (button.dataset.action === 'goto') {
     showView('panel');
+    expand('zona-pantallas', 'pantalla:' + screen);
     const card = document.querySelector(`[data-screen-card="${screen}"]`);
     if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }

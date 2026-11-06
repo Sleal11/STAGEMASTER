@@ -932,3 +932,169 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
 .st-phones-alert > .icon { width: 24px; height: 24px; color: #FCA5A5; flex-shrink: 0; }
 .st-phones-alert-text { flex: 1 1 360px; line-height: 1.5; font-size: 0.92rem; color: #FDE2E2; }
 .st-phones-alert-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ─────────────────────────────────────────────────────────────────
+   PANEL 2.8: ZONAS (PISTAS / PANTALLAS) Y APARTADOS QUE SE MINIMIZAN
+   Pistas: tarjetas con la cabecera del color de la pista.
+   Pantallas: tarjetas oscuras con un monitor y una franja del color de
+   la pista que muestran (así no se confunden con las pistas).
+   ───────────────────────────────────────────────────────────────── */
+.st-zone {
+  --zone-color: var(--st-accent);
+  padding: 14px 18px 20px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--zone-color) 28%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--zone-color) 9%, transparent), transparent 120px),
+    rgba(6, 20, 44, 0.55);
+}
+.st-zone-courts  { --zone-color: #34D399; }   /* verde pista */
+.st-zone-screens { --zone-color: #A5B4FC; }   /* lavanda pantalla */
+.st-zone-remotes { --zone-color: #7DD3FC; }
+.st-zone-head { margin-bottom: 14px; }
+.st-zone-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.st-zone-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 42px; height: 42px; border-radius: 12px;
+  background: color-mix(in srgb, var(--zone-color) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--zone-color) 45%, transparent);
+  color: var(--zone-color);
+}
+.st-zone-icon .icon { width: 22px; height: 22px; }
+.st-zone .st-section-title { font-size: 1rem; letter-spacing: 0.14em; color: #FFFFFF; }
+.st-zone-sub { margin: 2px 0 0; font-size: 0.86rem; color: var(--st-muted); }
+.st-zone-summary { display: inline-flex; align-items: center; gap: 6px; font-size: 0.86rem; font-weight: 600; color: var(--st-soft); }
+.st-zone-summary:empty { display: none; }
+.st-zone.is-collapsed { padding-bottom: 14px; }
+.st-zone.is-collapsed .st-zone-head { margin-bottom: 0; }
+.st-zone.is-collapsed > .st-zone-body,
+.st-zone.is-collapsed .st-zone-tool { display: none; }
+
+/* Botón ⌄ para minimizar (zonas, acceso de los árbitros y tarjetas) */
+.collapse-btn {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 34px; height: 34px; border-radius: 999px;
+  background: rgba(4, 18, 43, 0.6); border: 1px solid var(--st-border-2); color: var(--st-soft);
+  cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast);
+}
+.collapse-btn .icon { width: 18px; height: 18px; transition: transform 200ms ease; }
+.collapse-btn:hover { background: rgba(143, 211, 255, 0.16); color: #FFFFFF; }
+.collapse-btn:focus-visible { outline: 3px solid var(--st-accent); outline-offset: 2px; }
+.collapse-btn[aria-expanded="false"] .icon { transform: rotate(-90deg); }
+.st-card-head .collapse-btn { width: 30px; height: 30px; background: rgba(4, 18, 43, 0.85); border-color: transparent; color: #FFFFFF; }
+
+/* Tarjetas minimizadas: solo la cabecera, con el resumen */
+.st-card-mini { display: none; flex: 1; min-width: 0; align-items: center; gap: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; font-weight: 700; }
+.st-card.is-collapsed .st-card-mini { display: inline-flex; }
+.st-card.is-collapsed > .st-card-body { display: none; }
+.st-card-name { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.st-card-icon { width: 22px; height: 22px; flex-shrink: 0; }
+
+/* Pistas: cabecera del color de la pista (como siempre) */
+.st-court .st-card-head { padding: 10px 12px 10px 16px; }
+.st-court .st-card-icon { color: #04122B; opacity: 0.75; }
+
+/* Pantallas: cabecera oscura con franja del color de la pista que muestran */
+.st-screen { border-color: color-mix(in srgb, var(--st-border) 70%, #A5B4FC 30%); }
+.st-screen .st-card-head {
+  padding: 10px 12px 10px 14px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--court-color) 22%, transparent), transparent 55%), #0A1F48;
+  border-left: 6px solid var(--court-color);
+  border-bottom: 1px solid var(--st-border);
+  color: #FFFFFF;
+}
+.st-screen .st-card-icon { color: var(--court-color); }
+.st-screen [data-part="chip"] { background: var(--court-color); color: #04122B; }
+.st-screen [data-part="chip"].mirror { background: #133A7A; color: var(--st-accent); }
+.st-screen .st-card-head .icon-btn { background: rgba(255, 255, 255, 0.08); }
+.st-screen .st-card-head .collapse-btn { background: rgba(255, 255, 255, 0.08); }
+.st-screen .st-card-mini { color: var(--st-soft); font-weight: 600; }
+
+/* Acceso de los árbitros: minimizado queda una línea con la dirección */
+.st-referee-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#st-referee-access.is-collapsed .st-qr,
+#st-referee-access.is-collapsed .st-steps { display: none; }
+#st-referee-access.is-collapsed .st-referee { padding: 10px 16px; }
+#st-referee-access.is-collapsed .st-referee-text { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 18px; flex: 1; }
+#st-referee-access.is-collapsed .st-referee-head { display: contents; }
+#st-referee-access.is-collapsed .st-referee-head .collapse-btn { order: 2; margin-left: auto; }
+#st-referee-access.is-collapsed .st-referee-title { font-size: 1.15rem; }
+.st-referee-text { flex: 1; }
+
+/* «En la pantalla ahora» */
+.st-live-label { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--st-accent); }
+
+/* Pestañas de la pantalla: 4 botones grandes con su resumen a la vista */
+.tabs-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  border-bottom: 0;
+}
+.tabs-tiles .tab {
+  display: flex; align-items: flex-start; gap: 8px; min-width: 0;
+  padding: 10px 10px 9px;
+  border: 1px solid var(--st-border);
+  border-bottom: 3px solid var(--st-border);
+  border-radius: 10px;
+  background: var(--st-surface-2);
+  white-space: normal;
+  text-align: left;
+}
+.tabs-tiles .tab .icon { width: 18px; height: 18px; margin-top: 1px; flex-shrink: 0; color: var(--st-accent); }
+.tab-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tab-title { font-size: 0.88rem; font-weight: 700; color: #FFFFFF; line-height: 1.2; }
+.tab-sub { font-size: 0.78rem; font-weight: 600; color: var(--st-muted); line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tabs-tiles .tab:hover { border-color: var(--st-border-2); background: #0F2D63; }
+.tabs-tiles .tab.is-active { background: #133A7A; border-color: var(--st-accent); border-bottom-color: var(--st-accent);
+  box-shadow: 0 0 0 1px var(--st-accent) inset; }
+.tabs-tiles .tab.is-active .tab-sub { color: var(--st-soft); }
+.tabs-tiles .tab.is-off .tab-sub { color: #FCA5A5; }
+/* Tarjeta estrecha (dos por fila en un portátil): 2 × 2 */
+.st-screen > .st-card-body { container-type: inline-size; }
+@container (max-width: 640px) { .tabs-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Grupos de ajustes dentro de cada pestaña */
+.st-group { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 12px;
+  background: rgba(4, 16, 36, 0.55); border: 1px solid rgba(59, 109, 179, 0.45); transition: opacity 200ms ease; }
+.st-group-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 0.82rem; font-weight: 800;
+  letter-spacing: 0.1em; text-transform: uppercase; color: #FFFFFF; }
+.st-group-title .icon { width: 17px; height: 17px; color: var(--st-accent); }
+.st-group-note { margin: -4px 0 0; font-size: 0.82rem; color: var(--st-muted); }
+.st-group-body { display: flex; flex-direction: column; gap: 14px; }
+.st-group.is-off { opacity: 0.55; }
+.st-group.is-off:focus-within, .st-group.is-off:hover { opacity: 0.85; }
+.st-group .field { grid-template-columns: 110px minmax(0, 1fr); }
+
+/* Interruptor principal (cinta encendida / apagada) */
+.st-power { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 12px 14px; border-radius: 12px;
+  background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.45); font-weight: 600; }
+.st-power.is-off { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.4); }
+.st-power .muted { font-size: 0.85rem; font-weight: 500; }
+
+/* Biblioteca de archivos: cabecera con el recuento, miniaturas y orden */
+.st-lib-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+  font-size: 0.84rem; color: var(--st-soft); }
+.st-lib-head strong { color: #FFFFFF; }
+.st-lib-bulk { display: inline-flex; gap: 6px; }
+.btn-xs { height: 28px; padding: 0 10px; font-size: 0.78rem; border-radius: 7px; }
+.st-lib-empty { padding: 6px 4px; }
+.checklist { max-height: 220px; gap: 4px; }
+.checklist-tall { max-height: 300px; }
+.check-row { padding-right: 2px; border-radius: 8px; }
+.check-row.is-checked { background: rgba(143, 211, 255, 0.08); }
+.check { gap: 10px; padding: 4px 6px; }
+.check .check-name { flex: 1; min-width: 0; }
+.st-thumb { position: relative; display: inline-flex; flex-shrink: 0; width: 64px; height: 36px; overflow: hidden;
+  border-radius: 5px; background: #000; border: 1px solid var(--st-border); }
+.st-thumb img, .st-thumb video { width: 100%; height: 100%; object-fit: contain; }
+.check .st-thumb .st-thumb-play { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  color: #FFFFFF; filter: drop-shadow(0 0 2px #000); }
+.check-kind { flex-shrink: 0; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--st-muted); }
+.st-order { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 24px; height: 24px;
+  padding: 0 6px; border-radius: 999px; background: var(--st-accent); color: #04122B; font-size: 0.8rem; font-weight: 800; }
+
+/* Diálogo de resolución mientras Windows aplica el modo */
+.st-mode-list.is-busy { opacity: 0.5; pointer-events: none; }

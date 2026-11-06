@@ -12,9 +12,10 @@
  * Este módulo:
  *   list()                 Monitores conectados, su modo actual y los modos que admiten
  *   apply(device, mode, k) Aplica un modo. k = 'test' (solo comprueba, no cambia nada),
- *                          'dynamic' (cambia ahora, sin guardar: un reinicio lo deshace)
- *                          o 'persist' (guarda el modo actual como definitivo, sin
- *                          volver a cambiarlo)
+ *                          'dynamic' (cambia ahora, sin guardar: un reinicio lo deshace),
+ *                          'try' (comprueba y, si vale, cambia ahora: 'test' + 'dynamic'
+ *                          en una sola llamada) o 'persist' (guarda el modo actual como
+ *                          definitivo, sin volver a cambiarlo)
  *
  * Usa las funciones de Windows EnumDisplayDevices / EnumDisplaySettings /
  * ChangeDisplaySettingsEx desde PowerShell (incluido en Windows 10 y 11):
@@ -27,6 +28,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 
 const TIMEOUT_MS = 20000;
+const KINDS = ['test', 'dynamic', 'try', 'persist'];
 
 const RESULT_TEXT = {
   0:  'Aplicado',
@@ -139,6 +141,12 @@ public static class SMDisplay {
     m.dmDisplayFrequency = hz;
     m.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
     int flags = kind == "test" ? CDS_TEST : kind == "persist" ? (CDS_UPDATEREGISTRY | CDS_NORESET) : 0;
+    if (kind == "try") {
+      // Comprobar y aplicar en una sola llamada (cada llamada a PowerShell tarda segundos)
+      int tested = ChangeDisplaySettingsEx(device, ref m, IntPtr.Zero, CDS_TEST, IntPtr.Zero);
+      if (tested != 0) return "{\"code\":" + tested + ",\"stage\":\"test\"}";
+      flags = 0;
+    }
     return "{\"code\":" + ChangeDisplaySettingsEx(device, ref m, IntPtr.Zero, flags, IntPtr.Zero) + "}";
   }
 }
@@ -194,14 +202,16 @@ async function list() {
 /**
  * @param {string} device - '\\\\.\\DISPLAY2'
  * @param {{ width, height, hz }} mode
- * @param {'test'|'dynamic'|'persist'} kind
- * @returns {Promise<{ ok: boolean, code: number, message: string }>}
+ * @param {'test'|'dynamic'|'try'|'persist'} kind
+ * @returns {Promise<{ ok: boolean, code: number, message: string, stage?: 'test' }>}
+ *   stage 'test' (solo con 'try'): Windows no aceptó el modo y no se cambió nada
  */
 async function apply(device, { width, height, hz }, kind) {
   if (!/^\\\\\.\\DISPLAY\d+$/.test(device)) throw new Error('Monitor no válido');
+  if (!KINDS.includes(kind)) throw new Error('Tipo de cambio no válido');
   [width, height, hz].forEach((n) => { if (!Number.isInteger(n) || n < 1 || n > 16384) throw new Error('Modo no válido'); });
-  const { code } = await run(['apply', '-Device', device, '-Width', String(width), '-Height', String(height), '-Hz', String(hz), '-Kind', kind]);
-  return { ok: code === 0, code, message: RESULT_TEXT[code] || `Error de Windows (${code})` };
+  const { code, stage } = await run(['apply', '-Device', device, '-Width', String(width), '-Height', String(height), '-Hz', String(hz), '-Kind', kind]);
+  return { ok: code === 0, code, stage, message: RESULT_TEXT[code] || `Error de Windows (${code})` };
 }
 
 /**

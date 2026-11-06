@@ -75,7 +75,7 @@
  *   identify { label }                              pantalla
  *   screenRemoved                                   pantalla que el operador ha quitado
  *   stationState { matches, screens, ads, network } estación
- *   historyChanged                                  estación: se guardó o anuló un partido del historial
+ *   historyChanged { court, saved }                 estación: se guardó (saved) o anuló un partido del historial
  *   remoteState { serverName, screens }             portátil remoto: pantallas que puede mostrar
  *   remoteRevoked { message }                       portátil remoto desvinculado (token inválido)
  *   stationRevoked { message }                      estación de un portátil remoto desvinculado
@@ -780,7 +780,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     } else if (!finishedNow && wasFinished) {
       changed = history.cancelFinish(match.uid);
     }
-    if (changed) io.to(['station', 'station-remote']).emit('historyChanged');
+    if (changed) io.to(['station', 'station-remote']).emit('historyChanged', { court: match.label, saved: finishedNow });
   }
 
   /** Lo que necesita una pantalla para dibujarse (URLs resueltas, sin datos internos) */

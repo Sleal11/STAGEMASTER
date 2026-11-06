@@ -49,6 +49,9 @@ const H = require('./harness');
     await D1.waitForSelector('#d-celebrate:not(.hidden)', { timeout: 4000 });
     const cel = (await D1.textContent('#d-celebrate')).replace(/\s+/g, ' ');
     T.check('Al terminar: celebración con «GANADORES» y la pareja ganadora', /Ganadores/i.test(cel) && cel.includes('Leal') && cel.includes('Fernández'), cel.trim());
+    T.check('Celebración deportiva en SVG: pista de pádel, pala y pelota, resultado por set y firma de StageMaster',
+      !!(await D1.$('#d-celebrate svg.cel-court')) && !!(await D1.$('#d-celebrate svg.cel-emblem .cel-ball')) &&
+      (await D1.$$('#d-celebrate .cel-set')).length === state.setScores.length && !!(await D1.$('#d-celebrate .cel-brand [data-brand-logo]')));
     await D1.screenshot({ path: `${H.OUT}/final-celebracion.png` });
     await H.sleep(3000);
     T.check('La publicidad final (2 s) espera a que acabe la celebración', await D1.isHidden('#d-media'));

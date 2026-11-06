@@ -1,7 +1,7 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.7.0** (2.6.1 en operación + QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
+compactación de la conversación). Estado: **versión 2.8.0** (2.7.0 + panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
 estéticos, pestaña «En vivo», teléfonos que no conectaban, publicidad que llena la LED y estación
 desde el portátil remoto, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
@@ -256,3 +256,20 @@ Ronda 7 (versión 2.7.0) — **refinamiento profesional** (prompt por fases de S
 - F7 Limpieza: presentación de ganador del marcador, compactScore, 3 iconos.
 - CI: la prueba se publica en `prueba-nueva` (variable `PRUEBA_TAG`) para conservar
   2.6.1 en `prueba` hasta validar; al validar, volver a `prueba`.
+
+Ronda 8 (versión 2.8.0) — **estética del panel y fallos de la prueba real** (fotos de Santiago):
+- Panel por ZONAS: «Pistas y partidos» (verde, icono de pista) y «Pantallas LED» (lavanda,
+  monitor); tarjetas de pantalla oscuras con franja del color de la pista (ya no parecen
+  pistas). `station/collapse.js`: ⌄ en zonas, acceso de los árbitros y cada tarjeta;
+  minimizado = una línea con resumen; se guarda en localStorage (`stagemaster.plegados`).
+- Tarjeta de pantalla: pestañas como 4 botones con resumen (`tabSummary`), ajustes en
+  grupos (`group()`), interruptor principal de la cinta, miniaturas, Todos/Ninguno
+  (`selectItems`) y número de orden en la lista de reproducción.
+- Celebración: estilo retransmisión en SVG/CSS (pista en perspectiva que se dibuja,
+  franjas, pala + pelota, set a set, barra con el logo). Mismo `#d-celebrate` y 6 s.
+- «El servidor no respondió» al cambiar resolución: `SLOW_REQUESTS_MS` en
+  `station/context.js` (applyMode 45 s, allowPhones 120 s…); `displayModes.apply(...,'try')`
+  = test + dynamic en UNA llamada; `windowsDevices()` reutiliza la lista 60 s.
+- Historial: `historyChanged {court, saved}` + aviso; recarga al reconectar, al ver un
+  final en stationState y cada minuto; reintento y número de petición.
+- Pruebas: `tests/e2e/panel.e2e.js` (21) — incluye una resolución que tarda 5 s.

@@ -30,6 +30,10 @@ let records = [];
 let visible = false;
 let stale   = true;
 let searchTimer = null;
+let requestSeq  = 0;      // solo cuenta la respuesta de la última carga (una lenta no pisa a la nueva)
+let retryTimer  = null;
+const RETRY_MS  = 3000;
+const REFRESH_MS = 60000; // con la vista abierta, se repasa cada minuto (cambio de día, avisos perdidos)
 
 // ─────────────────────────────────────────────────────────────────
 // FILTROS
@@ -87,12 +91,20 @@ function setQuick(value) {
 // ─────────────────────────────────────────────────────────────────
 
 async function load() {
+  clearTimeout(retryTimer);
   if (!visible) { stale = true; return; }
   stale = false;
+  const seq = ++requestSeq;
   const res = await send('station:history', {
     ...currentRange(), matchId: $('hist-court').value, text: $('hist-text').value.trim(), limit: 2000,
   });
-  if (!res.ok) return;
+  if (seq !== requestSeq) return;   // llegó tarde: ya hay una carga más nueva
+  if (!res.ok) {
+    // Sin respuesta (servidor ocupado, reconectando…): se reintenta sola
+    stale = true;
+    retryTimer = setTimeout(() => { if (visible) load(); }, RETRY_MS);
+    return;
+  }
   records = res.records;
   render(res.total);
 }
@@ -242,8 +254,20 @@ function exportCsv() {
 // ARRANQUE
 // ─────────────────────────────────────────────────────────────────
 
+/**
+ * Respaldo del aviso «historyChanged»: si en el estado de la estación un partido
+ * pasa a terminado (o deja de estarlo), el Historial se vuelve a pedir.
+ */
+let finishedKey = null;
+function watchFinishes(state) {
+  const key = state.matches.map((m) => `${m.id}:${(m.state && m.state.timing && m.state.timing.finishedAt) || ''}`).join('|');
+  if (finishedKey !== null && key !== finishedKey) { stale = true; if (visible) load(); }
+  finishedKey = key;
+}
+
 /** Pistas del filtro (cuando llega el estado de la estación) */
 export function updateCourts(state) {
+  watchFinishes(state);
   const select = $('hist-court');
   const current = select.value;
   const options = '<option value="">Todas</option>' + state.matches.map((m) =>
@@ -262,7 +286,17 @@ export function setHistoryVisible(isVisible) {
 }
 
 /** El servidor avisa de que se guardó o anuló un partido */
-export function onHistoryChanged() {
+export function onHistoryChanged({ court, saved } = {}) {
+  stale = true;
+  if (visible) load();
+  if (court) toast(saved ? `${court}: partido guardado en el Historial` : `${court}: se deshizo el final, el partido sale del Historial`);
+}
+
+/**
+ * Reconexión con el servidor: un aviso pudo perderse mientras tanto, así que
+ * el Historial se vuelve a pedir (si está a la vista, ahora; si no, al abrirlo).
+ */
+export function onReconnected() {
   stale = true;
   if (visible) load();
 }
@@ -285,5 +319,6 @@ export function initHistory() {
     if (row) openDetail(records[Number(row.dataset.index)]);
   });
   $('hist-export').addEventListener('click', exportCsv);
+  setInterval(() => { if (visible) load(); }, REFRESH_MS);
   $('dlg-match-close').addEventListener('click', () => $('dlg-match').close());
 }

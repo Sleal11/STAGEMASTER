@@ -3,13 +3,15 @@
  *
  * Cada tarjeta: marcador, estado, acciones del partido (configurar, pausar /
  * reanudar, finalizar, reiniciar), puntuación de respaldo, teléfono del
- * árbitro y acceso por QR + PIN.
+ * árbitro y código de la pista. Se puede minimizar (⌄): queda la cabecera
+ * con un resumen del marcador.
  */
 
 import * as ScoreFormat from '../common/score-format.js';
 import { esc, icon } from '../common/ui.js';
 import { ctx, send, findMatch, patch } from './context.js';
 import { confirmDialog, openSetupDialog } from './dialogs.js';
+import { collapseButton, isCollapsed } from './collapse.js';
 
 const STATUS = {
   empty:    { text: 'Sin partido', kind: '' },
@@ -22,19 +24,36 @@ const STATUS = {
 const backupOpen = {};
 
 export function renderMatches(state) {
-  patch(document.getElementById('st-referee-access'), refereeAccessHtml(state));
+  const access = document.getElementById('st-referee-access');
+  access.dataset.collapsible = 'acceso-arbitros';
+  access.classList.toggle('is-collapsed', isCollapsed('acceso-arbitros'));
+  patch(access, refereeAccessHtml(state));
   const container = document.getElementById('st-matches');
   state.matches.forEach((match) => {
     let card = container.querySelector(`[data-match-card="${match.id}"]`);
     if (!card) {
       card = document.createElement('article');
-      card.className = 'st-card';
+      card.className = 'st-card st-court';
       card.dataset.matchCard = match.id;
+      card.dataset.collapsible = 'pista:' + match.id;
       container.appendChild(card);
     }
     card.style.setProperty('--court-color', match.color);
+    card.classList.toggle('is-collapsed', isCollapsed('pista:' + match.id));
     patch(card, cardHtml(match));
   });
+}
+
+/** Resumen de la pista en una línea (se ve con la tarjeta minimizada) */
+function miniHtml(state) {
+  if (!state) return 'Sin partido';
+  const { A, B } = state.players;
+  if (state.status === 'finished') {
+    const sets = state.setScores.map(ScoreFormat.formatSetScore).join(' · ');
+    const winner = state.winner ? ScoreFormat.splitTeamName(state.players[state.winner].name)[0] : '';
+    return `${winner ? `Ganan ${esc(winner)} · ` : ''}${esc(sets)}`;
+  }
+  return `Sets ${A.sets}-${B.sets} · Games ${A.games}-${B.games} · ${esc(String(A.points))}-${esc(String(B.points))}`;
 }
 
 function statusOf(state) {
@@ -53,8 +72,9 @@ function cardHtml(match) {
 
   return `
     <header class="st-card-head">
-      <span class="st-card-name">${esc(match.label)}</span>
-      <span class="pill ${status.kind}">${status.text}</span>
+      <span class="st-card-name">${icon('court', 'st-card-icon')}${esc(match.label)}</span>
+      <span class="st-card-mini">${miniHtml(state)}</span>
+      <span class="st-card-tools"><span class="pill ${status.kind}">${status.text}</span>${collapseButton('pista:' + match.id, match.label)}</span>
     </header>
     <div class="st-card-body">
       ${scoreHtml(state)}
@@ -152,7 +172,8 @@ function refereeAccessHtml(state) {
   return `<div class="st-referee">
       ${access ? `<div class="st-qr" title="${esc(access.url)}">${access.qrSvg}</div>` : ''}
       <div class="st-referee-text">
-        <h3 class="st-referee-title">${icon('phone')}Acceso de los árbitros</h3>
+        <div class="st-referee-head"><h3 class="st-referee-title">${icon('phone')}Acceso de los árbitros</h3>
+          ${collapseButton('acceso-arbitros', 'el acceso de los árbitros')}</div>
         <ol class="st-steps">
           <li><strong>Escanea este QR</strong> con la cámara del teléfono.</li>
           <li>Escribe el <strong>código de su pista</strong> (está en cada tarjeta).</li>

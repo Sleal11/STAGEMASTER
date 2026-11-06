@@ -2,11 +2,16 @@
  * screens.js — Tarjetas de las pantallas en la estación
  *
  * Cada tarjeta tiene:
+ *   Cabecera    nombre, qué pista muestra, quitar y minimizar (⌄): minimizada
+ *               queda una línea con su estado
  *   Estado      conexión, tamaño real, si el marcador está al día, Identificar
  *   En pantalla Marcador | Publicidad y vídeos, y el reproductor
  *               (Pausar / Reanudar / Detener) con lo que se está viendo
- *   Pestañas    Contenido (partido, espejo y publicidad automática) · Cinta ·
- *               Lista de reproducción · Salida (monitor, brillo y formato LED)
+ *   Pestañas    cuatro botones grandes con el resumen de cada una a la vista:
+ *               Contenido (partido, espejo y publicidad automática) · Cinta ·
+ *               Lista de reproducción · Salida (monitor, brillo y formato LED).
+ *               Dentro, los ajustes van en grupos con título («Qué aparece»,
+ *               «Cómo se mueve»…) y los archivos con miniatura
  *   Quitar      (si hay más de una pantalla)
  *
  * Un ESPEJO muestra lo mismo que su pantalla origen: sus pestañas de
@@ -22,6 +27,7 @@ import { ctx, send, toast, findMatch, findScreen, serverNow, patch, isRemoteView
 import { confirmDialog } from './dialogs.js';
 import { pickFiles, deleteAd } from './uploads.js';
 import { remotesShowing } from './remotes.js';
+import { collapseButton, isCollapsed } from './collapse.js';
 
 const TABS = [
   { id: 'content', label: 'Contenido',             icon: 'sliders' },
@@ -29,6 +35,7 @@ const TABS = [
   { id: 'media',   label: 'Lista de reproducción', icon: 'list' },
   { id: 'output',  label: 'Salida',                icon: 'monitor' },
 ];
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const SPEED_LABELS = { slow: 'Lenta', normal: 'Normal', fast: 'Rápida' };
 /** Ajuste de la publicidad a la salida (screenConfig.MEDIA_FITS) */
 const FIT_LABELS = {
@@ -59,7 +66,9 @@ export function renderScreens(state) {
     const match = findMatch(screen.matchId);
     const source = screen.mirrorOf && findScreen(screen.mirrorOf);
     card.style.setProperty('--court-color', match.color);
-    card.querySelector('.st-card-name').textContent = screen.label;
+    card.classList.toggle('is-collapsed', isCollapsed('pantalla:' + screen.id));
+    card.querySelector('[data-part="name"]').textContent = screen.label;
+    patch(card.querySelector('[data-part="mini"]'), miniHtml(screen));
     const chip = card.querySelector('[data-part="chip"]');
     chip.textContent = (source ? `Espejo de ${source.label} · ` : 'Muestra ') + screen.matchLabel;
     chip.classList.toggle('mirror', !!source);
@@ -77,6 +86,11 @@ export function renderScreens(state) {
     card.querySelectorAll('[data-tab]').forEach((b) => {
       b.classList.toggle('is-active', b.dataset.tab === tab);
       b.setAttribute('aria-selected', b.dataset.tab === tab);
+      // Resumen de cada pestaña a la vista (sin abrirla)
+      const sub = b.querySelector('.tab-sub');
+      const text = tabSummary(b.dataset.tab, screen, state);
+      if (sub.textContent !== text) sub.textContent = text;
+      b.classList.toggle('is-off', b.dataset.tab === 'ribbon' && !screen.mirrorOf && !screen.ribbon.enabled);
     });
     // Panel: no se toca mientras el moderador escribe en él (un botón con el foco no cuenta)
     const panel = card.querySelector('[data-part="panel"]');
@@ -89,22 +103,62 @@ function createCard(screen) {
   const card = document.createElement('article');
   card.className = 'st-card st-screen';
   card.dataset.screenCard = screen.id;
+  card.dataset.collapsible = 'pantalla:' + screen.id;
   card.innerHTML = `
-    <header class="st-card-head"><span class="st-card-name"></span>
-      <span class="st-card-tools"><span class="pill" data-part="chip"></span><span data-part="remove"></span></span></header>
+    <header class="st-card-head"><span class="st-card-name">${icon('monitor', 'st-card-icon')}<span data-part="name"></span></span>
+      <span class="st-card-mini" data-part="mini"></span>
+      <span class="st-card-tools"><span class="pill" data-part="chip"></span><span data-part="remove"></span>${collapseButton('pantalla:' + screen.id, screen.label)}</span></header>
     <div class="st-card-body">
       <div data-part="status"></div>
       <div class="st-live">
+        <span class="st-live-label">En la pantalla ahora</span>
         <div class="segmented segmented-lg" role="group" aria-label="Qué se ve en la pantalla" data-part="segment"></div>
         <div data-part="live"></div>
       </div>
-      <div class="tabs" role="tablist">
-        ${TABS.map((t) => `<button type="button" role="tab" class="tab" data-tab="${t.id}" data-screen="${screen.id}">${icon(t.icon)}${t.label}</button>`).join('')}
+      <div class="tabs tabs-tiles" role="tablist" aria-label="Ajustes de ${esc(screen.label)}">
+        ${TABS.map((t) => `<button type="button" role="tab" class="tab" data-tab="${t.id}" data-screen="${screen.id}">` +
+          `${icon(t.icon)}<span class="tab-text"><span class="tab-title">${t.label}</span><span class="tab-sub"></span></span></button>`).join('')}
       </div>
       <div class="tab-panel" data-part="panel" role="tabpanel"></div>
       <div data-part="warnings"></div>
     </div>`;
   return card;
+}
+
+/** Una línea con el estado (se ve con la tarjeta minimizada) */
+function miniHtml(screen) {
+  const d = screen.displays[0];
+  const shows = screen.postMatch || (screen.pauseMedia && screen.view !== 'media') ? 'Publicidad automática'
+    : screen.view === 'media' ? 'Publicidad y vídeos' : 'Marcador';
+  return d ? `<span class="dot ok"></span>${shows}` : '<span class="dot bad"></span>Sin conexión';
+}
+
+/** Resumen de una pestaña, debajo de su nombre */
+function tabSummary(tab, screen, state) {
+  const source = screen.mirrorOf && findScreen(screen.mirrorOf);
+  if (source && tab !== 'output') return tab === 'content' ? `Espejo de ${source.label}` : `La de ${source.label}`;
+  switch (tab) {
+    case 'content': {
+      const autos = [screen.pauseAds.enabled && 'pausa', screen.endAds.enabled && 'final'].filter(Boolean);
+      return `${screen.matchLabel}${autos.length ? ` · anuncios en ${autos.join(' y ')}` : ''}`;
+    }
+    case 'ribbon': {
+      if (!screen.ribbon.enabled) return 'Apagada';
+      const parts = [screen.ribbon.items.length && plural(screen.ribbon.items.length, 'archivo', 'archivos'),
+        screen.ribbon.texts.length && plural(screen.ribbon.texts.length, 'mensaje', 'mensajes')].filter(Boolean);
+      return parts.length ? parts.join(' · ') : 'Encendida · vacía';
+    }
+    case 'media': {
+      const n = playableCount(screen);
+      return n ? plural(n, 'archivo', 'archivos') : 'Vacía';
+    }
+    default: {
+      const format = state.outputFormats.find((f) => f.id === screen.output.format);
+      const size = screen.output.format === 'fill' ? 'Monitor completo'
+        : format && format.saved ? format.label : `${screen.output.width} × ${screen.output.height}`;
+      return size + (screen.output.brightness < 100 ? ` · ${screen.output.brightness} %` : '');
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -283,6 +337,11 @@ function panelHtml(tab, screen, state) {
   }
 }
 
+/** Grupo de ajustes con título (y, si está apagado, atenuado: sigue editable) */
+const group = (title, iconName, body, { off = false, note = '' } = {}) =>
+  `<section class="st-group${off ? ' is-off' : ''}"><h4 class="st-group-title">${icon(iconName)}${title}</h4>` +
+  `${note ? `<p class="st-group-note">${note}</p>` : ''}<div class="st-group-body">${body}</div></section>`;
+
 const field = (label, control, hint = '') =>
   `<div class="field"><span class="field-label">${label}</span><div class="field-control">${control}${hint ? `<span class="hint">${hint}</span>` : ''}</div></div>`;
 
@@ -322,21 +381,38 @@ function mirrorPanel(tab, screen, state) {
 function contentPanel(screen, state) {
   const options = state.matches.map((m) =>
     `<option value="${m.id}"${m.id === screen.matchId ? ' selected' : ''}>${esc(m.label)}</option>`).join('');
-  return mirrorField(screen, state) +
-    field('Partido', `<select class="input" data-action="match" data-screen="${screen.id}">${options}</select>`) +
-    field('En la pausa', toggle('pauseAds', screen.id, screen.pauseAds.enabled, 'Mostrar la lista de reproducción mientras el partido está en pausa')) +
-    field('Al terminar', toggle('endAds', screen.id, screen.endAds.enabled, 'Mostrar la lista de reproducción al terminar el partido')) +
-    (screen.endAds.enabled ? field('Resultado',
-      number('endDelay', screen.id, screen.endAds.delay, state.limits.delay, 'segundos con el resultado antes de la publicidad')) : '');
+  return group('Qué muestra', 'scoreboard',
+    field('Partido', `<select class="input" data-action="match" data-screen="${screen.id}">${options}</select>`,
+      'El marcador de esta pista es el que ve el público en esta pantalla.') +
+    mirrorField(screen, state)) +
+    group('Publicidad automática', 'clock',
+      field('En la pausa', toggle('pauseAds', screen.id, screen.pauseAds.enabled, 'Mostrar la lista de reproducción mientras el partido está en pausa')) +
+      field('Al terminar', toggle('endAds', screen.id, screen.endAds.enabled, 'Mostrar la lista de reproducción al terminar el partido')) +
+      (screen.endAds.enabled ? field('Resultado',
+        number('endDelay', screen.id, screen.endAds.delay, state.limits.delay, 'segundos con el resultado antes de la publicidad')) : ''),
+    { note: 'Sale sola y vuelve sola al marcador. Usa los archivos de «Lista de reproducción».' });
 }
 
-/** Lista de archivos con casillas, botón "Subir archivos…" y zona para arrastrar */
-function libraryHtml(category, action, screen, selected, emptyText, tall = false) {
+/**
+ * Archivos con casilla y miniatura, cuántos usa esta pantalla, «Todos» /
+ * «Ninguno», botón "Subir archivos…" y zona para arrastrar.
+ * Con `numbered`, los marcados llevan su número de orden (lista de reproducción).
+ */
+function libraryHtml(category, action, screen, selected, emptyText, { tall = false, numbered = false } = {}) {
   const library = ctx.state.ads[category];
+  const used = library.filter((ad) => selected.includes(ad.name));
   const items = library.length
-    ? library.map((ad) => checkItem(action, screen.id, ad, selected.includes(ad.name), category)).join('')
-    : `<span class="muted">${emptyText}</span>`;
+    ? library.map((ad) => checkItem(action, screen.id, ad, selected.includes(ad.name), category,
+      numbered && selected.includes(ad.name) ? used.indexOf(ad) + 1 : 0)).join('')
+    : `<span class="muted st-lib-empty">${emptyText}</span>`;
+  const bulk = (which, text, disabled) =>
+    `<button type="button" class="btn btn-ghost btn-xs" data-action="selectItems" data-which="${which}" data-item="${action}" data-screen="${screen.id}"${disabled ? ' disabled' : ''}>${text}</button>`;
+  const head = library.length
+    ? `<div class="st-lib-head"><span><strong>${used.length}</strong> de ${library.length} en esta pantalla</span>` +
+      `<span class="st-lib-bulk">${bulk('all', 'Todos', used.length === library.length)}${bulk('none', 'Ninguno', used.length === 0)}</span></div>`
+    : '';
   return `<div class="dropzone" data-category="${category}" data-screen="${screen.id}">
+      ${head}
       <div class="checklist${tall ? ' checklist-tall' : ''}">${items}</div>
       <div class="upload-row">
         <button type="button" class="btn btn-secondary btn-sm" data-action="upload" data-category="${category}" data-screen="${screen.id}">${icon('upload')}Subir archivos…</button>
@@ -352,27 +428,35 @@ function ribbonPanel(screen, state) {
   const speeds = Object.entries(SPEED_LABELS).map(([value, text]) =>
     `<button type="button" class="${ribbon.speed === value ? 'is-active' : ''}" data-action="speed" data-speed="${value}" data-screen="${screen.id}">${text}</button>`).join('');
 
-  return field('Cinta', toggle('ribbonEnabled', screen.id, ribbon.enabled, 'Mostrar la cinta debajo del marcador')) +
-    field('Imágenes, logos y vídeos', libraryHtml('banner', 'ribbonItem', screen, ribbon.items, 'Aún no hay archivos para la cinta.'),
-      'Imágenes PNG/JPG/SVG (recomendado 1920 × 200) y vídeos cortos MP4 o WEBM (sin sonido).') +
-    field('Logos', toggle('cleanLogos', screen.id, ribbon.cleanLogos, 'Quitar el fondo blanco y poner todos sobre el mismo fondo'),
-      'Quita el recuadro blanco de los logos, los separa por igual y pasa a blanco los logos negros (los archivos no se modifican).') +
-    field('Mensajes', `<textarea class="input" rows="3" maxlength="1300" data-action="texts" data-screen="${screen.id}" placeholder="Un mensaje por línea (ej. Gracias a Bar Central)">${esc(ribbon.texts.join('\n'))}</textarea>` +
-      `<button type="button" class="btn btn-secondary btn-sm" data-action="applyTexts" data-screen="${screen.id}" disabled>${icon('check')}Aplicar mensajes</button>`,
-      `Hasta ${state.limits.texts} mensajes de ${state.limits.textLength} caracteres.`) +
-    field('Movimiento', `<div class="segmented" role="group">${motion('rotate', 'Cambia cada cierto tiempo')}${motion('scroll', 'Desplazamiento continuo')}</div>`) +
-    (ribbon.motion === 'rotate'
-      ? field('Cada elemento', number('ribbonInterval', screen.id, ribbon.interval, state.limits.interval, 'segundos'))
-      : field('Velocidad', `<div class="segmented" role="group">${speeds}</div>`));
+  const off = !ribbon.enabled;
+  return `<div class="st-power${off ? ' is-off' : ''}">${toggle('ribbonEnabled', screen.id, ribbon.enabled, 'Mostrar la cinta debajo del marcador')}` +
+    `<span class="muted">${off ? 'Apagada: el marcador ocupa toda la pantalla.' : 'Franja de patrocinadores bajo el marcador.'}</span></div>` +
+    group('Qué aparece', 'image',
+      field('Archivos', libraryHtml('banner', 'ribbonItem', screen, ribbon.items, 'Aún no hay archivos para la cinta.'),
+        'Logos e imágenes PNG/JPG/SVG (recomendado 1920 × 200) y vídeos cortos MP4 o WEBM (sin sonido).') +
+      field('Mensajes', `<textarea class="input" rows="3" maxlength="1300" data-action="texts" data-screen="${screen.id}" placeholder="Un mensaje por línea (ej. Gracias a Bar Central)">${esc(ribbon.texts.join('\n'))}</textarea>` +
+        `<button type="button" class="btn btn-secondary btn-sm" data-action="applyTexts" data-screen="${screen.id}" disabled>${icon('check')}Aplicar mensajes</button>`,
+        `Texto que pasa por la cinta. Hasta ${state.limits.texts} mensajes de ${state.limits.textLength} caracteres.`), { off }) +
+    group('Cómo se mueve', 'swap',
+      field('Movimiento', `<div class="segmented" role="group">${motion('rotate', 'Cambia cada cierto tiempo')}${motion('scroll', 'Desplazamiento continuo')}</div>`) +
+      (ribbon.motion === 'rotate'
+        ? field('Cada elemento', number('ribbonInterval', screen.id, ribbon.interval, state.limits.interval, 'segundos'))
+        : field('Velocidad', `<div class="segmented" role="group">${speeds}</div>`)), { off }) +
+    group('Aspecto de los logos', 'sliders',
+      field('Fondo', toggle('cleanLogos', screen.id, ribbon.cleanLogos, 'Quitar el fondo blanco y poner todos sobre el mismo fondo'),
+        'Quita el recuadro blanco de los logos, los separa por igual y pasa a blanco los logos negros (los archivos no se modifican).'), { off });
 }
 
 function mediaPanel(screen, state) {
   const { media } = screen;
-  return field('Imágenes y vídeos', libraryHtml('fullscreen', 'mediaItem', screen, media.items, 'Aún no hay imágenes ni vídeos.', true),
-    'Se reproducen en bucle y en orden alfabético (para ordenarlos, empieza los nombres por 01-, 02-…). ' +
-    'Imágenes PNG/JPG y vídeos MP4 (H.264) o WEBM. Para LED, mejor en 2:1 (ej. 1664 × 832).') +
-    field('Cada imagen', number('imageSeconds', screen.id, media.imageSeconds, state.limits.imageSeconds, 'segundos (los vídeos duran lo que duran)')) +
-    field('Sonido', toggle('sound', screen.id, media.sound, 'Vídeos con sonido'));
+  return group('Qué se reproduce', 'list',
+    field('Archivos', libraryHtml('fullscreen', 'mediaItem', screen, media.items, 'Aún no hay imágenes ni vídeos.', { tall: true, numbered: true }),
+      'A pantalla completa, en bucle y en el orden del número (alfabético: para ordenarlos, empieza los nombres por 01-, 02-…). ' +
+      'Imágenes PNG/JPG y vídeos MP4 (H.264) o WEBM. Para LED, mejor en 2:1 (ej. 1664 × 832).'),
+    { note: 'Se ve al pulsar «Publicidad y vídeos» y, si está activada en «Contenido», en la pausa y al terminar.' }) +
+    group('Reproducción', 'play',
+      field('Cada imagen', number('imageSeconds', screen.id, media.imageSeconds, state.limits.imageSeconds, 'segundos (los vídeos duran lo que duran)')) +
+      field('Sonido', toggle('sound', screen.id, media.sound, 'Vídeos con sonido')));
 }
 
 function outputPanel(screen, state) {
@@ -414,12 +498,15 @@ function outputPanel(screen, state) {
   const fits = Object.entries(FIT_LABELS).map(([value, text]) =>
     `<option value="${value}"${value === (screen.output.fit || 'auto') ? ' selected' : ''}>${text}</option>`).join('');
 
-  return monitor + diagnostics +
-    field('Brillo de la imagen', `<input class="range" type="range" min="${state.limits.brightness[0]}" max="${state.limits.brightness[1]}" step="5" ` +
+  const brightness = field('Brillo', `<input class="range" type="range" min="${state.limits.brightness[0]}" max="${state.limits.brightness[1]}" step="5" ` +
       `value="${screen.output.brightness}" data-action="brightness" data-screen="${screen.id}" aria-label="Brillo de la imagen">` +
       `<output class="range-value" data-brightness-value="${screen.id}">${screen.output.brightness} %</output>`,
-    'Atenúa la imagen que envía StageMaster (útil de noche). El brillo físico de los módulos LED se ajusta en el procesador LED.') +
-    field('Formato', `<select class="input" data-action="format" data-screen="${screen.id}">${formats}</select>` +
+    'Atenúa la imagen que envía StageMaster (útil de noche). El brillo físico de los módulos LED se ajusta en el procesador LED.');
+  const fit = field('Publicidad', `<select class="input" data-action="fit" data-screen="${screen.id}">${fits}</select>`,
+    'Cómo ocupan la pantalla las imágenes y vídeos. «Automático» los estira para que llenen todo, igual que el marcador ' +
+    '(si su proporción es muy distinta, p. ej. una foto vertical, se ven completos sobre un fondo difuminado). ' +
+    'Si la LED muestra la publicidad cortada o con bandas, deja «Automático» o elige «Estirar».');
+  const size = field('Formato', `<select class="input" data-action="format" data-screen="${screen.id}">${formats}</select>` +
       (preset ? `<button type="button" class="btn btn-ghost btn-sm" data-action="deleteFormat" data-format="${esc(preset.id)}" data-name="${esc(preset.name)}" data-screen="${screen.id}">${icon('trash')}Borrar formato guardado</button>` : ''),
     hint) +
     (format === 'custom' ? field('Tamaño',
@@ -429,11 +516,11 @@ function outputPanel(screen, state) {
     'Ancho × alto de la pantalla LED (ej. 832 × 416 o 416 × 208). Guárdalo con un nombre para usarlo en otras pantallas.') : '') +
     (fixed ? field('Posición', `X ${number('outputX', screen.id, screen.output.x, state.limits.offset, '')}` +
       ` Y ${number('outputY', screen.id, screen.output.y, state.limits.offset, 'píxeles')}`,
-    'Píxel del monitor donde empieza la pantalla LED (normalmente 0, 0).') : '') +
-    field('Publicidad', `<select class="input" data-action="fit" data-screen="${screen.id}">${fits}</select>`,
-      'Cómo ocupan la pantalla las imágenes y vídeos. «Automático» los estira para que llenen todo, igual que el marcador ' +
-      '(si su proporción es muy distinta, p. ej. una foto vertical, se ven completos sobre un fondo difuminado). ' +
-      'Si la LED muestra la publicidad cortada o con bandas, deja «Automático» o elige «Estirar».');
+    'Píxel del monitor donde empieza la pantalla LED (normalmente 0, 0).') : '');
+
+  return group('Monitor', 'monitor', monitor + diagnostics) +
+    group('Tamaño de la imagen', 'screen', size) +
+    group('Imagen', 'sliders', brightness + fit);
 }
 
 /**
@@ -478,9 +565,19 @@ export function outputSize(screen, state) {
   return fixed ? { width: fixed.width, height: fixed.height } : { width, height };
 }
 
-function checkItem(action, screenId, ad, checked, category) {
-  return `<div class="check-row"><label class="check"><input type="checkbox" data-action="${action}" data-screen="${screenId}" value="${esc(ad.name)}"${checked ? ' checked' : ''}>` +
-    `${icon(ad.kind === 'video' ? 'video' : 'image')}<span>${esc(ad.name)}</span></label>` +
+/** Miniatura del archivo (imagen, o primer fotograma del vídeo) */
+function thumbHtml(ad) {
+  const media = ad.kind === 'video'
+    ? `<video src="${esc(ad.url)}#t=0.5" muted preload="metadata" tabindex="-1" aria-hidden="true"></video>`
+    : `<img src="${esc(ad.url)}" alt="" loading="lazy" decoding="async">`;
+  return `<span class="st-thumb${ad.kind === 'video' ? ' is-video' : ''}">${media}${ad.kind === 'video' ? icon('play', 'st-thumb-play') : ''}</span>`;
+}
+
+function checkItem(action, screenId, ad, checked, category, order = 0) {
+  return `<div class="check-row${checked ? ' is-checked' : ''}"><label class="check"><input type="checkbox" data-action="${action}" data-screen="${screenId}" value="${esc(ad.name)}"${checked ? ' checked' : ''}>` +
+    `${thumbHtml(ad)}<span class="check-name">${esc(ad.name)}</span>` +
+    `${order ? `<span class="st-order" title="Orden en la lista">${order}</span>` : ''}` +
+    `<span class="check-kind">${ad.kind === 'video' ? 'Vídeo' : 'Imagen'}</span></label>` +
     `<button type="button" class="icon-btn" data-action="deleteAd" data-category="${category}" data-name="${esc(ad.name)}" data-screen="${screenId}" ` +
     `title="Borrar de la carpeta" aria-label="Borrar ${esc(ad.name)}">${icon('trash')}</button></div>`;
 }
@@ -570,6 +667,13 @@ export function onScreenClick(event) {
     case 'upload':
       pickFiles(el.dataset.category, screenId);
       break;
+    case 'selectItems': {
+      // «Todos» / «Ninguno» de la cinta o de la lista de reproducción
+      const category = el.dataset.item === 'ribbonItem' ? 'banner' : 'fullscreen';
+      const items = el.dataset.which === 'all' ? ctx.state.ads[category].map((ad) => ad.name) : [];
+      update(screenId, el.dataset.item === 'ribbonItem' ? { ribbon: { items } } : { media: { items } });
+      break;
+    }
     case 'deleteAd':
       deleteAd(el.dataset.category, el.dataset.name);
       break;
@@ -581,6 +685,12 @@ export function onScreenClick(event) {
       break;
     }
   }
+}
+
+/** Cambio de resolución a prueba (pendiente de «Mantener») en esta pantalla */
+function pendingModeFor(screenId) {
+  const modes = ctx.state && ctx.state.desktop && ctx.state.desktop.displayModes;
+  return !!(modes && modes.pending && modes.pending.screenId === screenId);
 }
 
 /**
@@ -620,7 +730,16 @@ function openModesDialog(screen, button) {
     ok.onclick = () => {
       const mode = selected();
       if (!mode || same(mode)) { close(); return; }
-      send('station:applyMode', { screenId: screen.id, mode }, ok).then((r) => { if (r.ok) close(); });
+      // Windows tarda unos segundos (el monitor se resincroniza): se explica mientras tanto
+      list.classList.add('is-busy');
+      list.querySelectorAll('input').forEach((input) => { input.disabled = true; });
+      choice.textContent = `Aplicando ${mode.width} × ${mode.height} · ${mode.hz} Hz… la pantalla puede quedarse en negro unos segundos`;
+      send('station:applyMode', { screenId: screen.id, mode }, ok).then((r) => {
+        if (r.ok || pendingModeFor(screen.id)) { close(); return; }
+        list.classList.remove('is-busy');
+        list.querySelectorAll('input').forEach((input) => { input.disabled = false; });
+        showChoice();
+      });
     };
     // La actual, visible al abrir (la lista puede ser larga)
     const current = list.querySelector('input:checked');
