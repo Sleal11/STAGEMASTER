@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>StageMaster · Score de Pádel · presentación</title>
+  <link rel="stylesheet" href="../../tutoriales/fuente/motor.css">
+  <link rel="stylesheet" href="cine.css">
+</head>
+<body>
+  <!-- Motor de vídeo de los tutoriales (render(t), dispositivos con capturas, rótulos) -->
+  <script src="../../tutoriales/fuente/motor.js"></script>
+  <script src="presentacion.js"></script>
+  <script>
+    // presentacion.html?t=12 → fotograma para revisar a mano
+    const V = window.createVideo({ chip: '' });
+    window.PRESENTACION.build(V);
+    window.render = V.render;
+    window.DURATION = V.total;
+    V.render(Number(new URLSearchParams(location.search).get('t') || 0));
+  </script>
+</body>
+</html>

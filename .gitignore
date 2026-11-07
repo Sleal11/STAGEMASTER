@@ -19,3 +19,8 @@ tests/e2e/out/
 # Vídeos explicativos: capturas y hojas de revisión (se regeneran con marketing/tutoriales/fuente/)
 marketing/tutoriales/fuente/capturas/
 marketing/tutoriales/revisar-*.png
+
+# Vídeo de presentación: capturas y hojas de revisión (se regeneran con marketing/presentacion/fuente/)
+marketing/presentacion/fuente/capturas/
+marketing/presentacion/fuente/audio/
+marketing/presentacion/revisar-*.png

@@ -1,6 +1,8 @@
-# StageMaster · Score de Pádel — Guion audiovisual (propuesta)
+# StageMaster · Score de Pádel — Guion audiovisual
 
-Vídeo de presentación comercial + tutorial. **Duración: 3 min 10 s** (16:9, 1920 × 1080, 30 fps).
+Vídeo de presentación comercial + tutorial. **Duración final: unos 2 min 35 s** (16:9, 1920 × 1080, 30 fps),
+en **dos versiones**: con voz (y música suave) y solo con música deportiva. Los tiempos de cada
+escena de abajo son los de la propuesta: en el vídeo, cada escena dura lo que dura su frase.
 Se puede sacar además una versión corta de 60 s para redes y una versión 2:1 sin voz para las LED.
 
 **Regla de oro:** todo lo que se ve y se dice existe en StageMaster 2.8. Las interfaces son

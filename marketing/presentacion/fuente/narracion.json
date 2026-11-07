@@ -1,0 +1,50 @@
+{
+  "voz": "Texto de cada escena (guion) y versión fonética para la voz sintética (Piper): «Steich Máster», «tai brek», «gueims», «cu erre»…",
+  "escenas": [
+    {
+      "id": "intro",
+      "texto": "Cada partido merece vivirse como una final. Esto es StageMaster: el marcador profesional de pádel para pantallas LED.",
+      "tts": "Cada partido merece vivirse como una final. Esto es Steich Máster: el marcador profesional de pádel para pantallas led."
+    },
+    {
+      "id": "sistema",
+      "texto": "Un portátil, el teléfono del árbitro y tus pantallas LED. Sin instalar nada y sin Internet: StageMaster lo conecta todo en la red del club, hasta ocho pantallas.",
+      "tts": "Un portátil, el teléfono del árbitro y tus pantallas led. Sin instalar nada y sin internet: Steich Máster lo conecta todo en la red del club, hasta ocho pantallas."
+    },
+    {
+      "id": "marcador",
+      "texto": "Un marcador pensado para leerse desde lejos: los nombres, los sets, los games y los puntos. La pelota indica quién saca. Arriba, los sets ya jugados; y un indicador avisa de cada momento clave: punto de oro, tie break o pausa. Abajo, la cinta con tus patrocinadores.",
+      "tts": "Un marcador pensado para leerse desde lejos: los nombres, los sets, los gueims y los puntos. La pelota indica quién saca. Arriba, los sets ya jugados; y un indicador avisa de cada momento clave: punto de oro, tai brek o pausa. Abajo, la cinta con tus patrocinadores."
+    },
+    {
+      "id": "configurar",
+      "texto": "Configurar un partido lleva segundos. Escribe las parejas, elige games y sets, quién saca, el sistema de puntuación —ventaja, punto de oro o el nuevo FIP 2026— y el desempate. Inicia el partido y la pantalla ya está lista.",
+      "tts": "Configurar un partido lleva segundos. Escribe las parejas, elige gueims y sets, quién saca, el sistema de puntuación, ventaja, punto de oro o el nuevo fip dos mil veintiséis, y el desempate. Inicia el partido y la pantalla ya está lista."
+    },
+    {
+      "id": "arbitro",
+      "texto": "El árbitro solo necesita su teléfono. Escanea el código QR, escribe el código de su pista y queda conectado. Sin aplicaciones y sin contraseñas: el código decide la pista.",
+      "tts": "El árbitro solo necesita su teléfono. Escanea el código cu erre, escribe el código de su pista y queda conectado. Sin aplicaciones y sin contraseñas: el código decide la pista."
+    },
+    {
+      "id": "directo",
+      "texto": "Cada punto que marca el árbitro aparece al instante en la pantalla. Los games, los sets y el cambio de saque se calculan solos, siguiendo el reglamento. ¿Un error? Deshacer con un doble toque. Y si hay que parar el partido, la pausa muestra tu publicidad y el marcador vuelve exactamente donde estaba.",
+      "tts": "Cada punto que marca el árbitro aparece al instante en la pantalla. Los gueims, los sets y el cambio de saque se calculan solos, siguiendo el reglamento. ¿Un error? Deshacer con un doble toque. Y si hay que parar el partido, la pausa muestra tu publicidad y el marcador vuelve exactamente donde estaba."
+    },
+    {
+      "id": "reglas",
+      "texto": "StageMaster aplica el reglamento FIP. Con ventaja, con punto de oro o con FIP 2026, donde el tercer cuarenta iguales se decide en un solo punto. En el seis iguales, tie break; y si lo eliges, súper tie break a diez puntos en lugar del set decisivo. El partido termina solo al ganar los sets necesarios.",
+      "tts": "Steich Máster aplica el reglamento fip. Con ventaja, con punto de oro o con fip dos mil veintiséis, donde el tercer cuarenta iguales se decide en un solo punto. En el seis iguales, tai brek; y si lo eliges, súper tai brek a diez puntos en lugar del set decisivo. El partido termina solo al ganar los sets necesarios."
+    },
+    {
+      "id": "final",
+      "texto": "Al terminar, los ganadores se celebran en grande, con el resultado y las estadísticas del partido. Y todo queda guardado en el historial.",
+      "tts": "Al terminar, los ganadores se celebran en grande, con el resultado y las estadísticas del partido. Y todo queda guardado en el historial."
+    },
+    {
+      "id": "cierre",
+      "texto": "StageMaster. Tecnología que convierte cada partido en un espectáculo.",
+      "tts": "Steich Máster. Tecnología que convierte cada partido en un espectáculo."
+    }
+  ]
+}

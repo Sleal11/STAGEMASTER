@@ -1,0 +1,63 @@
+/* cine.css — Estilo cinematográfico del vídeo de presentación (sobre motor.css de los tutoriales)
+   Paleta de la aplicación: azul noche, celeste y dorado. */
+:root { --night: #04122B; --night-2: #071C42; --court: #0D3A8A; --light: #8FD3FF; --gold: #FFD54A; }
+html, body { background: var(--night); }
+
+#bg { background: radial-gradient(ellipse 70% 60% at 50% 0%, #123A7A 0%, #0A2350 40%, var(--night) 100%); }
+#bg .bar { background: var(--light); opacity: .18; height: 10px; }
+#bg .glow { background: rgba(143, 211, 255, .07); }
+#chapter { display: none; }
+#wipe { background: linear-gradient(90deg, transparent, rgba(255, 213, 74, .9) 30%, rgba(143, 211, 255, .9) 70%, transparent); width: 700px; }
+
+/* Rótulos inferiores (lower third) */
+#caption { background: rgba(4, 18, 43, .86); border: 2px solid rgba(143, 211, 255, .35); padding: 16px 34px; gap: 18px;
+  box-shadow: 0 14px 50px rgba(0, 0, 0, .5); }
+#caption .txt { font-size: 34px; }
+#caption .txt b { color: var(--gold); }
+#caption .num { background: var(--gold); color: var(--night); }
+
+.kicker { color: var(--light); }
+.gold { color: var(--gold); }
+.hl { border-color: var(--gold); box-shadow: 0 0 0 9999px rgba(2, 8, 22, .45), 0 0 34px rgba(255, 213, 74, .7); }
+.hl.nodim { box-shadow: 0 0 34px rgba(255, 213, 74, .7); }
+.hl .tag { background: var(--gold); color: var(--night); }
+.tap { border-color: var(--gold); background: rgba(255, 213, 74, .25); }
+.link { background: linear-gradient(90deg, var(--light), var(--gold)); }
+.pulse { background: var(--gold); box-shadow: 0 0 20px var(--gold); }
+
+/* Pista de pádel en perspectiva */
+.court { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+.court .lines path { stroke-dasharray: 1; }
+/* LED colgada al fondo de la pista (intro y cierre) */
+.stage-led { position: absolute; transform-origin: 50% 100%; }
+.stage-led .panel { position: absolute; inset: 0; overflow: hidden; border-radius: 6px; background: #000;
+  box-shadow: 0 0 0 6px #10142A, 0 0 80px rgba(143, 211, 255, .35), 0 40px 120px rgba(0, 0, 0, .6); }
+.stage-led img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage-led .grid { position: absolute; inset: 0; opacity: .2;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.9) 0 1px, transparent 1px 4px),
+              repeating-linear-gradient(90deg, rgba(0,0,0,.9) 0 1px, transparent 1px 4px); }
+.stage-led .glare { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.18) 50%, transparent 60%); }
+.stage-led .post { position: absolute; bottom: -120px; width: 18px; height: 120px; background: #10142A; }
+
+.flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 45%, rgba(255,255,255,.85), rgba(143,211,255,.25) 35%, transparent 70%); opacity: 0; }
+.shade { position: absolute; inset: 0; background: radial-gradient(ellipse 60% 55% at 50% 45%, rgba(4, 18, 43, .35), rgba(4, 18, 43, .92)); opacity: 0; }
+
+/* Etiqueta de cada dispositivo (escena «El sistema») */
+.devlabel { position: absolute; text-align: center; }
+.devlabel .t { font-family: Oswald; font-weight: 700; font-size: 40px; text-transform: uppercase; letter-spacing: 1px; }
+.devlabel .s { font-size: 24px; color: #BFD6F5; font-weight: 500; margin-top: 4px; }
+
+/* Ficha de regla (escena «Las reglas») */
+.rule { position: absolute; left: 110px; top: 92px; display: flex; align-items: baseline; gap: 24px; }
+.rule .n { font-family: Oswald; font-weight: 700; font-size: 30px; color: var(--night); background: var(--gold); border-radius: 12px; padding: 2px 16px; }
+.rule .t { font-family: Oswald; font-weight: 700; font-size: 76px; text-transform: uppercase; letter-spacing: 1px; }
+.rule-sub { position: absolute; left: 110px; top: 196px; font-size: 32px; color: #CFE0FF; font-weight: 600; }
+
+/* Celebración (fotogramas reales) dentro de la LED */
+.celseq { position: absolute; inset: 0; z-index: 1; }
+.celseq img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+.chips { position: absolute; display: flex; gap: 16px; }
+.chips span { font-family: Oswald; font-weight: 600; font-size: 28px; letter-spacing: .5px; text-transform: uppercase;
+  padding: 8px 20px; border-radius: 30px; background: rgba(143, 211, 255, .12); border: 2px solid rgba(143, 211, 255, .4); }
+.badge-later { position: absolute; font-family: Oswald; font-weight: 700; font-size: 30px; text-transform: uppercase;
+  padding: 6px 18px; border-radius: 10px; background: rgba(255, 213, 74, .95); color: var(--night); }

@@ -163,7 +163,8 @@
       const named = {};   // zonas de todas las capturas del dispositivo (también las de swap)
       const addLayer = (name, t0) => {
         const zz = zoneOf(name);
-        Object.entries(zz.rects).forEach(([k, r]) => { if (r && !named[k]) named[k] = r; });
+        // Una zona oculta en esa captura (tamaño 0) no cuenta: vale la de otra capa
+        Object.entries(zz.rects).forEach(([k, r]) => { if (r && r.w > 0 && r.h > 0 && !named[k]) named[k] = r; });
         const im = el('img', '', content);
         im.src = `capturas/${name}.png`;
         Object.assign(im.style, { width: zz.width + 'px', height: zz.height + 'px' });
