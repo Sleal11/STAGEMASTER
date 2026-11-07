@@ -291,6 +291,9 @@
   border-radius: var(--radius-pill);
   animation: glow 2s ease infinite;
 }
+.phase-badge.is-gold  { background: #F2C230; color: #04122B; }
+.phase-badge.is-set   { background: #FFFFFF; color: #04122B; }
+.phase-badge.is-match { background: #E8455F; color: #FFFFFF; }
 
 /* Fila de cada equipo en el mini score */
 .score-row {
@@ -756,7 +759,7 @@ body.is-offline .btn-secondary {
 .fs-row { display: grid; grid-template-columns: 64px 1fr 64px; align-items: center; gap: 8px; }
 .fs-head span { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fs-val { font-family: var(--font-score); font-size: 1.6rem; font-weight: 700; color: var(--text-primary); }
-.fs-val.is-lead { color: #FFD54A; }
+.fs-val.is-lead { color: #8FD3FF; }
 .fs-label { font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); }
 .fs-duration { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; font-size: 1rem; font-weight: 600; color: var(--text-secondary); }
 .fs-duration .icon { width: 18px; height: 18px; }

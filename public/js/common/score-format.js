@@ -68,14 +68,34 @@ function isDecidingSuperTiebreak(state) {
          state.players.B.games === 0;
 }
 
-/** Badge del momento: EN PAUSA, TIE BREAK, SUPER TIE BREAK, PUNTO DE ORO, o null */
+/**
+ * Quién tiene SET POINT o MATCH POINT (state.pressure lo calcula el servidor
+ * jugando el siguiente punto con el motor).
+ * @returns {{ kind: 'match'|'set', sides: string[] } | null}
+ */
+function pressureOf(state) {
+  const p = state && state.pressure;
+  if (!p) return null;
+  const sides = (kind) => ['A', 'B'].filter((side) => p[side] === kind);
+  if (sides('match').length) return { kind: 'match', sides: sides('match') };
+  if (sides('set').length) return { kind: 'set', sides: sides('set') };
+  return null;
+}
+
+/**
+ * Badge del momento, por prioridad: EN PAUSA · MATCH POINT · SET POINT ·
+ * PUNTO DE ORO · TIE BREAK / SUPER TIE BREAK · nada.
+ * kind: 'pause' | 'match' | 'set' | 'gold' | 'phase' (el color de cada interfaz)
+ */
 function badgeFor(state) {
   if (!state || state.status !== 'playing') return null;
-  if (state.paused) return { text: 'EN PAUSA', gold: false, pause: true };
-  if (PHASE_LABELS[state.phase]) return { text: PHASE_LABELS[state.phase], gold: false };
+  if (state.paused) return { text: 'EN PAUSA', kind: 'pause', gold: false, pause: true };
+  const pressure = pressureOf(state);
+  if (pressure) return { text: pressure.kind === 'match' ? 'MATCH POINT' : 'SET POINT', kind: pressure.kind, sides: pressure.sides, gold: false };
   if (state.decisivePoint) {
-    return { text: DECISIVE_POINT_LABELS[state.config.scoringSystem] || 'PUNTO DECISIVO', gold: true };
+    return { text: DECISIVE_POINT_LABELS[state.config.scoringSystem] || 'PUNTO DECISIVO', kind: 'gold', gold: true };
   }
+  if (PHASE_LABELS[state.phase]) return { text: PHASE_LABELS[state.phase], kind: 'phase', gold: false };
   return null;
 }
 

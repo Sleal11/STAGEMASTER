@@ -128,6 +128,8 @@ code   { color: var(--st-soft); font-size: 0.9em; }
 .pill.warn { background: #7A4B00; }
 .pill.info { background: #133A7A; }
 .pill.gold { background: var(--st-gold); color: #04122B; }
+.pill.set   { background: #FFFFFF; color: #04122B; }
+.pill.match { background: #E8455F; color: #FFFFFF; }
 
 /* ─────────────────────────────────────────────────────────────────
    BARRA SUPERIOR
@@ -912,7 +914,10 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
 
 .live-info { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; font-size: 0.88rem; }
 .live-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: baseline; }
-.live-row > span:last-child { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.live-row > span:last-child { display: block; min-width: 0; overflow-wrap: anywhere; }
+/* El punto de estado va pegado a su texto (antes, con un texto largo, quedaba solo en una línea) */
+.live-row > span:last-child > .dot { margin-right: 7px; vertical-align: 0.05em; }
+.live-row > span:last-child > .icon { vertical-align: -0.15em; margin-right: 4px; }
 .live-label { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--st-accent); }
 .live-row .icon { width: 15px; height: 15px; color: var(--st-accent); }
 .live-warn { display: inline-flex; gap: 6px; color: #FCD34D; }
@@ -1098,3 +1103,67 @@ textarea.input { width: 100%; height: auto; padding: 8px 10px; resize: vertical;
 
 /* Diálogo de resolución mientras Windows aplica el modo */
 .st-mode-list.is-busy { opacity: 0.5; pointer-events: none; }
+
+/* ─────────────────────────────────────────────────────────────────
+   CINTA 2.9: ORDEN Y TAMAÑO DE LOS LOGOS (station/ribbon-editor.js)
+   La vista previa usa el fondo de la cinta de la pantalla LED.
+   ───────────────────────────────────────────────────────────────── */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.segmented-wrap { flex-wrap: wrap; }
+
+.rb-preview { display: flex; flex-direction: column; gap: 8px; }
+.rb-strip {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #0B2654 0%, #041024 100%);
+  border-top: 2px solid #8FD3FF;
+  box-shadow: 0 0 0 1px rgba(143, 211, 255, 0.25);
+}
+.rb-strip.is-light, .rb-list[data-bg="light"] .rb-thumb { background: linear-gradient(180deg, #FFFFFF 0%, #E6EDF6 100%); }
+.rb-strip img { flex: none; width: auto; max-width: 100%; object-fit: contain; }
+.rb-strip.is-fixed  { justify-content: space-evenly; padding: 0 2.5%; }
+.rb-strip.is-single { justify-content: center; }
+.rb-strip.is-scroll { overflow-x: auto; scrollbar-width: thin; }
+.rb-strip.is-scroll img { margin: 0 calc(var(--h, 40px) * 0.35); }
+.rb-turns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.rb-turn { position: relative; }
+.rb-turn > span { position: absolute; left: 6px; top: 6px; z-index: 1; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px;
+  background: rgba(4, 18, 43, 0.85); color: var(--st-soft); font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+.rb-caption { margin: 0; font-size: 0.8rem; color: var(--st-muted); }
+
+.rb-list { display: flex; flex-direction: column; gap: 4px; max-height: 340px; overflow-y: auto; padding: 4px;
+  border-radius: 8px; background: var(--st-inset); border: 1px solid var(--st-border); }
+.rb-row {
+  display: grid;
+  grid-template-columns: 18px 22px 64px minmax(0, 1fr) auto minmax(120px, 170px) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgba(143, 211, 255, 0.05);
+  border: 1px solid transparent;
+  cursor: grab;
+}
+.rb-row:hover { background: rgba(143, 211, 255, 0.1); }
+.rb-row.is-dragging { opacity: 0.45; }
+.rb-row.is-target { border-color: var(--st-accent); box-shadow: 0 0 0 1px var(--st-accent) inset; }
+.rb-grip .icon { width: 16px; height: 16px; color: var(--st-muted); }
+.rb-num { font-weight: 800; font-size: 0.82rem; color: var(--st-soft); text-align: center; }
+.rb-thumb { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 36px; border-radius: 5px;
+  background: linear-gradient(180deg, #0B2654, #041024); overflow: hidden; }
+.rb-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.rb-thumb .icon { width: 18px; height: 18px; color: var(--st-accent); }
+.rb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.86rem; }
+.rb-move { display: inline-flex; gap: 2px; }
+.rb-move .icon-btn:hover { background: rgba(143, 211, 255, 0.15); color: #FFFFFF; }
+.rb-up .icon { transform: rotate(180deg); }
+.rb-size { display: flex; align-items: center; gap: 8px; }
+.rb-size .range { flex: 1; min-width: 0; }
+.rb-size output { min-width: 46px; font-weight: 700; font-size: 0.82rem; color: var(--st-soft); text-align: right; }
+@container (max-width: 640px) {
+  .rb-row { grid-template-columns: 16px 20px 56px minmax(0, 1fr) auto; }
+  .rb-size { grid-column: 3 / -2; }
+}

@@ -27,7 +27,7 @@
  *   Evita la doble pulsación y que dos dispositivos se pisen.
  */
 
-const { createMatch, applyAction } = require('../sports/padel/engine');
+const { createMatch, applyAction, pointPressure } = require('../sports/padel/engine');
 const { validateConfig }           = require('../sports/padel/config');
 const crypto                       = require('crypto');
 const { appError }                 = require('./errors');
@@ -151,13 +151,15 @@ class Match {
 
   /**
    * Estado PÚBLICO (sin historial), o null si no hay partido. timing: inicio,
-   * final y tiempo en pausa (para la duración del resumen final).
+   * final y tiempo en pausa (para la duración del resumen final). pressure:
+   * SET POINT / MATCH POINT de cada pareja (qué gana con el siguiente punto).
    */
   getPublicState() {
     if (!this.state) return null;
     const { history, ...publicState } = this.state;
     const timing = { startedAt: this.startedAt, finishedAt: this.finishedAt, pausedMs: this.pausedMs };
-    return { ...publicState, version: this.version, canUndo: history.length > 0, paused: this.paused, timing };
+    return { ...publicState, version: this.version, canUndo: history.length > 0, paused: this.paused, timing,
+      pressure: pointPressure(this.state) };
   }
 
   // ─────────────────────────────────────────────────────────────

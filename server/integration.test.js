@@ -515,7 +515,7 @@ test('Subir publicidad desde la estación: se guarda, aparece en la biblioteca y
   // Seleccionado en la cinta y después borrado: desaparece de la pantalla
   await send(estacion, 'station:updateScreen', { screenId: 'pantalla-1', changes: { ribbon: { items: ['patrocinador.png', 'clip cinta.mp4'] } } });
   await waitFor(() => pantalla1.screenConfig.ribbon.items.length === 2, 'cinta con vídeo');
-  assert.strictEqual(pantalla1.screenConfig.ribbon.items[0].kind, 'video');
+  assert.deepStrictEqual(pantalla1.screenConfig.ribbon.items.map((i) => i.kind), ['image', 'video'], 'En el orden elegido, con el vídeo');
   const del = await fetch(`http://localhost:${PORT}/api/publicidad/banner/${encodeURIComponent('clip cinta.mp4')}`, { method: 'DELETE' });
   assert.strictEqual(del.status, 200);
   await waitFor(() => pantalla1.screenConfig.ribbon.items.length === 1, 'quitado de la pantalla');

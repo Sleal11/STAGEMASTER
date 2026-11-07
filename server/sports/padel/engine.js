@@ -563,4 +563,23 @@ function deepCopy(obj) {
 // EXPORTACIONES
 // ─────────────────────────────────────────────────────────────────
 
-module.exports = { createMatch, applyAction };
+/**
+ * SET POINT / MATCH POINT: qué consigue cada pareja si gana el SIGUIENTE punto.
+ * Se calcula jugando ese punto con el propio motor (funciones puras), así es
+ * exacto con cualquier puntuación (ventaja, punto de oro, FIP 2026) y desempate
+ * (tie break, súper tie break o ninguno).
+ *
+ * @returns {{ A: 'match'|'set'|null, B: 'match'|'set'|null }}
+ */
+function pointPressure(state) {
+  const result = { A: null, B: null };
+  if (!state || state.status !== 'playing') return result;
+  ['A', 'B'].forEach((side) => {
+    const next = applyPoint(state, side);
+    if (next.status === 'finished' && next.winner === side) result[side] = 'match';
+    else if (next.players[side].sets > state.players[side].sets) result[side] = 'set';
+  });
+  return result;
+}
+
+module.exports = { createMatch, applyAction, pointPressure };

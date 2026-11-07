@@ -110,7 +110,7 @@ function scoreHtml(state) {
       ${row('A')}${row('B')}
     </div>
     <div class="st-history">${history ? 'Sets: ' + esc(history) : 'Set 1 en juego'}
-      ${badge ? `<span class="pill ${badge.pause ? 'warn' : badge.gold ? 'gold' : 'info'}">${badge.text}</span>` : ''}</div>`;
+      ${badge ? `<span class="pill ${{ pause: 'warn', gold: 'gold', set: 'set', match: 'match' }[badge.kind] || 'info'}">${badge.text}</span>` : ''}</div>`;
 }
 
 /** Respaldo: puntuar desde el portátil si el teléfono del árbitro falla */

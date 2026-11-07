@@ -60,20 +60,20 @@ const COURT_SVG = `
 const EMBLEM_SVG = `
   <svg class="cel-emblem" viewBox="0 0 160 220" aria-hidden="true">
     <defs>
-      <linearGradient id="celGold" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#FFE68A"/><stop offset="0.5" stop-color="#FFD54A"/><stop offset="1" stop-color="#E0A800"/>
+      <linearGradient id="celMetal" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FFFFFF"/><stop offset="0.5" stop-color="#BEE6FF"/><stop offset="1" stop-color="#5FA8E8"/>
       </linearGradient>
     </defs>
     <g class="cel-racket" transform="rotate(-18 80 110)">
       <path d="M80 10 C122 10 134 46 134 78 C134 116 108 140 92 150 L88 162 L72 162 L68 150 C52 140 26 116 26 78 C26 46 38 10 80 10 Z"
-        fill="#0A2350" stroke="url(#celGold)" stroke-width="7"/>
-      <g fill="#06142C" stroke="#FFD54A" stroke-opacity="0.55" stroke-width="1.5">
+        fill="#0A2350" stroke="url(#celMetal)" stroke-width="7"/>
+      <g fill="#06142C" stroke="#8FD3FF" stroke-opacity="0.6" stroke-width="1.5">
         ${[[62, 44], [80, 40], [98, 44], [53, 62], [71, 60], [89, 60], [107, 62], [53, 80], [71, 78], [89, 78], [107, 80],
           [58, 98], [76, 96], [94, 96], [102, 112], [67, 114], [84, 114]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4.2"/>`).join('')}
       </g>
-      <path d="M80 132 L80 150" stroke="url(#celGold)" stroke-width="4"/>
-      <rect x="69" y="160" width="22" height="52" rx="6" fill="url(#celGold)"/>
-      <path d="M69 172 L91 166 M69 184 L91 178 M69 196 L91 190" stroke="#8A6400" stroke-width="2.5"/>
+      <path d="M80 132 L80 150" stroke="url(#celMetal)" stroke-width="4"/>
+      <rect x="69" y="160" width="22" height="52" rx="6" fill="url(#celMetal)"/>
+      <path d="M69 172 L91 166 M69 184 L91 178 M69 196 L91 190" stroke="#2B5E9E" stroke-width="2.5"/>
     </g>
     <g class="cel-ball">
       <circle cx="132" cy="36" r="17" fill="#D4F21E"/>
@@ -122,8 +122,25 @@ export function createFinale({ summary, celebrate }, onChange) {
       phase = phase === 'score' ? 'stats' : 'score';
       cycleTimer = setTimeout(next, phase === 'score' ? SCORE_MS : STATS_MS);
       onChange();
+      if (phase === 'stats') requestAnimationFrame(countUp);
     };
     cycleTimer = setTimeout(next, phase === 'score' ? SCORE_MS : STATS_MS);
+  }
+
+  /** Los números de las estadísticas cuentan desde 0 (como en televisión), uno tras otro */
+  function countUp() {
+    if (summary.classList.contains('hidden')) return;
+    const start = performance.now();
+    summary.querySelectorAll('.sum-val').forEach((el, k) => {
+      const target = Number(el.dataset.value) || 0;
+      const delay = 250 + Math.floor(k / 2) * 110;
+      const step = (now) => {
+        const p = Math.min(1, Math.max(0, (now - start - delay) / 900));
+        el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
   }
 
   // Pruebas automáticas: ir a una fase sin esperar (window.dispatchEvent(new CustomEvent('stagemaster:fase-final', { detail: 'stats' })))
@@ -131,6 +148,7 @@ export function createFinale({ summary, celebrate }, onChange) {
     if (!state || state.status !== 'finished' || celebrating) return;
     startCycle(event.detail === 'stats' ? 'stats' : 'score');
     onChange();
+    if (phase === 'stats') requestAnimationFrame(countUp);
   });
 
   /** Otro partido en esta pantalla: sin celebrar lo anterior */
@@ -201,15 +219,21 @@ export function createFinale({ summary, celebrate }, onChange) {
       const name = `<span class="sum-name">${esc(sum.names[side])}</span>`;
       return `<div class="sum-team is-${side.toLowerCase()}${isWinner ? ' is-winner' : ''}">${side === 'A' ? trophy + name : name + trophy}</div>`;
     };
-    const rows = sum.rows.map((r) => `<div class="sum-row" data-stat="${r.key}">
-        <span class="sum-val${r.A > r.B ? ' is-lead' : ''}">${r.A}</span>
-        <span class="sum-label">${esc(r.label)}</span>
-        <span class="sum-val${r.B > r.A ? ' is-lead' : ''}">${r.B}</span>
-      </div>`).join('');
+    // Cada dato: valores (cuentan hacia arriba al mostrarse) y una barra con el reparto entre las parejas
+    const rows = sum.rows.map((r, i) => {
+      const share = r.A + r.B ? Math.round((r.A / (r.A + r.B)) * 100) : 50;
+      return `<div class="sum-row" data-stat="${r.key}" style="--i:${i};--a:${share}%">
+        <span class="sum-val${r.A > r.B ? ' is-lead' : ''}" data-value="${r.A}">${r.A}</span>
+        <div class="sum-mid"><span class="sum-label">${esc(r.label)}</span><span class="sum-bar"><i class="a"></i><i class="b"></i></span></div>
+        <span class="sum-val${r.B > r.A ? ' is-lead' : ''}" data-value="${r.B}">${r.B}</span>
+      </div>`;
+    }).join('');
     const html = `
-      <div class="sum-head">${team('A')}<div class="sum-title">Estadísticas</div>${team('B')}</div>
+      <div class="sum-head">${team('A')}<div class="sum-title"><span>Estadísticas</span>` +
+        `${sum.sets.length ? `<small>${esc(sum.sets.join(' · '))}</small>` : ''}</div>${team('B')}</div>
       <div class="sum-rows">${rows}</div>
-      ${sum.duration ? `<div class="sum-foot"><svg aria-hidden="true"><use href="img/icons.svg#clock"></use></svg>Duración ${esc(sum.duration)}</div>` : ''}`;
+      ${sum.duration ? `<div class="sum-foot"><svg aria-hidden="true"><use href="img/icons.svg#clock"></use></svg>Duración ${esc(sum.duration)}</div>` : ''}
+      <div class="sum-progress" style="--dur:${STATS_MS}ms"><i></i></div>`;
     if (html !== summaryHtml) {
       summaryHtml = html;
       summary.innerHTML = html;

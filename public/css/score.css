@@ -40,10 +40,10 @@
   --d-light:       #8FD3FF;   /* azul claro: puntos, títulos, filetes     */
   --d-light-soft:  #BEE6FF;
   --d-ink:         #04122B;   /* texto oscuro sobre azul claro            */
-  --d-gold:        #FFD54A;   /* punto de oro y ventaja                   */
+  --d-gold:        #F2C230;   /* SOLO el punto de oro (poco amarillo)     */
+  --d-match:       #E8455F;   /* MATCH POINT                              */
   --d-win-row:     #11408C;   /* fila del ganador (azul más vivo)         */
   --d-pause:       #FFB020;   /* partido en pausa                         */
-  --d-cyan:        #22D3EE;   /* destellos de animación                   */
 
   width: 100%;
   height: 100%;
@@ -151,9 +151,14 @@ html { width: 100%; height: 100%; overflow: hidden; }
 
 .d-court:empty { display: none; }
 
-.d-badge { background: var(--d-light-soft); animation: slideDown var(--transition-slow); }
+.d-badge { background: var(--d-light-soft); animation: badgeIn 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2); }
 .d-badge.is-gold  { background: var(--d-gold); }
 .d-badge.is-pause { background: var(--d-pause); animation: pulse 1.6s ease-in-out infinite; }
+/* SET POINT: blanco · MATCH POINT: coral, con un latido suave */
+.d-badge.is-set   { background: #FFFFFF; box-shadow: 0 0 2.4cqh rgba(255, 255, 255, 0.45); }
+.d-badge.is-match { background: var(--d-match); color: #FFFFFF; animation: badgeIn 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2), matchBeat 1.4s ease-in-out 520ms infinite; }
+@keyframes badgeIn   { from { opacity: 0; transform: translateY(-40%) scale(0.85); filter: blur(0.6cqh); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes matchBeat { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 69, 95, 0.55); } 50% { box-shadow: 0 0 0 1.2cqh rgba(232, 69, 95, 0); } }
 
 /* ─────────────────────────────────────────────────────────────────
    ZONA DEL MARCADOR (contenedor de referencia para cqh / cqw)
@@ -327,7 +332,14 @@ html { width: 100%; height: 100%; overflow: hidden; }
 /* PUNTOS: el dato que más cambia → caja azul claro con número oscuro */
 .d-pts   { font-size: min(26cqh, 17cqw); background: var(--d-light); color: var(--d-ink); }
 
-.d-pts.is-advantage { background: var(--d-gold); }
+.d-pts.is-advantage { background: #FFFFFF; box-shadow: 0 0 2.6cqh rgba(255, 255, 255, 0.55); }
+
+/* Quien tiene SET POINT / MATCH POINT: anillo en sus puntos y borde de la fila */
+.d-row.is-set-point .d-pts   { box-shadow: 0 0 0 max(2px, 0.6cqh) #FFFFFF, 0 0 3cqh rgba(255, 255, 255, 0.5); }
+.d-row.is-match-point        { border-color: var(--d-match); }
+.d-row.is-match-point .d-pts { box-shadow: 0 0 0 max(2px, 0.6cqh) var(--d-match), 0 0 3.4cqh rgba(232, 69, 95, 0.65);
+  animation: pressureGlow 1.4s ease-in-out infinite; }
+@keyframes pressureGlow { 50% { box-shadow: 0 0 0 max(2px, 0.6cqh) var(--d-match), 0 0 5cqh rgba(232, 69, 95, 0.9); } }
 .d-cell.is-empty    { opacity: 0.35; }
 
 /* Partido en pausa: el marcador se atenúa (el badge lo explica) */
@@ -417,6 +429,10 @@ html { width: 100%; height: 100%; overflow: hidden; }
 /* Elementos (imágenes, vídeos y mensajes) */
 .ribbon-item { flex-shrink: 0; }
 
+/* Cinta clara: todos los logos sobre blanco (para logos pensados para fondo claro) */
+.d-ribbon[data-bg="light"] { background: linear-gradient(180deg, #FFFFFF 0%, #E6EDF6 100%); }
+.d-ribbon[data-bg="light"] .ribbon-text { color: #0B1F44; }
+
 .ribbon-text {
   display: flex;
   align-items: center;
@@ -447,7 +463,24 @@ html { width: 100%; height: 100%; overflow: hidden; }
 
 .ribbon-slide.is-visible { opacity: 1; }
 .ribbon-slide.is-marquee { justify-content: flex-start; }
-.ribbon-slide.ribbon-image { object-fit: contain; padding: calc(var(--ribbon-h) * 0.06) var(--safe-x); }
+.ribbon-slide.ribbon-image {   /* un logo cada vez: centrado, con el alto que calcula ribbon.js */
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  max-width: calc(100% - 2 * var(--safe-x));
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+}
+
+/* Movimiento "logos fijos": un grupo de logos repartido por la cinta */
+.ribbon-page {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 0 var(--safe-x);
+}
+.ribbon-page > .ribbon-image { flex: none; width: auto; max-width: 100%; object-fit: contain; }
 
 /* Movimiento "desplazamiento continuo" */
 .ribbon-track {
@@ -461,7 +494,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 /* Sin separadores: todos los elementos a la misma distancia, sobre el mismo fondo */
 .ribbon-group { display: flex; align-items: center; height: 100%; flex-shrink: 0; }
 .ribbon-group > .ribbon-item { margin: 0 calc(var(--ribbon-h) * 0.7); }
-.ribbon-track .ribbon-image { height: 70%; width: auto; }
+.ribbon-track .ribbon-image { height: 70%; width: auto; }   /* hasta que ribbon.js calcula el alto de cada logo */
 
 /* ─────────────────────────────────────────────────────────────────
    LISTA DE REPRODUCCIÓN (imágenes y vídeos a pantalla completa)
@@ -564,46 +597,63 @@ html { width: 100%; height: 100%; overflow: hidden; }
 /* ─────────────────────────────────────────────────────────────────
    ANIMACIONES (scoreboard.js las activa solo cuando el dato cambia)
    ───────────────────────────────────────────────────────────────── */
-.d-pts.anim-point { animation: pointFlip 420ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-
-@keyframes pointFlip {
-  0%   { transform: rotateX(-90deg); opacity: 0.2; }
-  60%  { transform: rotateX(12deg);  opacity: 1; }
-  100% { transform: rotateX(0deg); }
+/* Punto: el número nuevo sube desde abajo (con desenfoque) y un brillo cruza la caja */
+.d-pts { position: relative; overflow: hidden; }
+.d-pts.anim-point { animation: pointIn 460ms cubic-bezier(0.2, 0.85, 0.25, 1); }
+.d-pts.anim-point::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.75) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: sheen 650ms 80ms ease-out forwards;
 }
-
-.d-games.anim-game { animation: gameFlash 900ms ease-out; }
-
-@keyframes gameFlash {
-  0%   { color: var(--d-cyan); transform: scale(1.25); }
-  100% { color: #FFFFFF; transform: scale(1); }
+@keyframes pointIn {
+  0%   { transform: translateY(45%) scale(0.92); opacity: 0; filter: blur(0.8cqh); }
+  100% { transform: none; opacity: 1; filter: none; }
 }
+@keyframes sheen { to { transform: translateX(120%); } }
 
-.d-sets.anim-set { animation: setPulse 1600ms ease-out; }
-
-@keyframes setPulse {
-  0%   { transform: scale(1); }
-  20%  { transform: scale(1.3); background: var(--d-cyan); color: var(--d-ink); }
-  60%  { transform: scale(1.1); }
-  100% { transform: scale(1); }
+/* Game: el número crece con un halo celeste y una franja de luz recorre la fila */
+.d-games.anim-game { animation: gameIn 800ms cubic-bezier(0.2, 0.9, 0.3, 1.3); }
+@keyframes gameIn {
+  0%   { transform: scale(0.6); opacity: 0; text-shadow: 0 0 4cqh var(--d-light); }
+  60%  { transform: scale(1.18); opacity: 1; text-shadow: 0 0 3cqh var(--d-light); }
+  100% { transform: none; text-shadow: none; }
 }
-
-.d-row.anim-row { animation: rowFlash 900ms ease-out; }
-
-@keyframes rowFlash {
-  0%   { border-color: var(--d-cyan); box-shadow: 0 0 3cqh rgba(34, 211, 238, 0.55); }
+.d-row.anim-row::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 20%, rgba(143, 211, 255, 0.28) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: rowSweep 900ms ease-out forwards;
+}
+.d-row.anim-row { animation: rowEdge 1000ms ease-out; }
+@keyframes rowSweep { to { transform: translateX(100%); } }
+@keyframes rowEdge {
+  0%   { border-color: var(--d-light); box-shadow: 0 0 3cqh rgba(143, 211, 255, 0.5); }
   100% { border-color: var(--d-row-edge); box-shadow: none; }
 }
 
-.d-set-chip.anim-chip { animation: chipIn 700ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+/* Set: la celda de sets se ilumina y una onda se expande */
+.d-sets.anim-set { animation: setIn 1400ms cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+@keyframes setIn {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(143, 211, 255, 0.9); }
+  25%  { transform: scale(1.22); background: var(--d-light); color: var(--d-ink); }
+  100% { transform: scale(1); box-shadow: 0 0 0 4cqh rgba(143, 211, 255, 0); }
+}
 
+/* Set terminado en la cabecera: entra deslizándose */
+.d-set-chip.anim-chip { animation: chipIn 700ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 @keyframes chipIn {
-  0%   { opacity: 0; transform: translateY(2cqh) scale(0.8); }
-  100% { opacity: 1; transform: none; }
+  0%   { opacity: 0; transform: translateX(-3cqw) scale(0.9); filter: blur(0.6cqh); }
+  100% { opacity: 1; transform: none; filter: none; }
 }
 
 .d-row.anim-winner { animation: winnerGlow 1400ms ease-in-out; }
-
 @keyframes winnerGlow {
   0%, 100% { box-shadow: 0 0 2.5cqh rgba(143, 211, 255, 0.4); }
   50%      { box-shadow: 0 0 6cqh rgba(143, 211, 255, 0.85); }
@@ -613,37 +663,43 @@ html { width: 100%; height: 100%; overflow: hidden; }
    FINAL DEL PARTIDO (finale.js)
    Tras la celebración se alternan el MARCADOR (con el ganador destacado) y
    las ESTADÍSTICAS, que ocupan solas la zona del marcador (cqh/cqw de
-   .d-stage) con letra grande: legibles en una LED pequeña.
+   .d-stage) con letra grande: legibles en una LED pequeña. Los números
+   cuentan hacia arriba y cada dato lleva una barra que compara a las parejas.
    Celebración: sobre toda la salida (cqh/cqw de .output), 6 s.
    ───────────────────────────────────────────────────────────────── */
 .d-summary {
+  position: relative;
   width: 100%;
   height: 100%;
   max-width: 300cqh;
   display: flex;
   flex-direction: column;
-  gap: min(1.6cqh, 1cqw);
-  padding: min(2.6cqh, 1.6cqw) min(3.4cqh, 2.4cqw);
+  gap: min(1.4cqh, 0.9cqw);
+  padding: min(2.4cqh, 1.5cqw) min(3.4cqh, 2.4cqw) min(2.8cqh, 1.8cqw);
+  overflow: hidden;
   border-radius: min(2.6cqh, 1.6cqw);
-  background: var(--d-row);
-  border: max(2px, 0.5cqh) solid var(--d-row-edge);
+  background:
+    radial-gradient(ellipse 60% 80% at 50% -20%, rgba(143, 211, 255, 0.16), transparent 70%),
+    linear-gradient(180deg, #0E3270 0%, var(--d-row) 55%, #0A2556 100%);
+  border: max(2px, 0.4cqh) solid rgba(143, 211, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2cqh 5cqh rgba(0, 0, 0, 0.35);
   animation: sumIn 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* Cabecera: pareja A · ESTADÍSTICAS · pareja B (trofeo junto al ganador) */
+/* Cabecera: pareja A · ESTADÍSTICAS (y los sets) · pareja B; trofeo junto al ganador */
 .sum-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: min(2.4cqh, 1.6cqw);
-  padding-bottom: min(1.4cqh, 0.9cqw);
-  border-bottom: max(2px, 0.4cqh) solid var(--d-row-edge);
+  padding-bottom: min(1.2cqh, 0.8cqw);
+  border-bottom: max(1px, 0.3cqh) solid rgba(143, 211, 255, 0.25);
 }
-.sum-team { display: flex; align-items: center; gap: min(1.6cqh, 1cqw); min-width: 0; opacity: 0.8; }
+.sum-team { display: flex; align-items: center; gap: min(1.6cqh, 1cqw); min-width: 0; opacity: 0.78; }
 .sum-team.is-b { justify-content: flex-end; }
 .sum-team.is-winner { opacity: 1; }
-.sum-trophy { flex-shrink: 0; width: min(9cqh, 4cqw); height: min(9cqh, 4cqw); color: var(--d-gold);
-  filter: drop-shadow(0 0 0.8cqh rgba(255, 213, 74, 0.6)); }
+.sum-trophy { flex-shrink: 0; width: min(8.5cqh, 3.8cqw); height: min(8.5cqh, 3.8cqw); color: var(--d-light);
+  filter: drop-shadow(0 0 1cqh rgba(143, 211, 255, 0.7)); }
 .sum-name {
   min-width: 0;
   overflow: hidden;
@@ -657,73 +713,93 @@ html { width: 100%; height: 100%; overflow: hidden; }
   color: #FFFFFF;
 }
 .sum-team.is-winner .sum-name { color: var(--d-light); }
-.sum-title {
+.sum-title { display: flex; flex-direction: column; align-items: center; gap: min(0.6cqh, 0.4cqw); }
+.sum-title span {
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: min(7cqh, 3.2cqw);
-  letter-spacing: 0.12em;
+  font-size: min(6.6cqh, 3cqw);
+  letter-spacing: 0.18em;
   line-height: 1;
   text-transform: uppercase;
-  color: var(--d-gold);
+  background: linear-gradient(100deg, var(--d-light) 35%, #FFFFFF 50%, var(--d-light) 65%) 0 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: titleShine 2.4s 400ms ease-in-out both;
 }
+.sum-title small { font-family: var(--font-score); font-weight: 600; font-size: min(4.6cqh, 2.1cqw); color: var(--d-light-soft); white-space: nowrap; }
+@keyframes titleShine { from { background-position: 100% 0; } to { background-position: 0 0; } }
 
-/* Filas: valor A · nombre del dato · valor B (sin barras: todo grande) */
+/* Filas: valor A · (dato + barra que compara) · valor B */
 .sum-rows { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; }
 .sum-row {
   display: grid;
-  grid-template-columns: min(22cqh, 12cqw) minmax(0, 1fr) min(22cqh, 12cqw);
+  grid-template-columns: min(20cqh, 11cqw) minmax(0, 1fr) min(20cqh, 11cqw);
   align-items: center;
   gap: min(1.6cqh, 1cqw);
+  animation: rowIn 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i) * 110ms + 200ms);
 }
-.sum-row + .sum-row { border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .sum-val {
   text-align: center;
   font-family: var(--font-score);
   font-weight: 700;
   font-size: min(12cqh, 5.4cqw);
-  line-height: 1.05;
-  color: #FFFFFF;
+  line-height: 1.02;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.82);
 }
-.sum-val.is-lead { color: var(--d-gold); }
+.sum-val.is-lead { color: #FFFFFF; text-shadow: 0 0 2.4cqh rgba(143, 211, 255, 0.75); }
+.sum-mid { display: flex; flex-direction: column; align-items: stretch; gap: min(0.9cqh, 0.6cqw); min-width: 0; }
 .sum-label {
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 800;
-  font-size: min(7cqh, 3.2cqw);
+  font-size: min(6.6cqh, 3cqw);
   color: #FFFFFF;
 }
+/* Barra: la parte de A (celeste) crece hacia la izquierda y la de B (blanca) hacia la derecha */
+.sum-bar { display: flex; gap: min(0.6cqh, 0.4cqw); height: max(4px, 1.9cqh); }
+.sum-bar i { display: block; height: 100%; border-radius: 999px; }
+.sum-bar .a { flex: 0 0 var(--a); background: linear-gradient(90deg, rgba(143, 211, 255, 0.45), var(--d-light)); transform-origin: right; }
+.sum-bar .b { flex: 1 1 0; background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.4)); transform-origin: left; }
+.sum-bar i { animation: barGrow 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i) * 110ms + 450ms); }
+
 .sum-foot { display: flex; align-items: center; justify-content: center; gap: min(1.4cqh, 0.8cqw);
-  font-weight: 700; font-size: min(5.6cqh, 2.6cqw); color: var(--d-light-soft); }
+  font-weight: 700; font-size: min(5cqh, 2.4cqw); color: var(--d-light-soft); }
 .sum-foot svg { width: 1.2em; height: 1.2em; fill: none; stroke: currentColor; stroke-width: 2.2; }
 
-/* Las filas aparecen una tras otra */
-.sum-row { animation: sumIn 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.sum-row:nth-child(2) { animation-delay: 120ms; }
-.sum-row:nth-child(3) { animation-delay: 240ms; }
-.sum-row:nth-child(4) { animation-delay: 360ms; }
-.sum-row:nth-child(5) { animation-delay: 480ms; }
-.sum-row:nth-child(6) { animation-delay: 600ms; }
+/* Cuánto falta para volver al marcador */
+.sum-progress { position: absolute; left: 0; right: 0; bottom: 0; height: max(2px, 0.6cqh); background: rgba(143, 211, 255, 0.12); }
+.sum-progress i { display: block; height: 100%; background: var(--d-light); transform-origin: left;
+  animation: progress var(--dur, 10s) linear both; }
 
-@keyframes sumIn  { from { opacity: 0; transform: translateY(3cqh); } to { opacity: 1; transform: none; } }
+@keyframes sumIn    { from { opacity: 0; transform: translateY(3cqh) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes rowIn    { from { opacity: 0; transform: translateY(2.4cqh); filter: blur(0.5cqh); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes barGrow  { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* Poco alto (LED 832 × 416 con cinta): sin la duración, letra a la altura */
 @container (max-height: 260px) {
   .sum-foot { display: none; }
+  .sum-title small { display: none; }
   .sum-val { font-size: min(13cqh, 5.6cqw); }
-  .sum-label { font-size: min(8.5cqh, 3.4cqw); }
+  .sum-label { font-size: min(8cqh, 3.4cqw); }
   .sum-name { font-size: min(10cqh, 4cqw); }
-  .sum-title { font-size: min(8cqh, 3.2cqw); }
+  .sum-title span { font-size: min(8cqh, 3.2cqw); }
 }
 /* Muy poco alto (LED 416 × 208): los 3 primeros datos, en grande */
 @container (max-height: 170px) {
   .sum-row:nth-child(n+4) { display: none; }
-  .sum-val { font-size: min(19cqh, 7cqw); }
-  .sum-label { font-size: min(12cqh, 4.6cqw); }
+  .sum-val { font-size: min(18cqh, 7cqw); }
+  .sum-label { font-size: min(11.5cqh, 4.6cqw); }
   .sum-name { font-size: min(13cqh, 4.8cqw); }
-  .sum-title { font-size: min(11cqh, 4cqw); }
+  .sum-title span { font-size: min(9cqh, 3.4cqw); letter-spacing: 0.06em; }
+  .sum-head { gap: min(1.4cqh, 1cqw); }
   .sum-trophy { width: 12cqh; height: 12cqh; }
+  .sum-bar { height: max(3px, 2.2cqh); }
 }
 
 /* ── Celebración (estilo retransmisión deportiva, todo en SVG/CSS) ── */
@@ -750,7 +826,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .cel-sweep { position: absolute; inset: 0; pointer-events: none; }
 .cel-sweep i { position: absolute; top: -30%; bottom: -30%; width: 14%; transform: skewX(-18deg) translateX(-160cqw);
   animation: celSweep 1100ms cubic-bezier(0.7, 0, 0.2, 1) forwards; }
-.cel-sweep i:nth-child(1) { left: 0; background: linear-gradient(90deg, transparent, rgba(255, 213, 74, 0.85), transparent); animation-delay: 250ms; }
+.cel-sweep i:nth-child(1) { left: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent); animation-delay: 250ms; }
 .cel-sweep i:nth-child(2) { left: 8%; width: 6%; background: rgba(143, 211, 255, 0.55); animation-delay: 380ms; }
 .cel-sweep i:nth-child(3) { left: 16%; width: 2%; background: rgba(255, 255, 255, 0.7); animation-delay: 470ms; }
 /* Destellos dorados que suben (discretos) */
@@ -758,7 +834,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .cel-glints { position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(ellipse 48% 46% at 62% 46%, rgba(4, 18, 43, 0.78), rgba(4, 18, 43, 0.35) 70%, transparent 100%); }
 .cel-glints i { position: absolute; bottom: -4cqh; width: calc(0.9cqh * var(--s)); height: calc(0.9cqh * var(--s)); border-radius: 50%;
-  background: #FFE68A; box-shadow: 0 0 1.4cqh #FFD54A; opacity: 0; animation: celRise 3.2s ease-out infinite; }
+  background: #E6F5FF; box-shadow: 0 0 1.4cqh #8FD3FF; opacity: 0; animation: celRise 3.2s ease-out infinite; }
 
 /* Contenido: emblema (pala + pelota) a la izquierda, texto a la derecha */
 .cel-content {
@@ -770,7 +846,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   gap: 4cqw;
 }
 .cel-emblem-wrap { flex-shrink: 0; height: min(62cqh, 30cqw); aspect-ratio: 160 / 220;
-  filter: drop-shadow(0 0 3cqh rgba(255, 213, 74, 0.35)); animation: celEmblem 900ms 500ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+  filter: drop-shadow(0 0 3cqh rgba(143, 211, 255, 0.4)); animation: celEmblem 900ms 500ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
 .cel-emblem { width: 100%; height: 100%; overflow: visible; }
 .cel-ball { animation: celBall 1100ms 900ms cubic-bezier(0.3, 0, 0.3, 1) both; transform-origin: 132px 36px; }
 .cel-text { display: flex; flex-direction: column; align-items: flex-start; gap: 1.6cqh; min-width: 0; max-width: 62cqw; }
@@ -785,7 +861,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   letter-spacing: 0.32em;
   text-transform: uppercase;
   color: #04122B;
-  background: linear-gradient(90deg, #FFE68A, #FFD54A 60%, #F2B705);
+  background: linear-gradient(90deg, #FFFFFF, #BEE6FF 55%, #8FD3FF);
   padding: 0.6cqh 2.2cqw 0.6cqh 1.6cqw;
   clip-path: polygon(0 0, 100% 0, calc(100% - 1.6cqw) 100%, 0 100%);
   animation: celWipe 600ms 800ms cubic-bezier(0.6, 0, 0.2, 1) both;
@@ -839,7 +915,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   justify-content: center;
   gap: 1.6cqw;
   background: linear-gradient(90deg, transparent, rgba(4, 18, 43, 0.92) 18%, rgba(4, 18, 43, 0.92) 82%, transparent);
-  border-top: 0.35cqh solid rgba(255, 213, 74, 0.7);
+  border-top: 0.35cqh solid rgba(143, 211, 255, 0.7);
   animation: celBrand 600ms 1900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .cel-brand-logo { display: inline-flex; align-items: center; height: 6.5cqh; font-family: var(--font-score); font-weight: 700;
@@ -847,7 +923,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .cel-brand-logo > span { color: var(--d-light); }
 .cel-brand-logo .brand-logo-img { height: 100%; width: auto; max-width: 26cqw; object-fit: contain; }
 .cel-brand-text { font-family: var(--font-score); font-weight: 700; font-size: 3.6cqh; letter-spacing: 0.4em;
-  text-transform: uppercase; color: var(--d-gold); }
+  text-transform: uppercase; color: var(--d-light); }
 
 @keyframes celIn     { from { opacity: 0; } to { opacity: 1; } }
 @keyframes celOut    { to { opacity: 0; } }

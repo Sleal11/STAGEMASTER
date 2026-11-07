@@ -72,6 +72,10 @@ export function createScoreboard(root) {
     el.pts.classList.toggle('is-empty', finished);
     el.pts.classList.toggle('is-advantage', !finished && player.points === 'AD');
     el.row.classList.toggle('is-serving', !finished && state.server === side);
+    // SET POINT / MATCH POINT: la fila de quien lo tiene se marca (también en pausa no)
+    const pressure = !finished && !state.paused && state.pressure ? state.pressure[side] : null;
+    el.row.classList.toggle('is-set-point', pressure === 'set');
+    el.row.classList.toggle('is-match-point', pressure === 'match');
     el.row.classList.toggle('is-winner',  finished && state.winner === side);
     el.row.classList.toggle('is-loser',   finished && state.winner !== null && state.winner !== side);
   }
@@ -84,6 +88,8 @@ export function createScoreboard(root) {
     dom.badge.textContent = badge.text;
     dom.badge.classList.toggle('is-gold', badge.gold);
     dom.badge.classList.toggle('is-pause', !!badge.pause);
+    dom.badge.classList.toggle('is-set', badge.kind === 'set');
+    dom.badge.classList.toggle('is-match', badge.kind === 'match');
   }
 
   /**

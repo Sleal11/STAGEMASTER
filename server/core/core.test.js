@@ -462,7 +462,8 @@ test('Por defecto: Pantalla 1 → Pista 1, Pantalla 2 → Pista 2, marcador con 
   assert.strictEqual(p1.view, 'score');
   assert.strictEqual(p1.ribbon.enabled, true);
   assert.strictEqual(p1.endAds.enabled, false, 'La publicidad final empieza desactivada');
-  assert.strictEqual(p1.ribbon.cleanLogos, true, 'Logos sin fondo blanco por defecto');
+  assert.deepStrictEqual([p1.ribbon.motion, p1.ribbon.background, p1.ribbon.height, p1.ribbon.sizes], ['rotate', 'dark', 0, {}],
+    'Cinta: uno cada vez, fondo oscuro, alto automático, tamaños automáticos');
   assert.deepStrictEqual(p1.output, { format: 'fill', x: 0, y: 0, brightness: 100, width: 832, height: 416, fit: 'auto' });
 });
 
@@ -549,7 +550,8 @@ test('Validación de pantalla: partido, vista, tiempos, formato y posición inv�
   [
     { matchId: 'pista-9' }, { view: 'karaoke' }, { ribbon: { interval: 1 } }, { ribbon: { motion: 'zigzag' } },
     { ribbon: { enabled: 'si' } }, { ribbon: { texts: Array(11).fill('x') } }, { media: { imageSeconds: 500 } },
-    { ribbon: { cleanLogos: 'no' } }, { output: { brightness: 5 } }, { output: { brightness: 101 } }, { pauseAds: { enabled: 1 } },
+    { ribbon: { background: 'rosa' } }, { ribbon: { height: 50 } }, { ribbon: { height: 10 } }, { ribbon: { sizes: [] } },
+    { ribbon: { sizes: { 'x.png': 20 } } }, { ribbon: { sizes: { 'x.png': 300 } } }, { output: { brightness: 5 } }, { output: { brightness: 101 } }, { pauseAds: { enabled: 1 } },
     { media: { sound: 1 } }, { endAds: { delay: -1 } }, { output: { format: '4k' } }, { output: { y: 1.5 } },
     { output: { fit: 'zoom' } }, { output: { fit: true } }, { endStats: { enabled: 'no' } },
     { ribbon: 'todo' }, null,
@@ -568,15 +570,42 @@ test('Biblioteca: cinta y lista = imágenes y vídeos MP4/WEBM (ignora .mov, .tx
   assert.strictEqual(library.fullscreen[1].url, '/publicidad/pantalla-completa/promo%20grande.png');
 });
 
-test('Solo se puede asignar publicidad que existe; siempre en orden alfabético (el de la carpeta)', () => {
+test('Solo se puede asignar publicidad que existe; la cinta en el orden elegido y la lista en orden alfabético', () => {
   prepareAds();
   const { ads } = loadModules();
   const screens = freshScreens();
-  screens.update('pantalla-1', { ribbon: { items: ['clip.mp4', 'b-marca.png'] }, media: { items: ['video.mp4', 'promo grande.png', 'video.mp4'] } }, ads.listAds());
-  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.items, ['b-marca.png', 'clip.mp4'], 'La cinta admite vídeos');
+  screens.update('pantalla-1', { ribbon: { items: ['clip.mp4', 'b-marca.png', 'clip.mp4'] }, media: { items: ['video.mp4', 'promo grande.png', 'video.mp4'] } }, ads.listAds());
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.items, ['clip.mp4', 'b-marca.png'], 'La cinta admite vídeos y conserva el orden (sin repetidos)');
   assert.deepStrictEqual(screens.get('pantalla-1').media.items, ['promo grande.png', 'video.mp4']);
   assertCode(() => screens.update('pantalla-1', { ribbon: { items: ['../../secreto.png'] } }, ads.listAds()), 'INVALID_SCREEN_CONFIG');
   assertCode(() => screens.update('pantalla-1', { media: { items: ['iphone.mov'] } }, ads.listAds()), 'INVALID_SCREEN_CONFIG');
+});
+
+test('Cinta: tamaño de cada logo, alto, fondo y logos fijos; solo se guardan los tamaños de los logos de la cinta', () => {
+  prepareAds();
+  const { ads } = loadModules();
+  const screens = freshScreens();
+  const lib = ads.listAds();
+  screens.update('pantalla-1', { ribbon: { items: ['logo.svg', 'b-marca.png'], sizes: { 'logo.svg': 150, 'b-marca.png': 60 } } }, lib);
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.sizes, { 'logo.svg': 150, 'b-marca.png': 60 });
+  screens.update('pantalla-1', { ribbon: { sizes: { 'b-marca.png': null } } }, lib);
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.sizes, { 'logo.svg': 150 }, 'null = vuelve al tamaño automático');
+  screens.update('pantalla-1', { ribbon: { sizes: { 'logo.svg': 100 } } }, lib);
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.sizes, {}, '100 % es el automático: no se guarda');
+  screens.update('pantalla-1', { ribbon: { sizes: { 'logo.svg': 130 } } }, lib);
+  screens.update('pantalla-1', { ribbon: { items: ['b-marca.png'] } }, lib);
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.sizes, {}, 'Al quitar un logo de la cinta se olvida su tamaño');
+  screens.update('pantalla-1', { ribbon: { motion: 'fixed', height: 24, background: 'light' } }, lib);
+  const r = screens.get('pantalla-1').ribbon;
+  assert.deepStrictEqual([r.motion, r.height, r.background], ['fixed', 24, 'light']);
+  screens.update('pantalla-1', { ribbon: { height: 0 } }, lib);
+  assert.strictEqual(screens.get('pantalla-1').ribbon.height, 0, '0 = alto automático');
+  const { normalizeSaved } = require('./screenConfig');
+  const base = { id: 'pantalla-1', label: 'Pantalla 1', matchId: 'pista-1', matchIds: ['pista-1', 'pista-2'] };
+  const old = normalizeSaved({ ribbon: { cleanLogos: false, items: ['a.png'] } }, base).ribbon;
+  assert.ok(!('cleanLogos' in old) && old.background === 'dark' && old.items[0] === 'a.png', 'Configuraciones de 2.8: la opción antigua desaparece');
+  const broken = normalizeSaved({ ribbon: { sizes: { 'a.png': 999, 'b.png': 120 }, height: 99, background: 'x' } }, base).ribbon;
+  assert.deepStrictEqual([broken.sizes, broken.height, broken.background], [{ 'b.png': 120 }, 0, 'dark'], 'Valores dañados → por defecto');
 });
 
 test('Nombres de archivo subidos: seguros, sin carpetas ni caracteres prohibidos; nunca pisan otro', () => {

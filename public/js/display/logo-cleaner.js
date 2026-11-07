@@ -10,32 +10,47 @@
  *      letras blancas del logo de Pepsi).
  *   2. Suaviza el borde para que no quede un halo blanco.
  *   3. Recorta los márgenes vacíos: todos los logos quedan igual de separados.
- *   4. Un logo que no contrasta con el azul de la cinta (negro, gris oscuro,
- *      azul marino…) se pasa a BLANCO. Se mide con el contraste estándar
- *      (WCAG) frente al color real de la cinta; los logos de colores vivos
- *      (rojo, naranja…) conservan su color.
+ *   4. Las partes grises o negras (sin color) que no se distinguirían del fondo
+ *      de la cinta se aclaran (cinta oscura) o se oscurecen (cinta clara): el
+ *      texto negro de un logo de colores se lee y los colores se conservan.
+ *   5. Un logo entero que no contrasta con la cinta (negro, gris oscuro,
+ *      azul marino… sobre la oscura; blanco o crema sobre la clara) pasa a
+ *      BLANCO o a AZUL TINTA. Se mide con el contraste estándar (WCAG) frente
+ *      al color real de la cinta; los logos de colores vivos conservan su color.
  *
  * Los SVG se dibujan a alta resolución antes de procesarlos (nítidos aunque
  * el archivo no indique su tamaño).
  *
  * Si la imagen no tiene nada que limpiar, se usa la original.
- * Se activa o desactiva por pantalla (Cinta → "Quitar el fondo blanco").
+ * Siempre activo (2.9): todos los logos sobre el mismo fondo, el de la cinta
+ * («Fondo de la cinta»: oscuro o claro, en la estación).
  */
 
 const MAX_SIDE      = 1600;  // las imágenes grandes se reducen antes de procesarlas
 const WHITE_MIN     = 226;   // un píxel es "blanco de fondo" si R, G y B superan esto…
 const WHITE_SPREAD  = 30;    // …y apenas tienen color (diferencia entre canales)
 const FEATHER_MIN   = 170;   // claros junto al fondo: transparencia parcial (sin halo)
-const RIBBON_LUM    = 0.015; // luminancia relativa del azul de la cinta (#08204A)
-const MIN_CONTRAST  = 2.5;   // por debajo, el logo no se distingue del fondo → blanco
+/** Fondos de la cinta: luminancia relativa (WCAG) y color al que pasa lo que no se ve */
+const BACKGROUNDS = {
+  dark:  { lum: 0.015, ink: [255, 255, 255] },   // azul de la cinta (#08204A) → blanco
+  light: { lum: 0.86,  ink: [11, 31, 68] },      // blanco de la cinta clara → azul tinta (#0B1F44)
+};
+const MIN_CONTRAST  = 2.5;   // por debajo, el logo entero no se distingue del fondo
+const PART_CONTRAST = 1.7;   // por debajo, una parte gris/negra no se ve: se aclara u oscurece
+const GREY_SPREAD   = 46;    // diferencia máxima entre canales para considerar "sin color"
 const SVG_SIDE      = 800;   // lado mayor al dibujar un SVG
 
 const cache = new Map();
 
-/** Devuelve (promesa) la URL de la versión limpia, o la original si no hace falta o falla */
-export function cleanLogo(url) {
-  if (!cache.has(url)) cache.set(url, process(url).catch(() => url));
-  return cache.get(url);
+/**
+ * Devuelve (promesa) la URL de la versión limpia, o la original si no hace falta o falla
+ * @param {'dark'|'light'} [background] - fondo de la cinta
+ */
+export function cleanLogo(url, background = 'dark') {
+  const bg = BACKGROUNDS[background] ? background : 'dark';
+  const key = bg + '|' + url;
+  if (!cache.has(key)) cache.set(key, process(url, BACKGROUNDS[bg]).catch(() => url));
+  return cache.get(key);
 }
 
 function loadImage(url) {
@@ -60,7 +75,7 @@ async function svgRatio(url) {
   return 1;
 }
 
-async function process(url) {
+async function process(url, bg) {
   const img = await loadImage(url);
   let width = img.naturalWidth;
   let height = img.naturalHeight;
@@ -83,8 +98,10 @@ async function process(url) {
   const image = ctx.getImageData(0, 0, width, height);
   const px = image.data;
 
-  const removed = removeWhiteBackground(px, width, height);
-  const recolored = whitenDarkMonochrome(px);
+  // Un logo que ya tiene el fondo transparente no necesita quitar el blanco
+  // (antes, en un logo BLANCO sobre transparente, se comía el propio logo)
+  const removed = hasTransparentBorder(px, width, height) ? false : removeWhiteBackground(px, width, height);
+  const recolored = adaptToBackground(px, bg);
   const box = opaqueBounds(px, width, height);
   if (!box) return url;   // quedaría vacía: mejor la original
   const cropped = box.w < width || box.h < height;
@@ -150,23 +167,78 @@ function removeWhiteBackground(px, width, height) {
 /** Canal sRGB (0-255) → valor lineal (para la luminancia relativa WCAG) */
 const linear = (c) => { const v = c / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
 
-/** Logo que no contrasta con la cinta → blanco (mantiene la forma y los bordes suaves) */
-function whitenDarkMonochrome(px) {
-  let count = 0;
-  let lum = 0;
+const luminance = (px, i) => 0.2126 * linear(px[i]) + 0.7152 * linear(px[i + 1]) + 0.0722 * linear(px[i + 2]);
+const contrastWith = (lum, bg) => (Math.max(lum, bg.lum) + 0.05) / (Math.min(lum, bg.lum) + 0.05);
+
+/** true si la mayor parte del borde de la imagen ya es transparente */
+function hasTransparentBorder(px, width, height) {
+  let transparent = 0;
+  let total = 0;
+  const check = (x, y) => { total++; if (px[(y * width + x) * 4 + 3] < 8) transparent++; };
+  for (let x = 0; x < width; x++) { check(x, 0); check(x, height - 1); }
+  for (let y = 0; y < height; y++) { check(0, y); check(width - 1, y); }
+  return transparent > total * 0.5;
+}
+
+const isGrey = (px, i) => Math.max(px[i], px[i + 1], px[i + 2]) - Math.min(px[i], px[i + 1], px[i + 2]) <= GREY_SPREAD;
+
+/**
+ * Que el logo se vea sobre el fondo de la cinta (mismo fondo para todos):
+ *   - Logo de UN tono sin color (todo negro, todo blanco, gris…) que no
+ *     contrasta → entero al color de tinta (blanco o azul tinta).
+ *   - Logo de DOS tonos sin color (blanco y negro): si lo que no se ve es la
+ *     mayor parte, se invierte (negativo): conserva sus detalles.
+ *   - Logo de COLORES: solo las partes grises/negras que no se verían pasan a
+ *     tinta, y las de color casi invisibles también; el resto conserva su color.
+ */
+function adaptToBackground(px, bg) {
+  let count = 0, greys = 0, lum = 0, dark = 0, light = 0;
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] < 128) continue;
-    lum += 0.2126 * linear(px[i]) + 0.7152 * linear(px[i + 1]) + 0.0722 * linear(px[i + 2]);
+    const l = luminance(px, i);
     count++;
+    lum += l;
+    if (isGrey(px, i)) {
+      greys++;
+      if (l < 0.06) dark++;
+      if (l > 0.55) light++;
+    }
   }
   if (!count) return false;
-  const contrast = (lum / count + 0.05) / (RIBBON_LUM + 0.05);
-  if (contrast >= MIN_CONTRAST) return false;
-  for (let i = 0; i < px.length; i += 4) {
-    if (px[i + 3] === 0) continue;
-    px[i] = px[i + 1] = px[i + 2] = 255;
+  const paint = (test) => {
+    let changed = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 8 || !test(i)) continue;
+      [px[i], px[i + 1], px[i + 2]] = bg.ink;
+      changed++;
+    }
+    return changed > 0;
+  };
+
+  if (greys >= count * 0.85) {
+    const twoTone = dark >= count * 0.08 && light >= count * 0.08;
+    if (twoTone) {
+      const hidden = bg.lum < 0.5 ? dark : light;    // el tono que no se ve sobre esta cinta
+      if (hidden <= count - hidden) return false;    // se ve la mayor parte: se deja como está
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 8 || !isGrey(px, i)) continue;
+        px[i] = 255 - px[i]; px[i + 1] = 255 - px[i + 1]; px[i + 2] = 255 - px[i + 2];
+      }
+      return true;
+    }
+    if (contrastWith(lum / count, bg) < MIN_CONTRAST) return paint(() => true);
+    return paint((i) => isGrey(px, i) && contrastWith(luminance(px, i), bg) < PART_CONTRAST);
   }
-  return true;
+  // De colores: las partes grises que no se ven solo se cambian si son una parte
+  // importante (p. ej. el texto); los detalles pequeños (un filete blanco) se respetan
+  const hiddenGrey = (i) => isGrey(px, i) && contrastWith(luminance(px, i), bg) < PART_CONTRAST;
+  let hidden = 0;
+  for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= 128 && hiddenGrey(i)) hidden++;
+  const darkRibbon = bg.lum < 0.5;
+  return paint((i) => (hidden >= count * 0.3 && hiddenGrey(i)) ||
+    // Sobre la cinta oscura, un color casi invisible (azul marino, granate muy oscuro) también;
+    // sobre la clara, los colores (dorados, amarillos) se conservan
+    (darkRibbon && !isGrey(px, i) && contrastWith(luminance(px, i), bg) < 1.3));
 }
 
 /** Rectángulo que contiene lo visible, con un pequeño margen */

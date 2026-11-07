@@ -13,7 +13,7 @@
  */
 
 const assert = require('assert');
-const { createMatch, applyAction } = require('./engine');
+const { createMatch, applyAction, pointPressure } = require('./engine');
 
 // ─────────────────────────────────────────────────────────────────
 // MINI FRAMEWORK DE PRUEBAS
@@ -911,6 +911,72 @@ test('4000 acciones aleatorias: el motor nunca falla y el marcador siempre es co
       if (estado.status === 'finished') assert.ok(estado.winner === 'A' || estado.winner === 'B', `Final sin ganador en ${contexto}`);
     }
   });
+});
+
+// ═════════════════════════════════════════════════════════════════
+// SET POINT / MATCH POINT
+// ═════════════════════════════════════════════════════════════════
+console.log('\nSET POINT / MATCH POINT');
+
+const games = (state, seq) => seq.split('').reduce((s, side) => ganarGame(s, side), state);
+
+test('5-3 y 40-15: SET POINT para quien saca ventaja; nada para el rival', () => {
+  let s = createMatch(config({ scoringSystem: 'goldenPoint' }));
+  s = games(s, 'AAAAABBB');                         // 5-3
+  s = applyMany(s, ['pointA', 'pointA', 'pointA', 'pointB']);   // 40-15
+  assert.deepStrictEqual(pointPressure(s), { A: 'set', B: null });
+});
+
+test('Con un set ganado, 5-3 y 40-0: MATCH POINT (a 3 sets)', () => {
+  let s = createMatch(config({ scoringSystem: 'goldenPoint' }));
+  s = games(s, 'AAAAAA');                           // set 1 6-0
+  s = games(s, 'AAAAABBB');                         // 5-3
+  s = applyMany(s, ['pointA', 'pointA', 'pointA']); // 40-0
+  assert.deepStrictEqual(pointPressure(s), { A: 'match', B: null });
+});
+
+test('Ventaja en 40-40: no hay set point hasta la ventaja (AD)', () => {
+  let s = createMatch(config({ scoringSystem: 'advantage' }));
+  s = games(s, 'AAAAABBB');
+  s = applyMany(s, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB']);   // 40-40
+  assert.deepStrictEqual(pointPressure(s), { A: null, B: null });
+  s = applyAction(s, 'pointA');                    // AD A
+  assert.deepStrictEqual(pointPressure(s), { A: 'set', B: null });
+});
+
+test('Punto de oro en 40-40 con 5-4: set point solo para quien lleva 5', () => {
+  let s = createMatch(config({ scoringSystem: 'goldenPoint' }));
+  s = games(s, 'AAAAABBBB');                        // 5-4
+  s = applyMany(s, ['pointA', 'pointA', 'pointA', 'pointB', 'pointB', 'pointB']);
+  assert.deepStrictEqual(pointPressure(s), { A: 'set', B: null });
+});
+
+test('Tie break 6-5: set point; súper tie break 9-8: match point', () => {
+  let s = createMatch(config({ scoringSystem: 'goldenPoint', tiebreakType: 'superTiebreak' }));
+  s = games(s, 'ABABABABABAB');                     // 6-6 → tie break
+  s = applyMany(s, ['pointA', 'pointB', 'pointA', 'pointB', 'pointA', 'pointB', 'pointA', 'pointB', 'pointA', 'pointB', 'pointA']);   // 6-5
+  assert.deepStrictEqual(pointPressure(s), { A: 'set', B: null });
+  s = applyAction(s, 'pointA');                    // set 1 para A
+  s = games(s, 'BBBBBB');                           // set 2 para B → súper tie break
+  assert.strictEqual(s.phase, 'superTiebreak');
+  for (let i = 0; i < 8; i++) s = applyMany(s, ['pointA', 'pointB']);   // 8-8
+  s = applyAction(s, 'pointA');                    // 9-8
+  assert.deepStrictEqual(pointPressure(s), { A: 'match', B: null });
+});
+
+test('Al empezar (0-0) no hay presión para nadie', () => {
+  const s = createMatch(config({ scoringSystem: 'goldenPoint' }));
+  assert.deepStrictEqual(pointPressure(s), { A: null, B: null });
+});
+
+test('Partido terminado o sin empezar: sin presión; el estado no cambia', () => {
+  let s = createMatch(config({ scoringSystem: 'goldenPoint', totalSets: 1, gamesPerSet: 1 }));
+  const before = JSON.stringify(s);
+  pointPressure(s);
+  assert.strictEqual(JSON.stringify(s), before, 'Calcularlo no modifica el estado');
+  s = games(s, 'AA');                               // 2-0 en un set de 1 game (gana por 2)
+  assert.strictEqual(s.status, 'finished');
+  assert.deepStrictEqual(pointPressure(s), { A: null, B: null });
 });
 
 // ─────────────────────────────────────────────────────────────────

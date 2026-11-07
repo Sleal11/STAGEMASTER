@@ -1,7 +1,7 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.8.0** (2.7.0 + panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
+compactación de la conversación). Estado: **versión 2.9.0** (2.8.0 + SET/MATCH POINT, cinta de logos con orden, tamaño y fondo, estadísticas animadas, menos amarillo; 2.8.0: panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
 estéticos, pestaña «En vivo», teléfonos que no conectaban, publicidad que llena la LED y estación
 desde el portátil remoto, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
@@ -278,3 +278,22 @@ Ronda 8 (versión 2.8.0) — **estética del panel y fallos de la prueba real** 
   antes con el ganador (fila, trofeo, «GANADOR»; restaurado en scoreboard.js) y las
   estadísticas solas y en grande (#d-summary). Pruebas: evento
   `stagemaster:fase-final` para ir a una fase sin esperar.
+
+Ronda 9 (versión 2.9.0) — **cinta de logos, set/match point y estadísticas** (logos reales de Santiago,
+que NO se suben al repositorio: son de sus patrocinadores):
+- SET POINT / MATCH POINT: `engine.pointPressure(state)` juega el siguiente punto con el motor
+  (exacto con cualquier puntuación y desempate); `Match.getPublicState().pressure`;
+  `ScoreFormat.badgeFor` (prioridad: pausa > match > set > punto de oro > tie break, `kind`);
+  LED: badge blanco (set) / coral (match) y anillo en los puntos de la fila; teléfono y estación.
+- Menos amarillo: `--d-gold` solo para el punto de oro; ventaja en blanco; celebración y
+  estadísticas en celeste/plateado.
+- Estadísticas: cuenta hacia arriba (`finale.countUp`), barra comparativa por dato, sets bajo el
+  título, barra de progreso hasta volver al marcador. Animaciones nuevas del marcador (punto que
+  sube con brillo, franja de luz en el game, onda en el set, chips que entran).
+- Cinta: `common/ribbon-layout.js` (alto por proporción = mismo peso visual; `paginate`),
+  `ribbon.items` en el orden del operador, `sizes` (50-200 %), `height` (0 = auto, 14-32 %),
+  `background` dark/light, movimiento `fixed` (logos fijos por grupos). Limpieza siempre activa
+  (fuera `cleanLogos`); `logo-cleaner` corrige el borrado de logos blancos transparentes y adapta
+  partes grises/negras al fondo (un tono → tinta; dos tonos → negativo; colores intactos).
+  Estación: `station/ribbon-editor.js` (vista previa real, arrastrar, flechas, tamaño, Auto).
+- Pruebas: `tests/e2e/ribbon.e2e.js`; motor (set/match point); núcleo (cinta).

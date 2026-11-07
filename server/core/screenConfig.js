@@ -11,9 +11,13 @@
  *   view      'score'  marcador (con cinta publicitaria si está activa)
  *             'media'  lista de reproducción a pantalla completa (imágenes y vídeos)
  *   ribbon    Cinta publicitaria del marcador:
- *               enabled · items (imágenes y vídeos de banner/) · texts (mensajes) ·
- *               cleanLogos (quitar el fondo blanco de los logos) ·
- *               motion ('rotate' cambia cada `interval` s | 'scroll' desplazamiento) · speed
+ *               enabled · items (imágenes y vídeos de banner/, EN EL ORDEN que elige
+ *               el operador) · sizes ({ archivo: % }, tamaño de cada logo, 50-200) ·
+ *               height (alto de la cinta en % de la pantalla; 0 = automático) ·
+ *               background ('dark' azul como el marcador | 'light' blanca) ·
+ *               texts (mensajes) · motion ('rotate' uno cada `interval` s | 'fixed'
+ *               varios logos a la vez, por grupos | 'scroll' desplazamiento) · speed.
+ *               Los logos van siempre sin fondo blanco y sobre el fondo de la cinta.
  *   media     Lista de reproducción: items (de pantalla-completa/, en orden) ·
  *             imageSeconds (tiempo de cada imagen) · sound (vídeos con sonido)
  *   endAds    Publicidad al terminar el partido: enabled · delay (segundos que
@@ -48,7 +52,8 @@
 const { appError } = require('./errors');
 
 const VIEWS          = ['score', 'media'];
-const RIBBON_MOTIONS = ['rotate', 'scroll'];
+const RIBBON_MOTIONS = ['rotate', 'fixed', 'scroll'];
+const RIBBON_BACKGROUNDS = ['dark', 'light'];
 const SCROLL_SPEEDS  = ['slow', 'normal', 'fast'];
 const PLAYBACK       = ['playing', 'paused'];
 const PRESET_ID      = /^f-[0-9a-f]{8}$/;   // formato guardado por el operador (formats.js)
@@ -70,9 +75,18 @@ const LIMITS = {
   width:        [16, 7680], // tamaño personalizado (píxeles reales)
   height:       [16, 4320],
   brightness:   [10, 100],  // brillo de la imagen (%)
+  logoSize:     [50, 200],  // tamaño de cada logo de la cinta (% del automático)
+  ribbonHeight: [14, 32],   // alto de la cinta (% de la pantalla); 0 = automático
   texts:        10,         // mensajes de la cinta
   textLength:   120,        // caracteres por mensaje
 };
+
+/** Tamaños guardados de los logos de la cinta ({ archivo: % }); los dañados se descartan */
+function logoSizes(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([name, v]) =>
+    typeof name === 'string' && Number.isInteger(v) && v >= LIMITS.logoSize[0] && v <= LIMITS.logoSize[1]));
+}
 
 /** Configuración nueva de una pantalla */
 function defaultConfig({ id, label, matchId }) {
@@ -82,7 +96,7 @@ function defaultConfig({ id, label, matchId }) {
     mirrorOf: null,
     matchId,
     view:   'score',
-    ribbon: { enabled: true, items: [], texts: [], motion: 'rotate', interval: 10, speed: 'normal', cleanLogos: true },
+    ribbon: { enabled: true, items: [], sizes: {}, height: 0, background: 'dark', texts: [], motion: 'rotate', interval: 10, speed: 'normal' },
     media:  { items: [], imageSeconds: 10, sound: false },
     endAds: { enabled: false, delay: 15 },
     pauseAds: { enabled: true },
@@ -138,7 +152,9 @@ function normalizeSaved(saved, base) {
     motion:   pick(r.motion, oneOf(RIBBON_MOTIONS), 'rotate'),
     interval: pick(r.interval, inRange(LIMITS.interval), 10),
     speed:    pick(r.speed, oneOf(SCROLL_SPEEDS), 'normal'),
-    cleanLogos: pick(r.cleanLogos, bool, true),
+    sizes:    logoSizes(r.sizes),
+    height:   pick(r.height, (v) => v === 0 || inRange(LIMITS.ribbonHeight)(v), 0),
+    background: pick(r.background, oneOf(RIBBON_BACKGROUNDS), 'dark'),
   };
   config.media = {
     items:        pick(m.items, names, []),
@@ -215,12 +231,13 @@ function applyChanges(config, changes, { matchIds, library, formats = [] }) {
     if (!list.includes(value)) fail(`${what} inválido: ${value}`);
     return value;
   };
-  // Siempre en el orden de la carpeta (alfabético): así se reproduce y así se ve en la estación
-  const files = (value, category) => {
+  // Lista de reproducción: en el orden de la carpeta (alfabético). Cinta: en el orden que elige el operador
+  const files = (value, category, { keepOrder = false } = {}) => {
     if (!Array.isArray(value)) fail('Selección de publicidad inválida');
     const available = library[category].map((ad) => ad.name);
     const unknown = value.filter((name) => !available.includes(name));
     if (unknown.length) fail(`Publicidad inexistente: ${unknown.join(', ')}`);
+    if (keepOrder) return [...new Set(value)];
     return available.filter((name) => value.includes(name));
   };
 
@@ -230,11 +247,26 @@ function applyChanges(config, changes, { matchIds, library, formats = [] }) {
   const ribbon = section('ribbon');
   if (ribbon) {
     if (ribbon.enabled  !== undefined) next.ribbon.enabled  = boolean(ribbon.enabled, 'Cinta');
-    if (ribbon.items    !== undefined) next.ribbon.items    = files(ribbon.items, 'banner');
+    if (ribbon.items    !== undefined) next.ribbon.items    = files(ribbon.items, 'banner', { keepOrder: true });
     if (ribbon.motion   !== undefined) next.ribbon.motion   = oneOf(ribbon.motion, RIBBON_MOTIONS, 'Movimiento');
     if (ribbon.speed    !== undefined) next.ribbon.speed    = oneOf(ribbon.speed, SCROLL_SPEEDS, 'Velocidad');
     if (ribbon.interval !== undefined) next.ribbon.interval = integer(ribbon.interval, LIMITS.interval, 'Tiempo de cada elemento');
-    if (ribbon.cleanLogos !== undefined) next.ribbon.cleanLogos = boolean(ribbon.cleanLogos, 'Quitar el fondo blanco');
+    if (ribbon.background !== undefined) next.ribbon.background = oneOf(ribbon.background, RIBBON_BACKGROUNDS, 'Fondo de la cinta');
+    if (ribbon.height !== undefined) {
+      next.ribbon.height = ribbon.height === 0 ? 0 : integer(ribbon.height, LIMITS.ribbonHeight, 'Alto de la cinta');
+    }
+    if (ribbon.sizes !== undefined) {
+      if (!isObject(ribbon.sizes)) fail('Tamaños de los logos inválidos');
+      const sizes = { ...next.ribbon.sizes };
+      Object.entries(ribbon.sizes).forEach(([name, value]) => {
+        if (value === null) { delete sizes[name]; return; }   // vuelve al tamaño automático
+        sizes[name] = integer(value, LIMITS.logoSize, 'Tamaño del logo');
+      });
+      next.ribbon.sizes = sizes;
+    }
+    // Solo se guardan los tamaños de los logos que están en la cinta
+    next.ribbon.sizes = Object.fromEntries(Object.entries(next.ribbon.sizes)
+      .filter(([name, value]) => next.ribbon.items.includes(name) && value !== 100));
     if (ribbon.texts !== undefined) {
       if (!Array.isArray(ribbon.texts) || ribbon.texts.some((t) => typeof t !== 'string')) fail('Mensajes inválidos');
       const texts = ribbon.texts.map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean);

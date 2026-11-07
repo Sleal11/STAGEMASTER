@@ -233,9 +233,12 @@ function renderMatch() {
     ? 'SUPER TIE BREAK DECISIVO'
     : 'SET ' + matchState.currentSet + ' · EN CURSO';
 
-  // TIE BREAK / SUPER TIE BREAK / PUNTO DE ORO (también el decisivo de FIP 2026; texto compartido con las pantallas)
+  // MATCH POINT / SET POINT / PUNTO DE ORO / TIE BREAK (texto compartido con las pantallas)
   var badgeInfo = ScoreFormat.badgeFor(matchState);
   badge.classList.toggle('hidden', !badgeInfo);
+  ['set', 'match', 'gold'].forEach(function (kind) {
+    badge.classList.toggle('is-' + kind, !!badgeInfo && badgeInfo.kind === kind);
+  });
   if (badgeInfo) badge.textContent = badgeInfo.text;
 
   // ── Historial de sets ────────────────────────────────────────

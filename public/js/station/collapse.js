@@ -47,7 +47,7 @@ export function collapseButton(id, what) {
 }
 
 /** Aplica el estado (clase y botón) a todo lo plegable que haya en la página */
-export function applyCollapsed(root = document) {
+function applyCollapsed(root = document) {
   root.querySelectorAll('[data-collapsible]').forEach((el) => {
     el.classList.toggle('is-collapsed', collapsed.has(el.dataset.collapsible));
   });

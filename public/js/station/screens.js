@@ -28,6 +28,7 @@ import { confirmDialog } from './dialogs.js';
 import { pickFiles, deleteAd } from './uploads.js';
 import { remotesShowing } from './remotes.js';
 import { collapseButton, isCollapsed } from './collapse.js';
+import { editorHtml, drawPreviews, moved, initRibbonDrag } from './ribbon-editor.js';
 
 const TABS = [
   { id: 'content', label: 'Contenido',             icon: 'sliders' },
@@ -37,6 +38,9 @@ const TABS = [
 ];
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const SPEED_LABELS = { slow: 'Lenta', normal: 'Normal', fast: 'Rápida' };
+/** Alto de la cinta: 0 = automático (19 % de la pantalla; 21 % en LED pequeñas) */
+const RIBBON_HEIGHTS = [[0, 'Automático (recomendado)'], [16, '16 %'], [20, '20 %'], [24, '24 % · logos más grandes'], [28, '28 %'], [32, '32 %']];
+let dragReady = false;
 /** Ajuste de la publicidad a la salida (screenConfig.MEDIA_FITS) */
 const FIT_LABELS = {
   auto:    'Automático: llena toda la pantalla (recomendado)',
@@ -49,6 +53,10 @@ const activeTab = {};   // pantalla → pestaña abierta
 
 export function renderScreens(state) {
   const container = document.getElementById('st-screens');
+  if (!dragReady) {
+    dragReady = true;
+    initRibbonDrag(container, (screenId, items) => update(screenId, { ribbon: { items } }));
+  }
   // Pantallas quitadas (en esta estación o en otra ventana): fuera su tarjeta
   container.querySelectorAll('[data-screen-card]').forEach((card) => {
     if (!state.screens.some((s) => s.id === card.dataset.screenCard)) card.remove();
@@ -97,6 +105,7 @@ export function renderScreens(state) {
     const editing = panel.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
     if (!editing) patch(panel, panelHtml(tab, screen, state));
   });
+  drawPreviews();
 }
 
 function createCard(screen) {
@@ -432,22 +441,32 @@ function ribbonPanel(screen, state) {
     `<button type="button" class="${ribbon.speed === value ? 'is-active' : ''}" data-action="speed" data-speed="${value}" data-screen="${screen.id}">${text}</button>`).join('');
 
   const off = !ribbon.enabled;
+  const background = (value, text) =>
+    `<button type="button" class="${(ribbon.background || 'dark') === value ? 'is-active' : ''}" data-action="ribbonBg" data-bg="${value}" data-screen="${screen.id}">${text}</button>`;
   return `<div class="st-power${off ? ' is-off' : ''}">${toggle('ribbonEnabled', screen.id, ribbon.enabled, 'Mostrar la cinta debajo del marcador')}` +
     `<span class="muted">${off ? 'Apagada: el marcador ocupa toda la pantalla.' : 'Franja de patrocinadores bajo el marcador.'}</span></div>` +
     group('Qué aparece', 'image',
       field('Archivos', libraryHtml('banner', 'ribbonItem', screen, ribbon.items, 'Aún no hay archivos para la cinta.'),
-        'Logos e imágenes PNG/JPG/SVG (recomendado 1920 × 200) y vídeos cortos MP4 o WEBM (sin sonido).') +
+        'Logos PNG (mejor con fondo transparente), JPG o SVG y vídeos cortos MP4 o WEBM (sin sonido). Los logos se ven siempre ' +
+        'sobre el fondo de la cinta: sin recuadro blanco, sin márgenes y en blanco si son oscuros (los archivos no se modifican).') +
       field('Mensajes', `<textarea class="input" rows="3" maxlength="1300" data-action="texts" data-screen="${screen.id}" placeholder="Un mensaje por línea (ej. Gracias a Bar Central)">${esc(ribbon.texts.join('\n'))}</textarea>` +
         `<button type="button" class="btn btn-secondary btn-sm" data-action="applyTexts" data-screen="${screen.id}" disabled>${icon('check')}Aplicar mensajes</button>`,
         `Texto que pasa por la cinta. Hasta ${state.limits.texts} mensajes de ${state.limits.textLength} caracteres.`), { off }) +
     group('Cómo se mueve', 'swap',
-      field('Movimiento', `<div class="segmented" role="group">${motion('rotate', 'Cambia cada cierto tiempo')}${motion('scroll', 'Desplazamiento continuo')}</div>`) +
-      (ribbon.motion === 'rotate'
-        ? field('Cada elemento', number('ribbonInterval', screen.id, ribbon.interval, state.limits.interval, 'segundos'))
-        : field('Velocidad', `<div class="segmented" role="group">${speeds}</div>`)), { off }) +
-    group('Aspecto de los logos', 'sliders',
-      field('Fondo', toggle('cleanLogos', screen.id, ribbon.cleanLogos, 'Quitar el fondo blanco y poner todos sobre el mismo fondo'),
-        'Quita el recuadro blanco de los logos, los separa por igual y pasa a blanco los logos negros (los archivos no se modifican).'), { off });
+      field('Movimiento', `<div class="segmented segmented-wrap" role="group">${motion('rotate', 'Uno cada vez')}${motion('fixed', 'Logos fijos')}${motion('scroll', 'Desplazamiento continuo')}</div>`,
+        { rotate: 'Un logo o mensaje cada vez, en grande.', fixed: 'Varios logos a la vez, repartidos por la cinta; si no caben todos, se turnan por grupos.',
+          scroll: 'Todos pasan uno detrás de otro, sin parar.' }[ribbon.motion]) +
+      (ribbon.motion === 'scroll'
+        ? field('Velocidad', `<div class="segmented" role="group">${speeds}</div>`)
+        : field(ribbon.motion === 'fixed' ? 'Cada grupo' : 'Cada elemento', number('ribbonInterval', screen.id, ribbon.interval, state.limits.interval, 'segundos'))), { off }) +
+    group('Aspecto de la cinta', 'image',
+      field('Fondo', `<div class="segmented" role="group">${background('dark', 'Oscuro')}${background('light', 'Claro (blanco)')}</div>`,
+        'Todos los logos van sobre este mismo fondo. Oscuro: como el marcador. Claro: para logos pensados para fondo blanco. ' +
+        'Lo que no se vería (texto negro sobre oscuro, blanco sobre claro) se ajusta solo.') +
+      field('Alto', `<select class="input" data-action="ribbonHeight" data-screen="${screen.id}">${RIBBON_HEIGHTS.map(([v, t]) =>
+        `<option value="${v}"${v === (ribbon.height || 0) ? ' selected' : ''}>${t}</option>`).join('')}</select>`,
+        'Más alta = logos más grandes y legibles en la LED (el marcador se reparte el resto).'), { off }) +
+    editorHtml(screen, off);
 }
 
 function mediaPanel(screen, state) {
@@ -673,10 +692,24 @@ export function onScreenClick(event) {
     case 'selectItems': {
       // «Todos» / «Ninguno» de la cinta o de la lista de reproducción
       const category = el.dataset.item === 'ribbonItem' ? 'banner' : 'fullscreen';
-      const items = el.dataset.which === 'all' ? ctx.state.ads[category].map((ad) => ad.name) : [];
+      const all = ctx.state.ads[category].map((ad) => ad.name);
+      // La cinta conserva el orden elegido: los que faltaban se añaden al final
+      const current = el.dataset.item === 'ribbonItem' ? screen.ribbon.items : [];
+      const items = el.dataset.which === 'all' ? current.concat(all.filter((n) => !current.includes(n))) : [];
       update(screenId, el.dataset.item === 'ribbonItem' ? { ribbon: { items } } : { media: { items } });
       break;
     }
+    case 'logoMove': {
+      const items = moved(screen.ribbon.items, el.dataset.name, Number(el.dataset.dir));
+      if (items) update(screenId, { ribbon: { items } });
+      break;
+    }
+    case 'ribbonBg':
+      update(screenId, { ribbon: { background: el.dataset.bg } });
+      break;
+    case 'logoReset':
+      update(screenId, { ribbon: { sizes: { [el.dataset.name]: null } } });
+      break;
     case 'deleteAd':
       deleteAd(el.dataset.category, el.dataset.name);
       break;
@@ -801,8 +834,15 @@ export function onScreenChange(event) {
     case 'endDelay':       update(screenId, { endAds: { delay: value } }); break;
     case 'ribbonEnabled':  update(screenId, { ribbon: { enabled: el.checked } }); break;
     case 'ribbonInterval': update(screenId, { ribbon: { interval: value } }); break;
-    case 'cleanLogos':     update(screenId, { ribbon: { cleanLogos: el.checked } }); break;
-    case 'ribbonItem':     update(screenId, { ribbon: { items: checkedValues(screenId, 'ribbonItem') } }); break;
+    case 'ribbonItem': {
+      // Conserva el orden de la cinta: el que se marca va al final
+      const checked = checkedValues(screenId, 'ribbonItem');
+      const items = findScreen(screenId).ribbon.items.filter((n) => checked.includes(n));
+      update(screenId, { ribbon: { items: items.concat(checked.filter((n) => !items.includes(n))) } });
+      break;
+    }
+    case 'ribbonHeight':   update(screenId, { ribbon: { height: value } }); break;
+    case 'logoSize':       update(screenId, { ribbon: { sizes: { [el.dataset.name]: value } } }); break;
     case 'mediaItem':      update(screenId, { media: { items: checkedValues(screenId, 'mediaItem') } }); break;
     case 'imageSeconds':   update(screenId, { media: { imageSeconds: value } }); break;
     case 'sound':          update(screenId, { media: { sound: el.checked } }); break;
@@ -818,6 +858,12 @@ export function onScreenInput(event) {
   if (el.dataset.action === 'brightness') {
     const label = document.querySelector(`[data-brightness-value="${el.dataset.screen}"]`);
     if (label) label.textContent = el.value + ' %';
+    return;
+  }
+  // Tamaño de un logo: el valor y la vista previa cambian mientras se arrastra; se aplica al soltar
+  if (el.dataset.action === 'logoSize') {
+    el.parentElement.querySelector('output').textContent = el.value + ' %';
+    drawPreviews({ screenId: el.dataset.screen, name: el.dataset.name, size: Number(el.value) });
     return;
   }
   if (el.dataset.action !== 'texts') return;

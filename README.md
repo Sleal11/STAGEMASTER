@@ -46,7 +46,7 @@ en **otros portátiles** de la red, con marcador, cinta publicitaria y vídeos,
 | QR único de acceso para los árbitros + código de cada pista (nuevo código, desvincular) | Arriba de los partidos · tarjeta de cada pista |
 | **Final del partido**: celebración de los ganadores y resumen con estadísticas (pantalla, teléfono e historial) | Automático |
 | **Marcador** o **Publicidad y vídeos** (reproductor: pausar, reanudar, detener) | Tarjeta de cada pantalla |
-| **Cinta publicitaria**: imágenes, logos, vídeos cortos y mensajes, fundido o desplazamiento continuo | Pestaña *Cinta* |
+| **Cinta publicitaria**: logos, vídeos cortos y mensajes; uno cada vez, logos fijos por grupos o desplazamiento continuo; fondo oscuro o claro; alto; **orden y tamaño de cada logo** con vista previa | Pestaña *Cinta* |
 | **Lista de reproducción**: imágenes y vídeos MP4/WEBM en bucle, con o sin sonido | Pestaña *Lista de reproducción* |
 | **Subir fotos y vídeos** (botón o arrastrar desde el Explorador) y borrarlos | Pestañas *Cinta* y *Lista de reproducción* |
 | **Publicidad al terminar el partido** (activable, tras X s de resultado) y **en la pausa** (vuelve al marcador al reanudar) | Pestaña *Contenido* |
@@ -146,11 +146,12 @@ server/
 └── sports/padel/              engine.js (motor) · config.js (validación)
 public/
 ├── station.html · js/station/   Estación: main, context, dialogs, matches, screens, uploads,
-│                                remotes (portátiles), live (En vivo), history (Historial)
+│                                remotes (portátiles), live (En vivo), history (Historial),
+│                                collapse (minimizar), ribbon-editor (orden y tamaño de los logos)
 ├── score.html   · js/display/   Pantalla: main (capas y salida LED), scoreboard,
 │                                ribbon (cinta), media-player (imágenes y vídeos), logo-cleaner
 ├── control.html · js/control.js Teléfono del árbitro
-├── js/common/                   score-format, brand (logo), ui (iconos, utilidades)
+├── js/common/                   score-format, ribbon-layout (tamaño de los logos), brand (logo), ui
 ├── img/icons.svg                Iconos SVG (sprite)
 └── ayuda.html                   Ayuda para el cliente
 publicidad/              Ejemplos (imagen y vídeo 2:1, cinta) que se copian a Documentos la primera vez

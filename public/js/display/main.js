@@ -130,6 +130,8 @@ function applyScreenConfig(next) {
   }
   config = next;
   finale.setStatsEnabled(next.showStats);
+  // Alto de la cinta elegido en la estación (0 = el automático de score.css)
+  dom.display.style.setProperty('--ribbon-h', next.ribbon.height ? next.ribbon.height + 'cqh' : '');
 
   dom.court.textContent = next.matchLabel;
   dom.court.style.setProperty('--court-color', next.matchColor);

@@ -1,4 +1,4 @@
-# StageMaster · Informe del proyecto (versión 2.8.0)
+# StageMaster · Informe del proyecto (versión 2.9.0)
 
 > Estado a **noviembre de 2026**. Versión que está operando en eventos reales.
 > Resumen corto: [`RESUMEN.md`](../RESUMEN.md). Historial del desarrollo:
@@ -123,7 +123,7 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 - Cada cambio en la rama de trabajo compila el `.exe` y el `.zip` **en un Windows real**
   (GitHub Actions) tras pasar las pruebas, y los publica en el enlace fijo de prueba:
   `releases/download/prueba/StageMaster-prueba.exe` (y `.zip`).
-- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.8.0` → Releases.
+- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.9.0` → Releases.
 - Mientras se valida una versión grande, la prueba se publica en `prueba-nueva`
   (la anterior sigue en `prueba`); variable `PRUEBA_TAG` del flujo de compilación.
 
@@ -157,6 +157,10 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 
 | Problema | Efecto | Corrección |
 |---|---|---|
+| Un logo BLANCO con fondo transparente no se limpiaba (2.9.0) | Al quitar el «fondo blanco» se borraba el propio logo y se usaba el original | Si el borde ya es transparente, no se quita el blanco |
+| Logos con texto negro casi invisibles en la cinta (2.9.0) | Solo se pasaban a blanco los logos enteros oscuros | Las partes grises/negras que no se ven se ajustan; los colores se conservan; fondo claro opcional |
+| Logos pequeños en LED de pocos píxeles (2.9.0) | Todos al 70 % del alto: los cuadrados quedaban diminutos | Tamaño automático por proporción (mismo peso visual) + tamaño por logo y alto de la cinta |
+| «Ventana» en En vivo: el punto quedaba solo en una línea (2.9.0) | Estado difícil de leer | El punto va pegado a su texto |
 | Cambiar la resolución avisaba «El servidor no respondió» (2.8.0) | Windows tarda 5-10 s (3 llamadas a PowerShell) y la estación solo esperaba 4 s; el modo sí se aplicaba | Espera hasta 45 s en las órdenes que van a Windows, comprobar y aplicar en una sola llamada, lista de monitores reutilizada, «Aplicando…» en el diálogo |
 | «Permitir teléfonos» podía decir lo mismo (2.8.0) | El aviso de administrador de Windows tarda lo que tarde el operador | Espera hasta 2 min |
 | El Historial podía no mostrar el último partido hasta reiniciar (2.8.0) | Un aviso perdido (reconexión), una carga lenta que pisaba a la nueva o una respuesta fallida sin reintento | Se recarga al reconectar, al ver un final en el estado, cada minuto con la vista abierta; reintento a los 3 s; solo cuenta la última carga; aviso «partido guardado» |
@@ -194,7 +198,7 @@ ya era atómico y todas las órdenes validan sus datos.
 2. **Router propio** para el evento (sin Internet, con contraseña) y el portátil enchufado a la corriente.
 3. Publicidad en **2:1** (832 × 416 o 1664 × 832, como `marketing/videos-led/`) y vídeos MP4 H.264.
 4. Hacer el **simulacro** de [`SIMULACRO-EVENTO.md`](SIMULACRO-EVENTO.md) antes de cada evento grande.
-5. Publicar la versión para el cliente en **Releases** (`v2.8.0`) y usar ese enlace fijo.
+5. Publicar la versión para el cliente en **Releases** (`v2.9.0`) y usar ese enlace fijo.
 
 ### Mejoras de funcionalidad (por orden de valor)
 | # | Mejora | Valor | Esfuerzo |
