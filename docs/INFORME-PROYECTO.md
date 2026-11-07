@@ -146,11 +146,11 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 
 | Conjunto | Pruebas | Qué cubre |
 |---|---|---|
-| Motor del pádel | 58 | Todas las reglas FIP, estadísticas (con deshacer) y 4 000 acciones aleatorias |
-| Núcleo del servidor | 74 | Partidos, versiones, códigos de pista únicos, tokens, pantallas, publicidad, formatos, migraciones |
+| Motor del pádel | 65 | Todas las reglas FIP, SET POINT / MATCH POINT, estadísticas (con deshacer) y 4 000 acciones aleatorias |
+| Núcleo del servidor | 76 | Cinta (orden, tamaño, alto, fondo), Partidos, versiones, códigos de pista únicos, tokens, pantallas, publicidad, formatos, migraciones |
 | Monitores | 14 | Qué pantalla va en qué monitor al conectar/desconectar |
 | Integración | 47 | Servidor real + estación + teléfonos (el código decide la pista) + pantallas + portátil remoto por la IP de red |
-| Navegador y Electron (e2e) | 14 conjuntos · 337 comprobaciones | Estación (zonas, minimizar, pestañas con resumen, Todos/Ninguno, Historial al instante, resolución lenta), teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
+| Navegador y Electron (e2e) | 15 conjuntos · 381 comprobaciones | Cinta de logos (orden, tamaño, arrastrar, logos fijos, fondo), set point y match point, estación (zonas, minimizar, pestañas con resumen, Todos/Ninguno, Historial al instante, resolución lenta), teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
 | Windows real (CI) | 2 | Cambio de resolución y firewall en un Windows de verdad |
 
 ## 5. Análisis de errores (y su corrección)
