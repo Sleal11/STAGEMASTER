@@ -21,6 +21,15 @@
  * Los SVG se dibujan a alta resolución antes de procesarlos (nítidos aunque
  * el archivo no indique su tamaño).
  *
+ * REALCE de cada logo (2.10, «Realce» en la estación; `effect`):
+ *   - 'auto'    (por defecto): se DEFINE solo si una parte importante del logo
+ *               apenas se distingue del fondo (letras marrones, plateadas…).
+ *   - 'define'  «Definir»: las partes que no contrastan se aclaran (cinta
+ *               oscura) u oscurecen (clara) conservando su tono, hasta leerse.
+ *   - 'outline' «Contorno»: un borde blanco alrededor de todo el logo (azul
+ *               tinta en la cinta clara): la silueta se lee siempre.
+ *   - 'both'    Definir + contorno.   - 'none' «Sin realce».
+ *
  * Si la imagen no tiene nada que limpiar, se usa la original.
  * Siempre activo (2.9): todos los logos sobre el mismo fondo, el de la cinta
  * («Fondo de la cinta»: oscuro o claro, en la estación).
@@ -39,17 +48,30 @@ const MIN_CONTRAST  = 2.5;   // por debajo, el logo entero no se distingue del f
 const PART_CONTRAST = 1.7;   // por debajo, una parte gris/negra no se ve: se aclara u oscurece
 const GREY_SPREAD   = 46;    // diferencia máxima entre canales para considerar "sin color"
 const SVG_SIDE      = 800;   // lado mayor al dibujar un SVG
+/**
+ * «Definir»: contraste mínimo de cada parte con la cinta para leerse en una LED.
+ * Un color vivo (rojo, verde, dorado intenso) se ve con menos contraste que
+ * un gris o un color apagado (marrón, plateado, azul marino).
+ */
+const DEFINE_CONTRAST = { grey: 9, muted: 5, vivid: 2.2 };
+const AUTO_DEFINE   = 0.1;   // «Auto»: se define si al menos esta parte del logo no se lee
+const OUTLINE       = 0.022; // grosor del contorno (fracción del lado menor del logo)
+
+/** Realces de un logo (el primero es el de por defecto) */
+export const LOGO_EFFECTS = ['auto', 'none', 'define', 'outline', 'both'];
 
 const cache = new Map();
 
 /**
  * Devuelve (promesa) la URL de la versión limpia, o la original si no hace falta o falla
  * @param {'dark'|'light'} [background] - fondo de la cinta
+ * @param {string} [effect] - realce del logo (LOGO_EFFECTS)
  */
-export function cleanLogo(url, background = 'dark') {
+export function cleanLogo(url, background = 'dark', effect = 'auto') {
   const bg = BACKGROUNDS[background] ? background : 'dark';
-  const key = bg + '|' + url;
-  if (!cache.has(key)) cache.set(key, process(url, BACKGROUNDS[bg]).catch(() => url));
+  const fx = LOGO_EFFECTS.includes(effect) ? effect : 'auto';
+  const key = bg + '|' + fx + '|' + url;
+  if (!cache.has(key)) cache.set(key, process(url, BACKGROUNDS[bg], fx).catch(() => url));
   return cache.get(key);
 }
 
@@ -75,7 +97,7 @@ async function svgRatio(url) {
   return 1;
 }
 
-async function process(url, bg) {
+async function process(url, bg, fx) {
   const img = await loadImage(url);
   let width = img.naturalWidth;
   let height = img.naturalHeight;
@@ -102,16 +124,20 @@ async function process(url, bg) {
   // (antes, en un logo BLANCO sobre transparente, se comía el propio logo)
   const removed = hasTransparentBorder(px, width, height) ? false : removeWhiteBackground(px, width, height);
   const recolored = adaptToBackground(px, bg);
+  const define = fx === 'define' || fx === 'both' || (fx === 'auto' && hiddenShare(px, bg) >= AUTO_DEFINE);
+  const defined = define && defineParts(px, bg);
+  const outline = fx === 'outline' || fx === 'both';
   const box = opaqueBounds(px, width, height);
   if (!box) return url;   // quedaría vacía: mejor la original
   const cropped = box.w < width || box.h < height;
-  if (!removed && !recolored && !cropped) return url;
+  if (!removed && !recolored && !defined && !outline && !cropped) return url;
 
   ctx.putImageData(image, 0, 0);
-  const out = document.createElement('canvas');
+  let out = document.createElement('canvas');
   out.width = box.w;
   out.height = box.h;
   out.getContext('2d').drawImage(canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+  if (outline) out = withOutline(out, bg.ink);
   return out.toDataURL('image/png');
 }
 
@@ -239,6 +265,93 @@ function adaptToBackground(px, bg) {
     // Sobre la cinta oscura, un color casi invisible (azul marino, granate muy oscuro) también;
     // sobre la clara, los colores (dorados, amarillos) se conservan
     (darkRibbon && !isGrey(px, i) && contrastWith(luminance(px, i), bg) < 1.3));
+}
+
+/** Contraste que necesita un píxel para leerse (según sea gris, apagado o vivo) */
+function neededContrast(px, i) {
+  const max = Math.max(px[i], px[i + 1], px[i + 2]);
+  const spread = max - Math.min(px[i], px[i + 1], px[i + 2]);
+  if (spread <= GREY_SPREAD) return DEFINE_CONTRAST.grey;
+  return spread / max >= 0.75 && max >= 150 ? DEFINE_CONTRAST.vivid : DEFINE_CONTRAST.muted;
+}
+
+/** Parte del logo (opaca) que no se lee bien sobre el fondo de la cinta */
+function hiddenShare(px, bg) {
+  let count = 0, hidden = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 128) continue;
+    count++;
+    if (contrastWith(luminance(px, i), bg) < neededContrast(px, i)) hidden++;
+  }
+  return count ? hidden / count : 0;
+}
+
+/**
+ * «Definir»: cada parte que no contrasta lo suficiente con la cinta se mezcla
+ * con blanco (cinta oscura) o con negro (cinta clara) lo justo para llegar a
+ * su DEFINE_CONTRAST. Conserva el tono: un marrón pasa a canela,
+ * un azul marino a azul claro, un plateado oscuro a plateado claro.
+ */
+function defineParts(px, bg) {
+  const memo = new Map();
+  // Se aclara hacia el blanco (cinta oscura) o se oscurece hacia el negro (cinta
+  // clara): así el dorado sigue siendo dorado y no se vuelve verdoso
+  const ink = bg.lum < 0.5 ? [255, 255, 255] : [0, 0, 0];
+  const mix = (r, g, b, t) => [r + (ink[0] - r) * t, g + (ink[1] - g) * t, b + (ink[2] - b) * t].map(Math.round);
+  const lumOf = (c) => 0.2126 * linear(c[0]) + 0.7152 * linear(c[1]) + 0.0722 * linear(c[2]);
+  let changed = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 8) continue;
+    const needed = neededContrast(px, i);
+    if (contrastWith(luminance(px, i), bg) >= needed) continue;
+    const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
+    let color = memo.get(key);
+    if (!color) {
+      let lo = 0, hi = 1;
+      for (let k = 0; k < 10; k++) {
+        const t = (lo + hi) / 2;
+        if (contrastWith(lumOf(mix(px[i], px[i + 1], px[i + 2], t)), bg) >= needed) hi = t; else lo = t;
+      }
+      color = mix(px[i], px[i + 1], px[i + 2], hi);
+      memo.set(key, color);
+    }
+    [px[i], px[i + 1], px[i + 2]] = color;
+    changed++;
+  }
+  return changed > 0;
+}
+
+/** «Contorno»: la silueta del logo, engordada, en el color de tinta, debajo del logo */
+function withOutline(source, ink) {
+  const w = source.width;
+  const h = source.height;
+  const r = Math.max(2, Math.round(Math.min(w, h) * OUTLINE));
+  const silhouette = document.createElement('canvas');
+  silhouette.width = w;
+  silhouette.height = h;
+  const s = silhouette.getContext('2d', { willReadFrequently: true });
+  s.drawImage(source, 0, 0);
+  const image = s.getImageData(0, 0, w, h);
+  const px = image.data;
+  for (let i = 0; i < px.length; i += 4) {
+    // Sombras y brillos casi transparentes no cuentan (si no, el contorno se hincha)
+    const a = Math.max(0, Math.min(255, (px[i + 3] - 40) * 4));
+    [px[i], px[i + 1], px[i + 2], px[i + 3]] = [ink[0], ink[1], ink[2], a];
+  }
+  s.putImageData(image, 0, 0);
+  const out = document.createElement('canvas');
+  out.width = w + 2 * r;
+  out.height = h + 2 * r;
+  const o = out.getContext('2d');
+  const STEPS = 24;
+  [1, 0.5].forEach((k) => {
+    for (let n = 0; n < STEPS; n++) {
+      const angle = (n / STEPS) * Math.PI * 2;
+      o.drawImage(silhouette, r + Math.cos(angle) * r * k, r + Math.sin(angle) * r * k);
+    }
+  });
+  o.drawImage(source, r, r);
+  return out;
 }
 
 /** Rectángulo que contiene lo visible, con un pequeño margen */

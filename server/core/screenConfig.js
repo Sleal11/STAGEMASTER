@@ -13,6 +13,7 @@
  *   ribbon    Cinta publicitaria del marcador:
  *               enabled · items (imágenes y vídeos de banner/, EN EL ORDEN que elige
  *               el operador) · sizes ({ archivo: % }, tamaño de cada logo, 50-200) ·
+ *               effects ({ archivo: realce }, LOGO_EFFECTS; sin valor = 'auto') ·
  *               height (alto de la cinta en % de la pantalla; 0 = automático) ·
  *               background ('dark' azul como el marcador | 'light' blanca) ·
  *               texts (mensajes) · motion ('rotate' uno cada `interval` s | 'fixed'
@@ -54,6 +55,8 @@ const { appError } = require('./errors');
 const VIEWS          = ['score', 'media'];
 const RIBBON_MOTIONS = ['rotate', 'fixed', 'scroll'];
 const RIBBON_BACKGROUNDS = ['dark', 'light'];
+/** Realce de cada logo (display/logo-cleaner.js): auto · sin realce · definir · contorno · los dos */
+const LOGO_EFFECTS   = ['auto', 'none', 'define', 'outline', 'both'];
 const SCROLL_SPEEDS  = ['slow', 'normal', 'fast'];
 const PLAYBACK       = ['playing', 'paused'];
 const PRESET_ID      = /^f-[0-9a-f]{8}$/;   // formato guardado por el operador (formats.js)
@@ -88,6 +91,12 @@ function logoSizes(value) {
     typeof name === 'string' && Number.isInteger(v) && v >= LIMITS.logoSize[0] && v <= LIMITS.logoSize[1]));
 }
 
+/** Realces guardados de los logos de la cinta ({ archivo: realce }); 'auto' no se guarda */
+function logoEffects(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => LOGO_EFFECTS.includes(v) && v !== 'auto'));
+}
+
 /** Configuración nueva de una pantalla */
 function defaultConfig({ id, label, matchId }) {
   return {
@@ -96,7 +105,7 @@ function defaultConfig({ id, label, matchId }) {
     mirrorOf: null,
     matchId,
     view:   'score',
-    ribbon: { enabled: true, items: [], sizes: {}, height: 0, background: 'dark', texts: [], motion: 'rotate', interval: 10, speed: 'normal' },
+    ribbon: { enabled: true, items: [], sizes: {}, effects: {}, height: 0, background: 'dark', texts: [], motion: 'rotate', interval: 10, speed: 'normal' },
     media:  { items: [], imageSeconds: 10, sound: false },
     endAds: { enabled: false, delay: 15 },
     pauseAds: { enabled: true },
@@ -153,6 +162,7 @@ function normalizeSaved(saved, base) {
     interval: pick(r.interval, inRange(LIMITS.interval), 10),
     speed:    pick(r.speed, oneOf(SCROLL_SPEEDS), 'normal'),
     sizes:    logoSizes(r.sizes),
+    effects:  logoEffects(r.effects),
     height:   pick(r.height, (v) => v === 0 || inRange(LIMITS.ribbonHeight)(v), 0),
     background: pick(r.background, oneOf(RIBBON_BACKGROUNDS), 'dark'),
   };
@@ -264,9 +274,19 @@ function applyChanges(config, changes, { matchIds, library, formats = [] }) {
       });
       next.ribbon.sizes = sizes;
     }
-    // Solo se guardan los tamaños de los logos que están en la cinta
+    if (ribbon.effects !== undefined) {
+      if (!isObject(ribbon.effects)) fail('Realce de los logos inválido');
+      const effects = { ...next.ribbon.effects };
+      Object.entries(ribbon.effects).forEach(([name, value]) => {
+        effects[name] = oneOf(value === null ? 'auto' : value, LOGO_EFFECTS, 'Realce del logo');
+      });
+      next.ribbon.effects = effects;
+    }
+    // Solo se guardan los tamaños y realces de los logos que están en la cinta
     next.ribbon.sizes = Object.fromEntries(Object.entries(next.ribbon.sizes)
       .filter(([name, value]) => next.ribbon.items.includes(name) && value !== 100));
+    next.ribbon.effects = Object.fromEntries(Object.entries(next.ribbon.effects || {})
+      .filter(([name, value]) => next.ribbon.items.includes(name) && value !== 'auto'));
     if (ribbon.texts !== undefined) {
       if (!Array.isArray(ribbon.texts) || ribbon.texts.some((t) => typeof t !== 'string')) fail('Mensajes inválidos');
       const texts = ribbon.texts.map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean);

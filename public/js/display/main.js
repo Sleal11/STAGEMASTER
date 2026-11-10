@@ -236,7 +236,7 @@ function updateLayout() {
   ribbon.setActive(showRibbon);
   // El espacio del marcador cambió (aparece/desaparece la cinta): reajustar nombres
   if (ribbonChanged || showScore) board.fitAll();
-  if (stats && showScore) finale.fit();
+  if (showScore && (stats || finale.isCelebrating())) finale.fit();
   sendReport();
 }
 

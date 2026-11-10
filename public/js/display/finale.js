@@ -185,6 +185,8 @@ export function createFinale({ summary, celebrate }, onChange) {
       <div class="cel-brand"><span class="cel-brand-logo" data-brand-logo>STAGE<span>MASTER</span></span><span class="cel-brand-text">Pádel</span></div>`;
     applyLogo(celebrate);
     celebrate.classList.remove('hidden');
+    fitCelebration();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCelebration);
     celebrating = true;
     clearTimeout(timer);
     clearTimeout(cycleTimer);
@@ -216,7 +218,7 @@ export function createFinale({ summary, celebrate }, onChange) {
     const team = (side) => {
       const isWinner = sum.winner === side;
       const trophy = isWinner ? '<svg class="sum-trophy" aria-hidden="true"><use href="img/icons.svg#trophy"></use></svg>' : '';
-      const name = `<span class="sum-name">${esc(sum.names[side])}</span>`;
+      const name = `<span class="sum-name" data-full="${esc(sum.names[side])}" title="${esc(sum.names[side])}">${esc(sum.names[side])}</span>`;
       return `<div class="sum-team is-${side.toLowerCase()}${isWinner ? ' is-winner' : ''}">${side === 'A' ? trophy + name : name + trophy}</div>`;
     };
     // Cada dato: valores (cuentan hacia arriba al mostrarse) y una barra con el reparto entre las parejas
@@ -241,18 +243,80 @@ export function createFinale({ summary, celebrate }, onChange) {
     requestAnimationFrame(fit);
   }
 
-  /** Nombres largos: se reduce la letra (hasta un 65 %) antes de recortarlos con «…» */
-  function fit() {
+  /**
+   * Nombres de las parejas en las estadísticas: completos si caben; si no, se
+   * abrevian («A. Tapia / A. Coello» y luego «Tapia / Coello») antes de reducir
+   * mucho la letra; solo en último caso se recortan con «…».
+   */
+  function fitNames() {
     if (summary.classList.contains('hidden')) return;
-    summary.querySelectorAll('.sum-name').forEach((el) => {
+    const els = Array.from(summary.querySelectorAll('.sum-name[data-full]'));
+    if (!els.length) return;
+    const shrinkTo = (el, minScale) => {
       el.style.fontSize = '';
       const base = parseFloat(getComputedStyle(el).fontSize);
       let size = base;
-      while (el.scrollWidth > el.clientWidth + 1 && size > base * 0.65) {
-        size -= base * 0.05;
+      while (el.scrollWidth > el.clientWidth + 1 && size > base * minScale) {
+        size -= base * 0.04;
         el.style.fontSize = size + 'px';
       }
+      return el.scrollWidth <= el.clientWidth + 1;
+    };
+    // Las dos parejas con la MISMA forma (completas, «A. Tapia» o solo apellidos)
+    const variants = els.map((el) => ScoreFormat.teamNameVariants(el.dataset.full));
+    const last = Math.max(...variants.map((v) => v.length - 1));
+    let level = 0;
+    for (; level < last; level++) {
+      const ok = els.every((el, k) => {
+        el.textContent = variants[k][Math.min(level, variants[k].length - 1)];
+        return shrinkTo(el, 0.86);
+      });
+      if (ok) return;
+    }
+    els.forEach((el, k) => {
+      el.textContent = variants[k][Math.min(level, variants[k].length - 1)];
+      shrinkTo(el, 0.65);
     });
+  }
+
+  /**
+   * Celebración: los nombres de los ganadores SIEMPRE completos. La letra se
+   * ajusta para que el nombre más largo quepa en su línea; si fuera muy
+   * pequeña, el nombre pasa a dos líneas (nunca «…»).
+   */
+  function fitCelebration() {
+    const names = celebrate.querySelector('.cel-names');
+    if (!names || celebrate.classList.contains('hidden')) return;
+    const content = celebrate.querySelector('.cel-content');
+    const emblem = celebrate.querySelector('.cel-emblem-wrap');
+    const text = celebrate.querySelector('.cel-text');
+    names.style.fontSize = '';
+    names.classList.remove('is-wrapped');
+    const base = parseFloat(getComputedStyle(names).fontSize);
+    const gap = parseFloat(getComputedStyle(content).columnGap) || 0;
+    const maxText = parseFloat(getComputedStyle(text).maxWidth) || Infinity;
+    const available = Math.min(maxText, content.clientWidth - (emblem ? emblem.offsetWidth + gap : 0));
+    const widest = Math.max(...Array.from(names.children, (span) => span.scrollWidth));
+    if (!(available > 0) || !(widest > 0)) return;
+    const scale = Math.min(1, (available * 0.98) / widest);
+    if (scale >= 0.55) {
+      names.style.fontSize = base * scale + 'px';
+      return;
+    }
+    // Nombre larguísimo: dos líneas por jugador, con la letra que quepa
+    names.classList.add('is-wrapped');
+    names.style.fontSize = base * 0.6 + 'px';
+    let size = base * 0.6;
+    while (size > base * 0.3 && Array.from(names.children).some((span) => span.scrollWidth > span.clientWidth + 1)) {
+      size *= 0.95;
+      names.style.fontSize = size + 'px';
+    }
+  }
+
+  /** Cambió el tamaño de la salida o se mostraron las estadísticas: reajustar los nombres */
+  function fit() {
+    fitNames();
+    fitCelebration();
   }
 
   return {

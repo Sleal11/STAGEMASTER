@@ -2,7 +2,7 @@
 
 **Marcador profesional de pádel para pantallas LED.** Un `.exe` para Windows (no se
 instala) que convierte un portátil en la central del evento. Funciona **sin Internet**.
-Versión **2.9.0**.
+Versión **2.10.0**.
 
 ## Las 4 piezas
 
@@ -10,7 +10,7 @@ Versión **2.9.0**.
 |---|---|
 | 💻 **Estación** (portátil) | El operador crea los partidos, elige qué muestra cada pantalla, sube la publicidad y ve el historial (al instante). Zonas de pistas y de pantallas bien separadas; lo que no se usa se minimiza |
 | 📱 **Teléfono del árbitro** | Escanea el QR único, escribe el código de su pista y puntúa con botones grandes. Sin instalar nada |
-| 📺 **Pantallas LED** (hasta 8) | Marcador legible de lejos con SET POINT y MATCH POINT, cinta de patrocinadores (logos legibles, en el orden y tamaño que elijas), imágenes y vídeos; publicidad automática en la pausa y al terminar; celebración de los ganadores y estadísticas animadas |
+| 📺 **Pantallas LED** (hasta 8) | Marcador legible de lejos con SET POINT y MATCH POINT, cinta de patrocinadores (logos legibles con realce automático o contorno, en el orden y tamaño que elijas, con tiradores como en Word), imágenes y vídeos; publicidad automática en la pausa y al terminar; celebración de los ganadores y estadísticas animadas |
 | 💻 **Portátil remoto** | Para pistas lejos: muestra pantallas por la red y abre la estación del principal para controlar a la vez |
 
 ## Cómo se usa (en 5 pasos)

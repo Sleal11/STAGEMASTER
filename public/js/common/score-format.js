@@ -121,6 +121,30 @@ function abbreviateName(name) {
   return words[0] + ' ' + words[1].charAt(0).toUpperCase();
 }
 
+/**
+ * Formas de escribir una pareja, de la más larga a la más corta, para cuando
+ * no cabe (estadísticas de la pantalla). Se supone «Nombre Apellido1 Apellido2»:
+ *   "Agustin Tapia / Arturo Coello" → "A. Tapia / A. Coello" → "Tapia / Coello"
+ *   "Federico Chingotto Ruiz" → "F. Chingotto Ruiz" → "F. Chingotto" → "Chingotto"
+ * Un jugador de una sola palabra se queda igual en todas.
+ */
+function teamNameVariants(name) {
+  const players = splitTeamName(name);
+  if (!players.length) return [String(name || '')];
+  const form = (fn) => players.map((p) => {
+    const words = p.split(/\s+/);
+    return words.length < 2 ? p : fn(words);
+  }).join(' / ');
+  const initial = (w) => w[0].charAt(0).toUpperCase() + '.';
+  const variants = [
+    players.join(' / '),
+    form((w) => initial(w) + ' ' + w.slice(1).join(' ')),
+    form((w) => initial(w) + ' ' + w[1]),
+    form((w) => w[1]),
+  ];
+  return variants.filter((v, i) => variants.indexOf(v) === i);
+}
+
 // ─────────────────────────────────────────────────────────────────
 // RESUMEN FINAL DEL PARTIDO (pantalla, teléfono e historial)
 // ─────────────────────────────────────────────────────────────────
@@ -204,6 +228,6 @@ function summaryFromRecord(r) {
 }
 
 export {
-  SCORING_HELP, formatSetScore, isDecidingSuperTiebreak, badgeFor, splitTeamName, abbreviateName,
+  SCORING_HELP, formatSetScore, isDecidingSuperTiebreak, badgeFor, splitTeamName, abbreviateName, teamNameVariants,
   summaryFromState, summaryFromRecord,
 };

@@ -1,7 +1,7 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.9.0** (2.8.0 + SET/MATCH POINT, cinta de logos con orden, tamaño y fondo, estadísticas animadas, menos amarillo; 2.8.0: panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
+compactación de la conversación). Estado: **versión 2.10.0** (2.9.0 + realce de logos, tamaño con tiradores, nombres completos en la celebración y abreviados en las estadísticas; 2.9.0: SET/MATCH POINT, cinta de logos con orden, tamaño y fondo, estadísticas animadas, menos amarillo; 2.8.0: panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
 estéticos, pestaña «En vivo», teléfonos que no conectaban, publicidad que llena la LED y estación
 desde el portátil remoto, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
@@ -297,3 +297,16 @@ que NO se suben al repositorio: son de sus patrocinadores):
   partes grises/negras al fondo (un tono → tinta; dos tonos → negativo; colores intactos).
   Estación: `station/ribbon-editor.js` (vista previa real, arrastrar, flechas, tamaño, Auto).
 - Pruebas: `tests/e2e/ribbon.e2e.js`; motor (set/match point); núcleo (cinta).
+
+Ronda 10 (versión 2.10.0) — **realce de logos, tiradores y nombres**:
+- `logo-cleaner.cleanLogo(url, background, effect)`: `LOGO_EFFECTS` auto/none/define/outline/both.
+  «Definir» mezcla con blanco (cinta oscura) o negro (clara) hasta el contraste que necesita cada
+  píxel (`DEFINE_CONTRAST`: gris 9, apagado 5, vivo 2.2); «Auto» define si ≥ 10 % del logo no se lee.
+  «Contorno» = silueta engordada (24 desplazamientos × 2 radios) en el color de tinta, debajo del logo.
+- Servidor: `ribbon.effects` ({ archivo: realce }; 'auto' no se guarda; se olvida al quitar el logo).
+- Estación (`ribbon-editor.js`): selector «Realce» por logo; vista previa con `.rb-logo` seleccionable
+  y 4 tiradores (`initRibbonResize`, pointer events; 5 % por paso, 50-200 %); `LOGO_SIZE.step` = 5.
+- Estadísticas: `ScoreFormat.teamNameVariants` (completo → «A. Tapia» → apellidos); `finale.fitNames`
+  usa la MISMA forma en las dos parejas; más separación; en LED 416 × 208 sin el título.
+- Celebración: `finale.fitCelebration` ajusta la letra al ancho (sin «…»; dos líneas si < 55 %).
+- Pruebas: ribbon.e2e (realce, tiradores), finale.e2e (nombres largos), core (effects).

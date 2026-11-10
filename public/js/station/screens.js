@@ -28,7 +28,7 @@ import { confirmDialog } from './dialogs.js';
 import { pickFiles, deleteAd } from './uploads.js';
 import { remotesShowing } from './remotes.js';
 import { collapseButton, isCollapsed } from './collapse.js';
-import { editorHtml, drawPreviews, moved, initRibbonDrag } from './ribbon-editor.js';
+import { editorHtml, drawPreviews, moved, initRibbonDrag, initRibbonResize } from './ribbon-editor.js';
 
 const TABS = [
   { id: 'content', label: 'Contenido',             icon: 'sliders' },
@@ -56,6 +56,7 @@ export function renderScreens(state) {
   if (!dragReady) {
     dragReady = true;
     initRibbonDrag(container, (screenId, items) => update(screenId, { ribbon: { items } }));
+    initRibbonResize(container, (screenId, name, size) => update(screenId, { ribbon: { sizes: { [name]: size === 100 ? null : size } } }));
   }
   // Pantallas quitadas (en esta estación o en otra ventana): fuera su tarjeta
   container.querySelectorAll('[data-screen-card]').forEach((card) => {
@@ -843,6 +844,7 @@ export function onScreenChange(event) {
     }
     case 'ribbonHeight':   update(screenId, { ribbon: { height: value } }); break;
     case 'logoSize':       update(screenId, { ribbon: { sizes: { [el.dataset.name]: value } } }); break;
+    case 'logoEffect':     update(screenId, { ribbon: { effects: { [el.dataset.name]: el.value } } }); break;
     case 'mediaItem':      update(screenId, { media: { items: checkedValues(screenId, 'mediaItem') } }); break;
     case 'imageSeconds':   update(screenId, { media: { imageSeconds: value } }); break;
     case 'sound':          update(screenId, { media: { sound: el.checked } }); break;

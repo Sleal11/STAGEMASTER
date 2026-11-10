@@ -1,23 +1,37 @@
 /**
- * ribbon-editor.js — «Orden y tamaño de los logos» (pestaña Cinta de cada pantalla)
+ * ribbon-editor.js — «Orden, tamaño y realce de los logos» (pestaña Cinta de cada pantalla)
  *
  *   - Vista previa con el aspecto REAL de la cinta de esa pantalla: mismos
- *     logos limpios (logo-cleaner.js), misma proporción de cinta y mismo
- *     cálculo de tamaños y grupos que la pantalla (common/ribbon-layout.js).
+ *     logos limpios y realzados (logo-cleaner.js), misma proporción de cinta y
+ *     mismo cálculo de tamaños y grupos que la pantalla (common/ribbon-layout.js).
+ *   - Como en Word: un clic en un logo de la vista previa lo selecciona (recuadro
+ *     con tiradores en las esquinas); arrastrar un tirador lo agranda o achica.
  *   - Lista de los archivos de la cinta en su orden: arrastrar para mover
- *     (o las flechas), y el tamaño de cada logo (50-200 %, 100 % = automático).
+ *     (o las flechas), el tamaño de cada logo (50-200 %, 100 % = automático)
+ *     y su «Realce» (automático, sin realce, definir, contorno o los dos).
  *
  * Los cambios se envían como cualquier ajuste de pantalla (screens.js:
- * logoMove, logoSize, logoReset; arrastrar → reorderLogos).
+ * logoMove, logoSize, logoReset, logoEffect; arrastrar → items; tiradores → sizes).
  */
 
 import { esc, icon } from '../common/ui.js';
 import { ctx } from './context.js';
-import { cleanLogo } from '../display/logo-cleaner.js';
+import { cleanLogo, LOGO_EFFECTS } from '../display/logo-cleaner.js';
 import { logoHeight, paginate, LOGO_GAP, LOGO_SIZE } from '../common/ribbon-layout.js';
 
 const MAX_PREVIEW_TURNS = 8;   // «Cambia cada cierto tiempo»: se muestran los primeros turnos
 const aspects = new Map();     // url → proporción del logo limpio (o null si falla)
+let selected = null;           // { screenId, name }: logo seleccionado en la vista previa
+
+/** Nombre visible de cada realce (logo-cleaner.js: LOGO_EFFECTS) */
+const EFFECT_LABELS = {
+  auto:    'Automático',
+  none:    'Sin realce',
+  define:  'Definir (aclara lo que no se ve)',
+  outline: 'Contorno blanco',
+  both:    'Definir + contorno',
+};
+const effectOf = (screen, name) => (screen.ribbon.effects && screen.ribbon.effects[name]) || 'auto';
 
 /** Archivos de la cinta en su orden, con sus datos de la biblioteca */
 function ribbonFiles(screen) {
@@ -32,7 +46,9 @@ export function editorHtml(screen, off) {
   const sizes = screen.ribbon.sizes || {};
   const rows = files.map((ad, i) => {
     const size = sizes[ad.name] || LOGO_SIZE.auto;
-    return `<div class="rb-row" draggable="true" data-name="${esc(ad.name)}" data-screen="${screen.id}">
+    const effect = effectOf(screen, ad.name);
+    const isSelected = selected && selected.screenId === screen.id && selected.name === ad.name;
+    return `<div class="rb-row${isSelected ? ' is-selected' : ''}" draggable="true" data-name="${esc(ad.name)}" data-screen="${screen.id}">
         <span class="rb-grip" title="Arrastra para cambiar el orden" aria-hidden="true">${icon('list')}</span>
         <span class="rb-num">${i + 1}</span>
         <span class="rb-thumb">${ad.kind === 'video' ? icon('video') : `<img src="${esc(ad.url)}" alt="" loading="lazy">`}</span>
@@ -43,17 +59,25 @@ export function editorHtml(screen, off) {
           <button type="button" class="icon-btn" data-action="logoMove" data-dir="1" data-name="${esc(ad.name)}" data-screen="${screen.id}"
             title="Después" aria-label="Mover ${esc(ad.name)} después"${i === files.length - 1 ? ' disabled' : ''}>${icon('chevron')}</button>
         </span>
+        <div class="rb-tools">
         <label class="rb-size"><span class="sr-only">Tamaño de ${esc(ad.name)}</span>
           <input type="range" class="range" min="${LOGO_SIZE.min}" max="${LOGO_SIZE.max}" step="${LOGO_SIZE.step}" value="${size}"
             data-action="logoSize" data-name="${esc(ad.name)}" data-screen="${screen.id}">
           <output>${size} %</output></label>
         <button type="button" class="btn btn-ghost btn-xs" data-action="logoReset" data-name="${esc(ad.name)}" data-screen="${screen.id}"
           ${size === LOGO_SIZE.auto ? 'disabled' : ''} title="Volver al tamaño automático">Auto</button>
+        ${ad.kind === 'image' ? `<label class="rb-effect"><span>Realce</span>
+          <select class="input rb-select" data-action="logoEffect" data-name="${esc(ad.name)}" data-screen="${screen.id}"
+            title="Para que se lea en la LED: definir aclara las partes que no se ven; el contorno pone un borde blanco">
+            ${LOGO_EFFECTS.map((fx) => `<option value="${fx}"${fx === effect ? ' selected' : ''}>${EFFECT_LABELS[fx]}</option>`).join('')}
+          </select></label>` : ''}
+        </div>
       </div>`;
   }).join('');
-  return `<section class="st-group${off ? ' is-off' : ''}"><h4 class="st-group-title">${icon('sliders')}Orden y tamaño de los logos</h4>
-      <p class="st-group-note">Así se verá la cinta en esta pantalla. Arrastra los logos (o usa las flechas) para ordenarlos y ajusta el tamaño
-        de cada uno: 100 % es el tamaño automático, pensado para que todos se lean igual de bien.</p>
+  return `<section class="st-group${off ? ' is-off' : ''}"><h4 class="st-group-title">${icon('sliders')}Orden, tamaño y realce de los logos</h4>
+      <p class="st-group-note">Así se verá la cinta en esta pantalla. <strong>Haz clic en un logo</strong> de la vista previa y arrastra
+        sus esquinas para agrandarlo o achicarlo (como una imagen en Word). En la lista: arrastra los logos (o usa las flechas) para
+        ordenarlos, ajusta el tamaño (100 % = automático) y el <strong>realce</strong> si un logo no se lee bien en la LED.</p>
       <div class="rb-preview" data-ribbon-preview="${screen.id}"></div>
       <div class="rb-list" data-ribbon-list="${screen.id}">${rows}</div>
     </section>`;
@@ -70,10 +94,10 @@ function ribbonRatio(screen) {
   return w / (h * fraction);
 }
 
-function measure(url, background) {
-  const key = background + '|' + url;
+function measure(url, background, effect) {
+  const key = background + '|' + effect + '|' + url;
   if (aspects.has(key)) return Promise.resolve(aspects.get(key));
-  return cleanLogo(url, background).then((src) => new Promise((resolve) => {
+  return cleanLogo(url, background, effect).then((src) => new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve({ src, aspect: img.naturalWidth / img.naturalHeight });
     img.onerror = () => resolve(null);
@@ -91,10 +115,11 @@ export function drawPreviews(override = null) {
     if (!screen) return;
     const files = ribbonFiles(screen).filter((ad) => ad.kind === 'image');
     const bg = screen.ribbon.background || 'dark';
-    const key = JSON.stringify([files.map((f) => f.url), screen.ribbon.sizes, screen.ribbon.motion, screen.ribbon.height, bg, screen.output, override]);
+    const key = JSON.stringify([files.map((f) => f.url), screen.ribbon.sizes, screen.ribbon.effects, screen.ribbon.motion,
+      screen.ribbon.height, bg, screen.output, override]);
     if (box.dataset.key === key) return;
     box.dataset.key = key;
-    Promise.all(files.map((f) => measure(f.url, bg))).then((measured) => {
+    Promise.all(files.map((f) => measure(f.url, bg, effectOf(screen, f.name)))).then((measured) => {
       if (box.dataset.key !== key) return;
       // Miniaturas de la lista: también con el logo limpio, sobre el fondo de la cinta
       const list = document.querySelector(`[data-ribbon-list="${screen.id}"]`);
@@ -109,15 +134,23 @@ export function drawPreviews(override = null) {
       const H = Math.max(24, Math.round(W / ribbonRatio(screen)));
       const motion = screen.ribbon.motion;
       const logos = files.map((f, i) => measured[i] && {
+        name: f.name,
         src: measured[i].src,
         aspect: measured[i].aspect,
         size: override && override.screenId === screen.id && override.name === f.name ? override.size : (screen.ribbon.sizes[f.name] || 100),
       }).filter(Boolean);
+      // Cada logo con su recuadro de selección y los 4 tiradores (initRibbonResize)
       const img = (l, single) => {
         const h = Math.round(H * logoHeight(l.aspect, l.size, single));
-        return { h, w: h * l.aspect, html: `<img src="${l.src}" alt="" style="height:${h}px">` };
+        const isSelected = selected && selected.screenId === screen.id && selected.name === l.name;
+        return { h, w: h * l.aspect, html: `<span class="rb-logo${isSelected ? ' is-selected' : ''}" data-name="${esc(l.name)}"
+          data-screen="${screen.id}" data-size="${l.size}" data-aspect="${l.aspect}" data-single="${single ? 1 : 0}" data-strip="${H}"
+          title="${esc(l.name)}: clic para seleccionarlo y arrastra las esquinas para cambiar su tamaño">
+          <img src="${l.src}" alt="" draggable="false" style="height:${h}px">
+          ${['nw', 'ne', 'sw', 'se'].map((c) => `<i class="rb-handle" data-corner="${c}"></i>`).join('')}
+          <b class="rb-badge">${l.size} %</b></span>` };
       };
-      const strip = (inner, cls = '') => `<div class="rb-strip ${cls}${bg === 'light' ? ' is-light' : ''}" style="height:${H}px">${inner}</div>`;
+      const strip = (inner, cls = '') => `<div class="rb-strip ${cls}${bg === 'light' ? ' is-light' : ''}" style="height:${H}px;--h:${H}px">${inner}</div>`;
       let html;
       if (motion === 'scroll') {
         html = strip(logos.map((l) => img(l, false).html).join(''), 'is-scroll') +
@@ -135,6 +168,69 @@ export function drawPreviews(override = null) {
       box.innerHTML = logos.length ? html : '<p class="rb-caption">Marca logos (imágenes) para ver aquí cómo quedan.</p>';
     });
   });
+}
+
+/** Marca el logo seleccionado en la vista previa y en la lista (null = ninguno) */
+function select(next) {
+  selected = next;
+  document.querySelectorAll('.rb-logo.is-selected, .rb-row.is-selected').forEach((el) => el.classList.remove('is-selected'));
+  if (!next) return;
+  const match = `[data-screen="${next.screenId}"][data-name="${CSS.escape(next.name)}"]`;
+  document.querySelectorAll(`.rb-logo${match}, .rb-row${match}`).forEach((el) => el.classList.add('is-selected'));
+}
+
+/**
+ * Tamaño con el ratón, como en Word: clic en un logo de la vista previa →
+ * recuadro con tiradores; arrastrar un tirador cambia el tamaño en directo
+ * (la vista previa, el control de la lista y el porcentaje) y al soltar se
+ * envía: onResize(screenId, name, size). Clic fuera de los logos: se deselecciona.
+ */
+export function initRibbonResize(container, onResize) {
+  let drag = null;
+  container.addEventListener('click', (e) => {
+    const logo = e.target.closest('.rb-logo');
+    if (logo) select({ screenId: logo.dataset.screen, name: logo.dataset.name });
+    else if (e.target.closest('.rb-preview')) select(null);
+  });
+  container.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.rb-handle');
+    if (!handle) return;
+    e.preventDefault();
+    const logo = handle.closest('.rb-logo');
+    const img = logo.querySelector('img');
+    select({ screenId: logo.dataset.screen, name: logo.dataset.name });
+    handle.setPointerCapture(e.pointerId);
+    drag = { logo, img, corner: handle.dataset.corner, x: e.clientX, y: e.clientY,
+      w: img.offsetWidth, h: img.offsetHeight, start: Number(logo.dataset.size), size: Number(logo.dataset.size) };
+    logo.classList.add('is-resizing');
+  });
+  container.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    // Hacia fuera del logo agranda, hacia dentro achica (en diagonal, como en Word)
+    const sx = drag.corner.includes('e') ? 1 : -1;
+    const sy = drag.corner.includes('s') ? 1 : -1;
+    const scale = 1 + (sx * (e.clientX - drag.x) + sy * (e.clientY - drag.y)) / (drag.w + drag.h);
+    const size = Math.min(LOGO_SIZE.max, Math.max(LOGO_SIZE.min, Math.round((drag.start * scale) / 5) * 5));
+    if (size === drag.size) return;
+    drag.size = size;
+    const { logo, img } = drag;
+    img.style.height = Math.round(Number(logo.dataset.strip) * logoHeight(Number(logo.dataset.aspect), size, logo.dataset.single === '1')) + 'px';
+    logo.querySelector('.rb-badge').textContent = size + ' %';
+    const row = document.querySelector(`.rb-row[data-screen="${logo.dataset.screen}"][data-name="${CSS.escape(logo.dataset.name)}"]`);
+    if (row) {
+      row.querySelector('input[data-action="logoSize"]').value = size;
+      row.querySelector('output').textContent = size + ' %';
+    }
+  });
+  const end = () => {
+    if (!drag) return;
+    const { logo, start, size } = drag;
+    logo.classList.remove('is-resizing');
+    drag = null;
+    if (size !== start) onResize(logo.dataset.screen, logo.dataset.name, size);
+  };
+  container.addEventListener('pointerup', end);
+  container.addEventListener('pointercancel', end);
 }
 
 /** Nuevo orden tras mover un archivo una posición (dir = -1 antes, 1 después) */

@@ -81,6 +81,24 @@ const LOGOS = {
     await S.click(`${card} .rb-row[data-name="a-cuadrado.svg"] [data-action="logoReset"]`);
     await H.waitFor(() => !st.state.screens[0].ribbon.sizes['a-cuadrado.svg'], 'auto');
     T.check('«Auto» lo devuelve al tamaño automático', true);
+    // Realce de cada logo y tamaño con los tiradores de la vista previa (como en Word)
+    await S.selectOption(`${card} .rb-row[data-name="c-negro.svg"] select[data-action="logoEffect"]`, 'outline');
+    await H.waitFor(() => st.state.screens[0].ribbon.effects['c-negro.svg'] === 'outline', 'realce');
+    T.check('«Realce» de un logo (contorno) desde la estación', true);
+    const pre = `${card} .rb-logo[data-name="b-ancho.svg"]`;
+    await S.waitForSelector(pre);
+    await S.click(pre);
+    T.check('Clic en un logo de la vista previa: queda seleccionado con sus tiradores (y marcado en la lista)',
+      await S.isVisible(`${pre} .rb-handle[data-corner="se"]`) && !!(await S.$(`${card} .rb-row.is-selected[data-name="b-ancho.svg"]`)));
+    const hb = await (await S.$(`${pre} .rb-handle[data-corner="se"]`)).boundingBox();
+    await S.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await S.mouse.down();
+    await S.mouse.move(hb.x + 80, hb.y + 30, { steps: 8 });
+    const live = await S.textContent(`${pre} .rb-badge`);
+    await S.mouse.up();
+    await H.waitFor(() => (st.state.screens[0].ribbon.sizes['b-ancho.svg'] || 100) > 100, 'tirador');
+    T.check('Arrastrar un tirador agranda el logo (porcentaje en directo y guardado al soltar)',
+      parseInt(live, 10) > 100 && st.state.screens[0].ribbon.sizes['b-ancho.svg'] === parseInt(live, 10), `${live} → ${st.state.screens[0].ribbon.sizes['b-ancho.svg']} %`);
     await S.click(`${card} [data-action="ribbonBg"][data-bg="light"]`);
     await H.waitFor(() => st.state.screens[0].ribbon.background === 'light', 'fondo claro');
     await S.selectOption(`${card} select[data-action="ribbonHeight"]`, '24');
@@ -89,7 +107,7 @@ const LOGOS = {
     await S.screenshot({ path: `${H.OUT}/cinta-editor.png`, fullPage: true });
 
     // ── Pantalla: logos fijos ──
-    await st.screen('pantalla-1', { ribbon: { background: 'dark', height: 0, items: order, sizes: {} } });
+    await st.screen('pantalla-1', { ribbon: { background: 'dark', height: 0, items: order, sizes: { 'b-ancho.svg': null } } });
     const D = await browser.newPage({ viewport: { width: 1664, height: 832 } });
     H.watchErrors(D, 'pantalla', errors);
     await D.goto(`http://localhost:${port}/score.html?pantalla=1`);
@@ -109,6 +127,34 @@ const LOGOS = {
       return [d[0], d[1], d[2]];
     });
     T.check('Un logo negro se ve en blanco sobre la cinta oscura', black.every((v) => v > 230), black.join(','));
+    // Realce: «Contorno» rodea el logo (imagen más grande con borde blanco) y
+    // «Automático» aclara las partes apagadas que no se leen (un marrón oscuro)
+    const fx = await D.evaluate(async () => {
+      const { cleanLogo } = await import('/js/display/logo-cleaner.js');
+      const svgUrl = (body) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="160">${body}</svg>`);
+      const read = async (src) => {
+        const im = new Image(); im.src = src; await im.decode();
+        const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+        const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+        const at = (fx, fy) => Array.from(x.getImageData(Math.floor(c.width * fx), Math.floor(c.height * fy), 1, 1).data);
+        // Primer píxel visible de la columna central, desde arriba
+        const top = () => { for (let y = 0; y < c.height; y++) { const p = Array.from(x.getImageData(c.width >> 1, y, 1, 1).data); if (p[3] > 200) return p; } return []; };
+        return { w: c.width, h: c.height, at, top };
+      };
+      const logo = svgUrl('<rect x="20" y="20" width="360" height="120" fill="#E8455F"/>');
+      const plain = await read(await cleanLogo(logo, 'dark', 'none'));
+      const ring = await read(await cleanLogo(logo, 'dark', 'outline'));
+      const brownLogo = svgUrl('<rect x="0" y="0" width="200" height="160" fill="#5A2E10"/><rect x="200" y="0" width="200" height="160" fill="#FF7A00"/>');
+      const brownNone = (await read(await cleanLogo(brownLogo, 'dark', 'none'))).at(0.25, 0.5);
+      const brownAuto = (await read(await cleanLogo(brownLogo, 'dark', 'auto'))).at(0.25, 0.5);
+      return { grows: ring.w > plain.w && ring.h > plain.h, edge: ring.top(), plainEdge: plain.top(), brownNone, brownAuto };
+    });
+    T.check('«Contorno»: borde blanco alrededor del logo', fx.grows && fx.edge.slice(0, 3).every((v) => v > 230) && fx.plainEdge[1] < 120,
+      `${fx.plainEdge} → ${fx.edge}`);
+    const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    T.check('«Automático»: la parte marrón oscura se aclara (sigue siendo cálida) y lo vivo se conserva',
+      lum(fx.brownAuto) > lum(fx.brownNone) + 60 && fx.brownAuto[0] > fx.brownAuto[2], `${fx.brownNone} → ${fx.brownAuto}`);
 
     await st.screen('pantalla-1', { ribbon: { sizes: { 'b-ancho.svg': 160 } } });
     await H.sleep(1500);

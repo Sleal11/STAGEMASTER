@@ -70,7 +70,7 @@ export function createRibbon(container, { onChange }) {
 
   function configure(ribbon) {
     const next = JSON.stringify([ribbon.enabled, ribbon.items.map((i) => i.url), ribbon.texts,
-      ribbon.motion, ribbon.interval, ribbon.speed, ribbon.sizes, ribbon.height, ribbon.background]);
+      ribbon.motion, ribbon.interval, ribbon.speed, ribbon.sizes, ribbon.effects, ribbon.height, ribbon.background]);
     if (next === signature) return;
     if (!config || JSON.stringify(config.items) !== JSON.stringify(ribbon.items)) failed.clear();
     signature = next;
@@ -142,7 +142,7 @@ export function createRibbon(container, { onChange }) {
       img.className = 'ribbon-item ribbon-image';
       img.alt = '';
       // La versión limpia (sin fondo blanco) se prepara aparte; quien espera 'load' la recibe igual
-      cleanLogo(item.url, config.background).then((src) => { img.src = src; });
+      cleanLogo(item.url, config.background, (config.effects && config.effects[item.name]) || 'auto').then((src) => { img.src = src; });
       return img;
     }
     if (item.type === 'video') {

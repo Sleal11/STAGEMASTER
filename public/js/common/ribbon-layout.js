@@ -12,7 +12,7 @@
  */
 
 /** Ajuste del operador para cada logo (porcentaje sobre el tamaño automático) */
-export const LOGO_SIZE = { min: 50, max: 200, step: 10, auto: 100 };
+export const LOGO_SIZE = { min: 50, max: 200, step: 5, auto: 100 };
 
 /** Separación entre logos, en altos de cinta */
 export const LOGO_GAP = 0.55;

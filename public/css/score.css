@@ -691,8 +691,8 @@ html { width: 100%; height: 100%; overflow: hidden; }
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: min(2.4cqh, 1.6cqw);
-  padding-bottom: min(1.2cqh, 0.8cqw);
+  gap: min(3.6cqh, 2.4cqw);
+  padding-bottom: min(1.6cqh, 1cqw);
   border-bottom: max(1px, 0.3cqh) solid rgba(143, 211, 255, 0.25);
 }
 .sum-team { display: flex; align-items: center; gap: min(1.6cqh, 1cqw); min-width: 0; opacity: 0.78; }
@@ -709,6 +709,8 @@ html { width: 100%; height: 100%; overflow: hidden; }
   font-weight: 700;
   font-size: min(8.5cqh, 3.8cqw);
   line-height: 1.1;
+  letter-spacing: 0.035em;
+  word-spacing: 0.08em;
   text-transform: uppercase;
   color: #FFFFFF;
 }
@@ -717,8 +719,8 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .sum-title span {
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: min(6.6cqh, 3cqw);
-  letter-spacing: 0.18em;
+  font-size: min(6.2cqh, 2.8cqw);
+  letter-spacing: 0.14em;
   line-height: 1;
   text-transform: uppercase;
   background: linear-gradient(100deg, var(--d-light) 35%, #FFFFFF 50%, var(--d-light) 65%) 0 0 / 300% 100%;
@@ -736,7 +738,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   display: grid;
   grid-template-columns: min(20cqh, 11cqw) minmax(0, 1fr) min(20cqh, 11cqw);
   align-items: center;
-  gap: min(1.6cqh, 1cqw);
+  gap: min(2.8cqh, 1.8cqw);
   animation: rowIn 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   animation-delay: calc(var(--i) * 110ms + 200ms);
 }
@@ -750,15 +752,18 @@ html { width: 100%; height: 100%; overflow: hidden; }
   color: rgba(255, 255, 255, 0.82);
 }
 .sum-val.is-lead { color: #FFFFFF; text-shadow: 0 0 2.4cqh rgba(143, 211, 255, 0.75); }
-.sum-mid { display: flex; flex-direction: column; align-items: stretch; gap: min(0.9cqh, 0.6cqw); min-width: 0; }
+.sum-mid { display: flex; flex-direction: column; align-items: stretch; gap: min(1.5cqh, 1cqw); min-width: 0; }
 .sum-label {
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 800;
-  font-size: min(6.6cqh, 3cqw);
-  color: #FFFFFF;
+  font-weight: 700;
+  font-size: min(6.2cqh, 2.8cqw);
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  word-spacing: 0.1em;
+  color: #EAF5FF;
 }
 /* Barra: la parte de A (celeste) crece hacia la izquierda y la de B (blanca) hacia la derecha */
 .sum-bar { display: flex; gap: min(0.6cqh, 0.4cqw); height: max(4px, 1.9cqh); }
@@ -796,7 +801,8 @@ html { width: 100%; height: 100%; overflow: hidden; }
   .sum-val { font-size: min(18cqh, 7cqw); }
   .sum-label { font-size: min(12.5cqh, 4.9cqw); }
   .sum-name { font-size: min(13cqh, 4.8cqw); }
-  .sum-title span { font-size: min(9cqh, 3.4cqw); letter-spacing: 0.06em; }
+  .sum-title { display: none; }   /* sin sitio: los nombres de las parejas primero */
+  .sum-head { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .sum-head { gap: min(1.4cqh, 1cqw); }
   .sum-trophy { width: 12cqh; height: 12cqh; }
   .sum-bar { height: max(3px, 2.2cqh); }
@@ -882,9 +888,8 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .cel-names span {
   display: block;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: nowrap;   /* nombre completo: la letra se ajusta sola (finale.js: fitCelebration) */
+  letter-spacing: 0.01em;
   background: linear-gradient(100deg, #FFFFFF 40%, #FFF6CC 50%, #FFFFFF 60%) 0 0 / 300% 100% no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
@@ -924,6 +929,10 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .cel-brand-logo .brand-logo-img { height: 100%; width: auto; max-width: 26cqw; object-fit: contain; }
 .cel-brand-text { font-family: var(--font-score); font-weight: 700; font-size: 3.6cqh; letter-spacing: 0.4em;
   text-transform: uppercase; color: var(--d-light); }
+
+/* Nombre larguísimo: dos líneas por jugador */
+.cel-names.is-wrapped { line-height: 1.04; }
+.cel-names.is-wrapped span { white-space: normal; overflow-wrap: anywhere; }
 
 @keyframes celIn     { from { opacity: 0; } to { opacity: 1; } }
 @keyframes celOut    { to { opacity: 0; } }

@@ -554,6 +554,7 @@ test('Validación de pantalla: partido, vista, tiempos, formato y posición inv�
     { ribbon: { sizes: { 'x.png': 20 } } }, { ribbon: { sizes: { 'x.png': 300 } } }, { output: { brightness: 5 } }, { output: { brightness: 101 } }, { pauseAds: { enabled: 1 } },
     { media: { sound: 1 } }, { endAds: { delay: -1 } }, { output: { format: '4k' } }, { output: { y: 1.5 } },
     { output: { fit: 'zoom' } }, { output: { fit: true } }, { endStats: { enabled: 'no' } },
+    { ribbon: { effects: [] } }, { ribbon: { effects: { 'x.png': 'neon' } } },
     { ribbon: 'todo' }, null,
   ].forEach((changes) => assertCode(() => screens.update('pantalla-1', changes, EMPTY_LIBRARY), 'INVALID_SCREEN_CONFIG'));
   assertCode(() => screens.get('pantalla-7'), 'UNKNOWN_SCREEN');
@@ -606,6 +607,15 @@ test('Cinta: tamaño de cada logo, alto, fondo y logos fijos; solo se guardan lo
   assert.ok(!('cleanLogos' in old) && old.background === 'dark' && old.items[0] === 'a.png', 'Configuraciones de 2.8: la opción antigua desaparece');
   const broken = normalizeSaved({ ribbon: { sizes: { 'a.png': 999, 'b.png': 120 }, height: 99, background: 'x' } }, base).ribbon;
   assert.deepStrictEqual([broken.sizes, broken.height, broken.background], [{ 'b.png': 120 }, 0, 'dark'], 'Valores dañados → por defecto');
+  // Realce de cada logo (2.10): 'auto' no se guarda; se olvida al quitar el logo
+  screens.update('pantalla-1', { ribbon: { items: ['logo.svg', 'b-marca.png'], effects: { 'logo.svg': 'outline', 'b-marca.png': 'define' } } }, lib);
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.effects, { 'logo.svg': 'outline', 'b-marca.png': 'define' });
+  screens.update('pantalla-1', { ribbon: { effects: { 'logo.svg': 'auto', 'b-marca.png': 'both' } } }, lib);
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.effects, { 'b-marca.png': 'both' }, 'Automático = sin guardar');
+  screens.update('pantalla-1', { ribbon: { items: ['logo.svg'] } }, lib);
+  assert.deepStrictEqual(screens.get('pantalla-1').ribbon.effects, {}, 'Al quitar un logo se olvida su realce');
+  const fx = normalizeSaved({ ribbon: { effects: { 'a.png': 'both', 'b.png': 'neon', 'c.png': 'auto' } } }, base).ribbon;
+  assert.deepStrictEqual(fx.effects, { 'a.png': 'both' }, 'Realces dañados → automático');
 });
 
 test('Nombres de archivo subidos: seguros, sin carpetas ni caracteres prohibidos; nunca pisan otro', () => {

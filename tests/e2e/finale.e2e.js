@@ -95,6 +95,7 @@ const H = require('./harness');
     await D1.waitForSelector('#d-board:not(.hidden)', { timeout: 5000 });
     await D1.evaluate(() => window.dispatchEvent(new CustomEvent('stagemaster:fase-final', { detail: 'stats' })));
     await D1.waitForSelector('#d-summary:not(.hidden)', { timeout: 5000 });
+    await H.sleep(1600);   // los números cuentan desde 0 al aparecer (finale.countUp)
     const rows = await D1.$$eval('.sum-row', (els) => els.map((el) => el.innerText.replace(/\s+/g, ' ').trim()));
     const points = rows.find((r) => r.includes('Puntos ganados')) || '';
     T.check('Estadísticas reales: puntos ganados = los del marcador',
@@ -139,6 +140,32 @@ const H = require('./harness');
     // Historial: el partido guardado con sus estadísticas
     const res = await st.send('station:history', {});
     T.check('El historial guarda las estadísticas del partido', !!(res.records[0] && res.records[0].stats && res.records[0].stats.points.A === state.stats.points.A));
+
+    // Nombres largos (2.10): la celebración los muestra COMPLETOS (la letra se ajusta);
+    // las estadísticas abrevian las dos parejas de la misma forma
+    const longA = 'Maximiliano Fernández C / Juan Sebastián Lebrón';
+    await st.setup('pista-1', H.config({ nameA: longA, nameB: 'Federico Chingotto Ruiz / Agustín Tapia Fernández',
+      gamesPerSet: 2, totalSets: 1, scoringSystem: 'goldenPoint' }));
+    await D1.waitForSelector('#d-board:not(.hidden)');
+    await finish();
+    await D1.waitForSelector('#d-celebrate:not(.hidden)', { timeout: 4000 });
+    await D2.waitForSelector('#d-celebrate:not(.hidden)', { timeout: 4000 });
+    await H.sleep(1800);
+    for (const [page, label] of [[D1, '1664 × 832'], [D2, '416 × 208']]) {
+      const lines = await page.$$eval('.cel-names span', (els) => els.map((el) => ({ text: el.textContent, fits: el.scrollWidth <= el.clientWidth + 1 })));
+      T.check(`Celebración ${label}: nombres largos COMPLETOS y dentro de la pantalla`,
+        lines.map((l) => l.text).join(' / ') === longA && lines.every((l) => l.fits), JSON.stringify(lines));
+    }
+    await D1.screenshot({ path: `${H.OUT}/final-celebracion-nombres-largos.png` });
+    await D1.waitForSelector('#d-celebrate.hidden', { state: 'attached', timeout: 8000 });
+    await D1.evaluate(() => window.dispatchEvent(new CustomEvent('stagemaster:fase-final', { detail: 'stats' })));
+    await D1.waitForSelector('#d-summary:not(.hidden)', { timeout: 5000 });
+    await H.sleep(300);
+    const heads = await D1.$$eval('.sum-name', (els) => els.map((el) => ({ text: el.textContent, fits: el.scrollWidth <= el.clientWidth + 1 })));
+    T.check('Estadísticas: nombres largos abreviados igual en las dos parejas y sin desbordar',
+      heads.length === 2 && heads.every((h) => h.fits) && heads[0].text.includes('.') === heads[1].text.includes('.') &&
+      heads.every((h) => !h.text.includes('…')), heads.map((h) => h.text).join(' | '));
+    await D1.screenshot({ path: `${H.OUT}/final-resumen-nombres-largos.png` });
     T.check('Sin errores de JavaScript', errors.length === 0, errors.join(' | '));
   } catch (err) {
     T.check('La prueba se completa sin excepciones', false, err.message.split('\n')[0]);

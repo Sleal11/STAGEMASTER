@@ -46,7 +46,7 @@ en **otros portátiles** de la red, con marcador, cinta publicitaria y vídeos,
 | QR único de acceso para los árbitros + código de cada pista (nuevo código, desvincular) | Arriba de los partidos · tarjeta de cada pista |
 | **Final del partido**: celebración de los ganadores y resumen con estadísticas (pantalla, teléfono e historial) | Automático |
 | **Marcador** o **Publicidad y vídeos** (reproductor: pausar, reanudar, detener) | Tarjeta de cada pantalla |
-| **Cinta publicitaria**: logos, vídeos cortos y mensajes; uno cada vez, logos fijos por grupos o desplazamiento continuo; fondo oscuro o claro; alto; **orden y tamaño de cada logo** con vista previa | Pestaña *Cinta* |
+| **Cinta publicitaria**: logos, vídeos cortos y mensajes; uno cada vez, logos fijos por grupos o desplazamiento continuo; fondo oscuro o claro; alto; **orden, tamaño (tiradores como en Word) y realce de cada logo** (definir / contorno) con vista previa | Pestaña *Cinta* |
 | **Lista de reproducción**: imágenes y vídeos MP4/WEBM en bucle, con o sin sonido | Pestaña *Lista de reproducción* |
 | **Subir fotos y vídeos** (botón o arrastrar desde el Explorador) y borrarlos | Pestañas *Cinta* y *Lista de reproducción* |
 | **Publicidad al terminar el partido** (activable, tras X s de resultado) y **en la pausa** (vuelve al marcador al reanudar) | Pestaña *Contenido* |
