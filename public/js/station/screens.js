@@ -450,8 +450,8 @@ function ribbonPanel(screen, state) {
     `<span class="muted">${off ? 'Apagada: el marcador ocupa toda la pantalla.' : 'Franja de patrocinadores bajo el marcador.'}</span></div>` +
     group('Qué aparece', 'image',
       field('Archivos', libraryHtml('banner', 'ribbonItem', screen, ribbon.items, 'Aún no hay archivos para la cinta.'),
-        'Logos PNG (mejor con fondo transparente), JPG o SVG y vídeos cortos MP4 o WEBM (sin sonido). Los logos se ven siempre ' +
-        'sobre el fondo de la cinta: sin recuadro blanco, sin márgenes y en blanco si son oscuros (los archivos no se modifican).') +
+        'Logos PNG, JPG o SVG y vídeos cortos MP4 o WEBM (sin sonido). Los logos se ven siempre sobre el fondo de la cinta: ' +
+        'sin su recuadro (blanco, negro, de color o una foto), sin márgenes y legibles (los archivos no se modifican).') +
       field('Mensajes', `<textarea class="input" rows="3" maxlength="1300" data-action="texts" data-screen="${screen.id}" placeholder="Un mensaje por línea (ej. Gracias a Bar Central)">${esc(ribbon.texts.join('\n'))}</textarea>` +
         `<button type="button" class="btn btn-secondary btn-sm" data-action="applyTexts" data-screen="${screen.id}" disabled>${icon('check')}Aplicar mensajes</button>`,
         `Texto que pasa por la cinta. Hasta ${state.limits.texts} mensajes de ${state.limits.textLength} caracteres.`), { off }) +

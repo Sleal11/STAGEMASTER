@@ -43,6 +43,26 @@ function exampleDesktop(adsFolder) {
   };
 }
 
+/** Logos de ejemplo de la cinta (marcas INVENTADAS): uno con texto marrón (el realce lo
+ *  aclara), uno negro (pasa a blanco) y un «sticker» con fondo rojo (se quita el fondo) */
+const svg = (w, h, body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`;
+const LOGOS = {
+  'banner/club-padel-norte.svg': svg(400, 400, '<circle cx="200" cy="200" r="190" fill="#1FB36B"/><circle cx="200" cy="200" r="160" fill="none" stroke="#FFFFFF" stroke-width="10"/>' +
+    '<text x="200" y="232" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="110" fill="#FFFFFF">CPN</text>' +
+    '<text x="200" y="300" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="34" fill="#FFFFFF">CLUB PÁDEL</text>'),
+  'banner/ferreteria-el-tornillo.svg': svg(640, 400, '<rect width="640" height="400" fill="#C0141B"/><ellipse cx="320" cy="200" rx="270" ry="170" fill="#FFFFFF"/>' +
+    '<ellipse cx="320" cy="200" rx="250" ry="150" fill="#111111"/><text x="320" y="190" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="64" textLength="400" lengthAdjust="spacingAndGlyphs" fill="#FFFFFF">EL TORNILLO</text>' +
+    '<text x="320" y="252" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-weight="700" font-size="46" fill="#F5C518">Ferretería</text>'),
+  'banner/cafe-montana.svg': svg(760, 260, '<path d="M40 90 h120 v70 a60 60 0 0 1 -120 0 z" fill="#6B3F22"/><path d="M160 105 a28 28 0 0 1 0 56" fill="none" stroke="#6B3F22" stroke-width="14"/>' +
+    '<text x="215" y="160" font-family="Georgia, serif" font-weight="700" font-size="104" textLength="520" lengthAdjust="spacingAndGlyphs" fill="#5A3420">Café Montaña</text>' +
+    '<text x="222" y="215" font-family="Arial, sans-serif" font-size="34" textLength="500" lengthAdjust="spacingAndGlyphs" fill="#8A5A3A">TOSTADO ARTESANAL</text>'),
+  'banner/optica-vision.svg': svg(900, 220, '<ellipse cx="110" cy="110" rx="95" ry="60" fill="none" stroke="#1E88E5" stroke-width="16"/><circle cx="110" cy="110" r="32" fill="#1E88E5"/>' +
+    '<text x="240" y="140" font-family="Arial, sans-serif" font-weight="800" font-size="96" textLength="620" lengthAdjust="spacingAndGlyphs" fill="#1E88E5">ÓPTICA VISIÓN</text>'),
+  'banner/bar-central.svg': svg(700, 220, '<text x="350" y="150" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="120" textLength="560" lengthAdjust="spacingAndGlyphs" fill="#111111">Bar Central</text>' +
+    '<rect x="120" y="175" width="460" height="8" fill="#111111"/>'),
+};
+const RIBBON = ['club-padel-norte.svg', 'ferreteria-el-tornillo.svg', 'cafe-montana.svg', 'optica-vision.svg', 'bar-central.svg'];
+
 const NAMES = {
   'pista-1': { nameA: 'Leal / Fernández', nameB: 'Romero / Castillo' },
   'pista-2': { nameA: 'Pérez / Díaz', nameB: 'Torres / Medina' },
@@ -79,7 +99,7 @@ async function finish(st, matchId) {
 (async () => {
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
-  const ads = H.makeAdsDir({ 'pantalla-completa/StageMaster-LED.mp4': fs.readFileSync(PROMO) });
+  const ads = H.makeAdsDir({ 'pantalla-completa/StageMaster-LED.mp4': fs.readFileSync(PROMO), ...LOGOS });
   process.env.STAGEMASTER_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'sm-capturas-'));
   process.env.STAGEMASTER_ADS_DIR = ads;
   process.env.STAGEMASTER_DISCOVERY = '0';
@@ -95,23 +115,41 @@ async function finish(st, matchId) {
       await finish(st, 'pista-2');
     }
 
+    // Pantalla 1: marcador con cinta (logos fijos + mensajes); Pantalla 2: publicidad
+    await st.screen('pantalla-1', {
+      ribbon: { enabled: true, items: RIBBON, texts: ['Gracias a nuestros patrocinadores'], motion: 'fixed', interval: 30, effects: { 'cafe-montana.svg': 'define' } },
+      media: { items: ['ejemplo-pantalla-completa.png'] }, pauseAds: { enabled: true }, endAds: { enabled: true, delay: 15 },
+    });
+    const D1 = await browser.newPage({ viewport: { width: 1664, height: 832 } });
+    await D1.goto(`http://localhost:${PORT}/score.html?pantalla=1`);
+
+    // ── SET POINT y MATCH POINT (punto de oro, 5-3 y 40-0) ──
+    const game = (side) => play(st, 'pista-1', Array(4).fill(side === 'A' ? 'pointA' : 'pointB'));
+    await st.setup('pista-1', H.config({ ...NAMES['pista-1'], scoringSystem: 'goldenPoint' }));
+    await D1.waitForSelector('#d-board:not(.hidden)');
+    for (const side of 'AAAAABBB') await game(side);
+    await play(st, 'pista-1', ['pointA', 'pointA', 'pointA']);
+    await D1.waitForFunction(() => document.getElementById('d-badge').textContent === 'SET POINT');
+    await D1.waitForSelector('.ribbon-page.is-visible img', { timeout: 15000 });
+    await D1.waitForTimeout(1800);
+    await shot(D1, 'led-set-point', { badge: '#d-badge', rowA: '#row-a', board: '#d-board', ribbon: '#d-ribbon' });
+    await st.act('pista-1', 'pointA');
+    for (const side of 'AAAAA') await game(side);
+    await play(st, 'pista-1', ['pointA', 'pointA', 'pointA']);
+    await D1.waitForFunction(() => document.getElementById('d-badge').textContent === 'MATCH POINT');
+    await D1.waitForTimeout(1500);
+    await shot(D1, 'led-match-point', { badge: '#d-badge', rowA: '#row-a', board: '#d-board' });
+
     // ── Partidos en juego ──
     await st.setup('pista-1', H.config(NAMES['pista-1']));
     await play(st, 'pista-1', ['pointA', 'pointA', 'pointA', 'pointA', 'pointB', 'pointA', 'pointA', 'pointB', 'pointA']);
     await st.setup('pista-2', H.config(NAMES['pista-2']));
     await play(st, 'pista-2', ['pointB', 'pointB', 'pointA', 'pointB', 'pointB', 'pointA']);
 
-    // Pantalla 1: marcador con cinta (logo + mensajes); Pantalla 2: publicidad
-    await st.screen('pantalla-1', {
-      ribbon: { enabled: true, items: ['ejemplo-banner.png'], texts: ['Gracias a nuestros patrocinadores', 'Síguenos en @stagemastervzla'], motion: 'rotate', interval: 10 },
-      media: { items: ['StageMaster-LED.mp4'] }, pauseAds: { enabled: true }, endAds: { enabled: true, delay: 15 },
-    });
     await st.screen('pantalla-2', { view: 'media', media: { items: ['StageMaster-LED.mp4', 'ejemplo-pantalla-completa.png'], imageSeconds: 8 } });
     await st.send('station:media', { screenId: 'pantalla-2', command: 'play' });
 
     // ── Pantallas LED (2:1) ──
-    const D1 = await browser.newPage({ viewport: { width: 1664, height: 832 } });
-    await D1.goto(`http://localhost:${PORT}/score.html?pantalla=1`);
     await D1.waitForSelector('#d-board:not(.hidden)');
     await D1.waitForTimeout(1500);
     await shot(D1, 'led-marcador', { board: '#d-board', ribbon: '#d-ribbon', header: '.d-header', pointsA: '#pts-a' });
@@ -133,7 +171,16 @@ async function finish(st, matchId) {
       access1: '[data-match-card="pista-1"] .st-access', score1: '[data-match-card="pista-1"] [data-score="pointA"]',
       setup1: '[data-match-card="pista-1"] [data-action="setup"]', pause1: '[data-match-card="pista-1"] [data-action="pause"]',
       tabs: '.st-views', screensHead: '#st-add-screen',
+      courtsZone: '.st-zone-courts', screensZone: '.st-zone-screens', courtsCollapse: '.st-zone-courts [data-collapse]',
     });
+    // Zonas que se minimizan: Pistas plegada (con su resumen) y Pantallas a la vista
+    await S.click('.st-zone-courts .st-zone-head [data-collapse]');
+    await S.waitForTimeout(500);
+    await shot(S, 'estacion-panel-plegado', {
+      courtsZone: '.st-zone-courts', courtsCollapse: '.st-zone-courts .st-zone-head [data-collapse]', summary: '#st-courts-summary', screensZone: '.st-zone-screens',
+    });
+    await S.click('.st-zone-courts .st-zone-head [data-collapse]');
+    await S.waitForTimeout(400);
 
     // Diálogo «Nuevo partido»
     await S.click('[data-match-card="pista-1"] [data-action="setup"]');
@@ -153,8 +200,10 @@ async function finish(st, matchId) {
       window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 80);
     }, card);
     for (const [tab, name, extra] of [
-      ['content', 'estacion-pantalla-contenido', { pauseAds: `${card} label.switch:has([data-action="pauseAds"])`, endAds: `${card} label.switch:has([data-action="endAds"])` }],
-      ['ribbon', 'estacion-pantalla-cinta', { upload: `${card} [data-action="upload"]`, texts: `${card} textarea` }],
+      ['content', 'estacion-pantalla-contenido', { pauseAds: `${card} label.switch:has([data-action="pauseAds"])`, endAds: `${card} label.switch:has([data-action="endAds"])`,
+        endStats: `${card} label.switch:has([data-action="endStats"])` }],
+      ['ribbon', 'estacion-pantalla-cinta', { upload: `${card} [data-action="upload"]`, texts: `${card} textarea`, library: `${card} .checklist`,
+        motion: `${card} [data-action="motion"][data-motion="fixed"]` }],
       ['media', 'estacion-pantalla-lista', { upload: `${card} [data-action="upload"]`, list: `${card} .checklist` }],
       ['output', 'estacion-pantalla-salida', { brightness: `${card} [data-action="brightness"]`, format: `${card} [data-action="format"]`, fit: `${card} [data-action="fit"]` }],
     ]) {
@@ -162,6 +211,47 @@ async function finish(st, matchId) {
       await showCard();
       await shot(S, name, { card, views: `${card} .segmented, ${card} [data-part="segment"]`, ...extra });
     }
+
+    // Cinta: cómo se mueve (uno cada vez, logos fijos, desplazamiento)
+    await S.click(`${card} [data-tab="ribbon"]`);
+    await S.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 360);
+    }, `${card} [data-action="motion"][data-motion="fixed"]`);
+    await shot(S, 'estacion-cinta-movimiento', {
+      motion: `${card} [data-action="motion"][data-motion="fixed"]`, motionGroup: `${card} .st-group:has([data-action="motion"])`,
+    });
+
+    // Cinta: orden, tamaño (tiradores, como en Word) y realce de los logos
+    await S.click(`${card} [data-tab="ribbon"]`);
+    await S.waitForSelector(`${card} .rb-logo img`, { timeout: 15000 });
+    await S.waitForTimeout(1500);
+    const showEditor = () => S.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 230);
+    }, `${card} .rb-preview`);
+    await showEditor();
+    const logo = `${card} .rb-logo[data-name="ferreteria-el-tornillo.svg"]`;
+    const editorParts = {
+      editor: `${card} .rb-preview`, list: `${card} .rb-list`, selected: `${card} .rb-logo.is-selected`,
+      handle: `${card} .rb-logo.is-selected .rb-handle[data-corner="se"]`, grip: `${card} .rb-row .rb-grip`,
+      size: `${card} .rb-row[data-name="ferreteria-el-tornillo.svg"] .rb-size`,
+      effect: `${card} .rb-row[data-name="cafe-montana.svg"] .rb-effect`, row: `${card} .rb-row[data-name="cafe-montana.svg"]`,
+    };
+    await shot(S, 'estacion-cinta-editor-0', { ...editorParts, logo });
+    await S.click(logo);
+    await shot(S, 'estacion-cinta-editor', editorParts);
+    const hb = await (await S.$(`${logo} .rb-handle[data-corner="se"]`)).boundingBox();
+    await S.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await S.mouse.down();
+    await S.mouse.move(hb.x + 40, hb.y + 24, { steps: 10 });
+    await S.mouse.up();
+    await H.waitFor(() => (st.state.screens[0].ribbon.sizes['ferreteria-el-tornillo.svg'] || 100) > 100, 'tamaño con el tirador');
+    await S.waitForTimeout(1500);
+    await showEditor();
+    await shot(S, 'estacion-cinta-editor-2', editorParts);
+    await D1.waitForTimeout(1800);
+    await shot(D1, 'led-cinta', { ribbon: '#d-ribbon', board: '#d-board' });
     await S.evaluate(() => window.scrollTo(0, 0));
 
     // En vivo e Historial
@@ -205,8 +295,8 @@ async function finish(st, matchId) {
     await P.tap('#btn-pause');
     await P.waitForSelector('#paused-banner:not(.hidden)');
     await shot(P, 'telefono-pausa', { banner: '#paused-banner', pause: '#btn-pause' });
-    await D1.waitForSelector('#d-media video.is-visible', { timeout: 15000 });
-    await D1.waitForTimeout(3000);
+    await D1.waitForSelector('#d-media .is-visible', { timeout: 15000 });
+    await D1.waitForTimeout(2000);
     await shot(D1, 'led-pausa');
     await P.tap('#btn-pause');
     await D1.waitForSelector('#d-board:not(.hidden)');
@@ -221,9 +311,12 @@ async function finish(st, matchId) {
     await D1.waitForTimeout(1600);
     await shot(D1, 'led-celebracion');
     await D1.waitForSelector('#d-celebrate.hidden', { state: 'attached', timeout: 10000 });
-    await D1.waitForSelector('#d-summary:not(.hidden)', { timeout: 10000 });
-    await D1.waitForTimeout(1500);
-    await shot(D1, 'led-resumen', { left: '.sum-left', right: '.sum-right' });
+    await D1.waitForSelector('#d-board:not(.hidden)', { timeout: 5000 });
+    await D1.waitForTimeout(1200);
+    await shot(D1, 'led-ganador', { rowA: '#row-a', divider: '#d-divider-label', board: '#d-board' });
+    await D1.waitForSelector('#d-summary:not(.hidden)', { timeout: 15000 });
+    await D1.waitForTimeout(2000);
+    await shot(D1, 'led-resumen', { head: '.sum-head', rows: '.sum-rows' });
     await P.waitForSelector('#screen-finished:not(.hidden)', { timeout: 6000 });
     await shot(P, 'telefono-final', { stats: '#final-stats', winner: '#winner-name' });
 
@@ -250,9 +343,9 @@ async function finish(st, matchId) {
 
     // Ventana del portátil remoto (aplicación de escritorio) con datos de ejemplo
     const W = await browser.newPage({ viewport: { width: 1000, height: 780 }, deviceScaleFactor: 2 });
-    await W.addInitScript(() => {
+    await W.addInitScript((version) => {
       const state = {
-        build: { version: '2.6.0', commit: '' }, hostname: 'PORTATIL-PISTA-2', status: 'connected', error: null, paired: true,
+        build: { version, commit: '' }, hostname: 'PORTATIL-PISTA-2', status: 'connected', error: null, paired: true,
         server: { address: '192.168.1.10', port: 3000, name: 'PORTATIL-PRINCIPAL' }, name: 'Portátil pista 2', discovered: [],
         stationOpen: false,
         screens: [{ id: 'pantalla-1', label: 'Pantalla 1', matchLabel: 'Pista 1', mirrorOf: null }, { id: 'pantalla-2', label: 'Pantalla 2', matchLabel: 'Pista 2', mirrorOf: null }],
@@ -261,7 +354,7 @@ async function finish(st, matchId) {
       };
       const ok = () => Promise.resolve({ ok: true });
       window.stagemaster = { state: () => Promise.resolve(state), pair: ok, setMonitor: ok, openScreen: ok, unpair: ok, retry: ok, useAsMain: ok, openStation: ok, onState: () => {} };
-    });
+    }, require('../../../package.json').version);
     await W.goto('file://' + path.join(H.ROOT, 'desktop', 'remote', 'remote.html'));
     await W.waitForSelector('#rm-linked:not(.hidden)');
     await shot(W, 'remoto-ventana', { station: '#rm-station', screens: '#rm-screens', status: '#rm-status' });

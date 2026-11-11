@@ -76,6 +76,7 @@ body { font-family: Inter, sans-serif; color: var(--white); }
 .hl .tag { position: absolute; left: -5px; top: -54px; white-space: nowrap; font-family: Oswald; font-weight: 700; font-size: 28px;
   padding: 4px 16px; border-radius: 10px; background: var(--yellow); color: var(--indigo-2); text-transform: uppercase; }
 .hl .tag.below { top: auto; bottom: -54px; }
+.hl .tag.right { left: auto; right: -5px; }
 .tap { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; opacity: 0;
   border: 6px solid var(--yellow); background: rgba(255, 210, 31, .25); }
 

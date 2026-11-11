@@ -116,6 +116,8 @@ jobs:
             gh release create "$PRUEBA_TAG" "dist/StageMaster-$PRUEBA_TAG.exe" "dist/StageMaster-$PRUEBA_TAG.zip" --prerelease --latest=false \
               --title "StageMaster · versión de prueba ($VERSION)" --notes "$NOTAS"
           fi
+          # Vídeos explicativos (marketing/tutoriales): enlaces fijos de descarga junto al .exe
+          gh release upload "$PRUEBA_TAG" marketing/tutoriales/*.mp4 --clobber
 
       - name: Publicar en Releases (solo con etiqueta v*)
         if: startsWith(github.ref, 'refs/tags/v')

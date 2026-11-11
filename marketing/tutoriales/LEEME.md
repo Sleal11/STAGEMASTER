@@ -2,13 +2,15 @@
 
 1920 × 1080 · 30 fps · MP4 (H.264) · sin sonido.
 
-| Vídeo | Duración | Contenido |
-|---|---|---|
-| `StageMaster-resumen-90s.mp4` | 90 s | Todo el sistema: estación, partido, QR + PIN, LED en tiempo real, cinta, publicidad en la pausa, salida, En vivo, portátil remoto e historial |
-| `StageMaster-tutorial-1-estacion.mp4` | ≈ 1 min | La estación: crear un partido, reglas FIP, puntuar como respaldo, teléfono conectado, historial |
-| `StageMaster-tutorial-2-arbitro.mp4` | ≈ 1 min | El árbitro: escanear el QR, PIN, botones, deshacer, LED al instante, pausa con publicidad |
-| `StageMaster-tutorial-3-pantallas-y-publicidad.mp4` | ≈ 1 min | Marcador LED, cinta, lista de reproducción, publicidad automática, salida (brillo, formato, ajuste) y consejos |
-| `StageMaster-tutorial-4-varias-pantallas-y-remoto.mp4` | ≈ 1 min | Añadir pantallas y espejos, En vivo, portátil remoto con su estación y seguridad |
+| Vídeo | Contenido |
+|---|---|
+| `StageMaster-resumen-90s.mp4` | Todo el sistema: estación, partido, QR + código de pista, LED en tiempo real, SET POINT / MATCH POINT, cinta (orden y tamaño de los logos), publicidad en la pausa, final del partido, salida, En vivo, portátil remoto e historial |
+| `StageMaster-tutorial-1-estacion.mp4` | La estación: zonas que se minimizan, crear un partido, reglas FIP, puntuar como respaldo, teléfono conectado, historial |
+| `StageMaster-tutorial-2-arbitro.mp4` | El árbitro: escanear el QR, código de pista, botones, deshacer, LED al instante, SET POINT / MATCH POINT, pausa con publicidad, estadísticas |
+| `StageMaster-tutorial-3-pantallas-y-publicidad.mp4` | Marcador LED, cinta (logos fijos, tamaño con tiradores como en Word, ordenar, realce), lista de reproducción, publicidad automática, salida, final del partido (celebración, ganador, estadísticas y su opción) y consejos |
+| `StageMaster-tutorial-4-varias-pantallas-y-remoto.mp4` | Añadir pantallas y espejos, En vivo, portátil remoto con su estación y seguridad |
+
+Hechos con la interfaz de la versión 2.10.1. Los logos de la cinta son marcas **inventadas** de ejemplo.
 
 ## Volver a generarlos
 

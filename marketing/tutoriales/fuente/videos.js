@@ -52,7 +52,7 @@
 
     V.scene(7.5, (s) => {
       s.device('laptop', { img: 'estacion-panel', ...LAPTOP }).focus(2.4, 'card1', { padding: 30 }).highlight(3.6, 7.3, 'setup1', { tag: 'Nuevo partido' });
-      s.caption(0.6, 1, 'El operador prepara los partidos en la <b>estación</b>');
+      s.caption(0.6, 1, 'El operador prepara los partidos en la <b>estación</b>: pistas y pantallas, cada una en su zona');
     });
 
     V.scene(6, (s) => {
@@ -76,9 +76,17 @@
       s.caption(0.5, 2, 'Cada punto llega a la pantalla LED <b>al instante</b>');
     });
 
-    V.scene(6.5, (s) => {
-      s.device('led', { img: 'led-marcador', x: 360, y: 180, w: 1200 }).highlight(1.4, 6.3, 'ribbon', { tag: 'Patrocinadores', padding: 0 });
-      s.caption(0.5, 3, 'Marcador con <b>cinta de patrocinadores</b>: logos, mensajes y vídeos');
+    V.scene(6, (s) => {
+      s.device('led', { img: 'led-set-point', x: 360, y: 180, w: 1200 }).highlight(1.2, 3.4, 'badge', { padding: 4, dim: false })
+        .swap(3.4, 'led-match-point').highlight(3.6, 5.8, 'badge', { padding: 4, dim: false });
+      s.caption(0.5, 2, 'La LED avisa del <b>SET POINT</b> y del <b>MATCH POINT</b>');
+    });
+
+    V.scene(8, (s) => {
+      s.device('laptop', { img: 'estacion-cinta-editor-0', x: 60, y: 200, w: 1080, from: 'left' }).focus(0.4, 'editor', { padding: 30 })
+        .tap(1.4, 'logo').swap(1.6, 'estacion-cinta-editor').tap(3.0, 'handle').swap(3.4, 'estacion-cinta-editor-2');
+      s.device('led', { img: 'led-cinta', x: 1180, y: 330, w: 680, at: 3.8, from: 'right' }).highlight(4.6, 7.8, 'ribbon', { padding: 0, dim: false });
+      s.caption(0.5, 3, '<b>Cinta de patrocinadores</b>: ordena los logos y ajusta su tamaño <b>como en Word</b>');
     }, { wipe: true });
 
     V.scene(7.5, (s) => {
@@ -87,9 +95,9 @@
       s.caption(0.5, 3, 'En la pausa y al terminar, la LED pasa <b>sola</b> a tu publicidad');
     });
 
-    V.scene(8, (s) => {
-      s.device('led', { img: 'led-celebracion', x: 360, y: 180, w: 1200 }).swap(3.6, 'led-resumen');
-      s.caption(0.5, 3, 'Al terminar: <b>celebración</b> de los ganadores y <b>estadísticas</b> del partido');
+    V.scene(9, (s) => {
+      s.device('led', { img: 'led-celebracion', x: 360, y: 180, w: 1200 }).swap(3.2, 'led-ganador').swap(6.0, 'led-resumen');
+      s.caption(0.5, 3, 'Al terminar: <b>celebración</b>, el <b>ganador</b> y las <b>estadísticas</b> del partido');
     }, { wipe: true });
 
     V.scene(7, (s) => {
@@ -126,37 +134,44 @@
     V.scene(9, (s) => {
       s.device('laptop', { img: 'estacion-panel', ...LAPTOP })
         .highlight(1.2, 3.6, 'tabs', { tag: 'Panel · En vivo · Historial' })
-        .highlight(3.8, 6.2, { x: 30, y: 80, w: 1540, h: 590 }, { tag: 'Un partido por pista', padding: 0 })
+        .highlight(3.8, 6.2, 'courtsZone', { tag: 'Pistas y partidos', padding: 0 })
         .highlight(6.4, 8.8, 'screensHead', { tag: 'Pantallas', below: true });
       s.caption(0.5, 1, 'Al abrir StageMaster se abre la <b>estación</b>: todo se controla desde aquí');
     });
 
+    V.scene(7, (s) => {
+      s.device('laptop', { img: 'estacion-panel', ...LAPTOP }).focus(0.3, { x: 700, y: 60, w: 880, h: 420 }, { padding: 0 })
+        .highlight(0.9, 2.4, 'courtsCollapse', { tag: 'Minimizar', below: true, right: true, padding: 6 })
+        .tap(2.0, 'courtsCollapse').swap(2.3, 'estacion-panel-plegado').highlight(3.0, 6.8, 'summary', { tag: 'Resumen a la vista', below: true, right: true, padding: 6 });
+      s.caption(0.5, 2, 'Cada zona se <b>minimiza</b> con su flecha y deja a la vista un resumen');
+    }, { wipe: true });
+
     V.scene(8.5, (s) => {
       s.device('laptop', { img: 'estacion-panel', ...LAPTOP }).focus(0.6, 'card1', { padding: 20 }).tap(2.2, 'setup1').highlight(1.4, 2.6, 'setup1', { tag: 'Nuevo partido' })
         .swap(2.6, 'estacion-nuevo-partido').focus(2.8, 'dialog', { padding: 30 });
-      s.caption(0.5, 2, 'Pulsa <b>Nuevo partido…</b> en la pista que quieras', 4.2);
-      s.caption(4.2, 2, 'Escribe las <b>parejas</b>, games por set, sets y quién saca');
+      s.caption(0.5, 3, 'Pulsa <b>Nuevo partido…</b> en la pista que quieras', 4.2);
+      s.caption(4.2, 3, 'Escribe las <b>parejas</b>, games por set, sets y quién saca');
     });
 
     V.scene(7, (s) => {
       s.device('laptop', { img: 'estacion-nuevo-partido', ...LAPTOP }).focus(0.2, 'dialog', { padding: 30, dur: 0.01 }).highlight(1.0, 6.8, 'scoring', { tag: 'Puntuación' });
-      s.caption(0.5, 3, 'Reglas FIP: <b>ventaja</b>, <b>punto de oro</b> o <b>FIP 2026</b>; tie break o súper tie break');
+      s.caption(0.5, 4, 'Reglas FIP: <b>ventaja</b>, <b>punto de oro</b> o <b>FIP 2026</b>; tie break o súper tie break');
     });
 
     V.scene(8, (s) => {
       s.device('laptop', { img: 'estacion-panel', ...LAPTOP }).focus(0.6, 'card1', { padding: 20 })
         .highlight(1.6, 4.6, 'score1', { tag: 'Punto', padding: 6 }).highlight(4.8, 7.8, 'pause1', { tag: 'Pausar · Finalizar', padding: 6 });
-      s.caption(0.5, 4, 'Si falla el teléfono, <b>puntúa desde la estación</b> como respaldo');
+      s.caption(0.5, 5, 'Si falla el teléfono, <b>puntúa desde la estación</b> como respaldo');
     }, { wipe: true });
 
     V.scene(7, (s) => {
       s.device('laptop', { img: 'estacion-panel-telefono', ...LAPTOP }).focus(0.6, 'access1', { padding: 20 });
-      s.caption(0.5, 5, 'Ves si el teléfono del árbitro está <b>conectado</b>; puedes cambiar el código o desvincularlo');
+      s.caption(0.5, 6, 'Ves si el teléfono del árbitro está <b>conectado</b>; puedes cambiar el código o desvincularlo');
     });
 
     V.scene(7, (s) => {
       s.device('laptop', { img: 'estacion-historial', ...LAPTOP }).highlight(0.8, 3.2, 'tab', { tag: 'Historial', below: true }).focus(3.0, 'list', { padding: 20 });
-      s.caption(0.5, 6, 'Cada partido terminado queda en el <b>Historial</b>: filtra y exporta a Excel');
+      s.caption(0.5, 7, 'Cada partido terminado queda en el <b>Historial</b> al instante: filtra y exporta a Excel');
     }, { wipe: true });
 
     outro(V);
@@ -203,6 +218,12 @@
       s.caption(0.5, 5, 'Cada punto se ve en la LED <b>al instante</b>, con sets y saque');
     });
 
+    V.scene(6, (s) => {
+      s.device('led', { img: 'led-set-point', x: 360, y: 180, w: 1200 }).highlight(1.0, 3.2, 'rowA', { tag: 'Quien puede cerrar el set', padding: 2, dim: false })
+        .swap(3.4, 'led-match-point').highlight(3.6, 5.8, 'badge', { padding: 4, dim: false });
+      s.caption(0.5, 5, 'El aviso de <b>SET POINT</b> y <b>MATCH POINT</b> sale solo, con cualquier puntuación');
+    }, { wipe: true });
+
     V.scene(8, (s) => {
       s.device('phone', { img: 'telefono-pausa', x: 150, y: 120, w: 400, vpw: 368, vph: 796, from: 'left' }).highlight(0.8, 7.8, 'banner', { padding: 6 });
       s.device('led', { img: 'led-pausa', x: 690, y: 250, w: 1100, at: 0.6, from: 'right' });
@@ -216,7 +237,7 @@
 
     V.scene(7, (s) => {
       s.device('phone', { img: 'telefono-final', x: 150, y: 120, w: 400, vpw: 368, vph: 796, from: 'left' }).highlight(1.2, 6.8, 'stats', { padding: 4 });
-      s.device('led', { img: 'led-resumen', x: 690, y: 250, w: 1100, at: 0.4, from: 'right' });
+      s.device('led', { img: 'led-ganador', x: 690, y: 250, w: 1100, at: 0.4, from: 'right' }).swap(3.4, 'led-resumen');
       s.caption(0.5, 8, 'Al terminar, ganadores y <b>estadísticas</b> en el teléfono y en la LED');
     }, { wipe: true });
 
@@ -230,34 +251,58 @@
     intro(V, { kicker: 'Tutorial 3', title: 'Pantallas LED y publicidad', sub: 'Marcador, cinta de patrocinadores, vídeos y ajustes de cada pantalla' });
 
     V.scene(7, (s) => {
-      s.device('led', { img: 'led-marcador', x: 360, y: 180, w: 1200 })
-        .highlight(1.0, 3.6, 'header', { tag: 'Sets y pista', below: true, padding: 0 })
-        .highlight(3.8, 6.8, 'ribbon', { tag: 'Cinta', padding: 0 });
+      s.device('led', { img: 'led-set-point', x: 360, y: 180, w: 1200 })
+        .highlight(1.0, 3.6, 'badge', { tag: 'Set point · match point', below: true, padding: 4 })
+        .highlight(3.8, 6.8, 'ribbon', { tag: 'Cinta de patrocinadores', padding: 0 });
       s.caption(0.5, 1, 'Marcador legible de lejos, hecho para <b>pantallas LED</b>');
     });
 
-    V.scene(7.5, (s) => {
+    V.scene(5.5, (s) => {
       s.device('laptop', { img: 'estacion-pantalla-cinta', ...LAPTOP }).focus(0.6, 'card', { padding: 10 })
-        .highlight(1.8, 4.4, 'upload', { tag: 'Subir archivos', padding: 6 }).highlight(4.6, 7.3, 'texts', { tag: 'Mensajes', padding: 6 });
-      s.caption(0.5, 2, '<b>Cinta</b>: logos (sin fondo blanco), vídeos cortos y mensajes');
+        .highlight(1.6, 5.3, 'library', { tag: 'Logos y vídeos', padding: 6 });
+      s.caption(0.5, 2, '<b>Cinta</b>: logos, vídeos cortos y mensajes; el fondo de cada logo se quita solo');
     }, { wipe: true });
+
+    V.scene(5, (s) => {
+      s.device('laptop', { img: 'estacion-cinta-movimiento', ...LAPTOP }).focus(0.4, 'motionGroup', { padding: 20 })
+        .highlight(1.4, 4.8, 'motion', { tag: 'Logos fijos', below: true, padding: 6 });
+      s.caption(0.3, 2, 'Uno cada vez, <b>logos fijos</b> (varios a la vez) o desplazamiento continuo');
+    });
+
+    V.scene(9.5, (s) => {
+      s.device('laptop', { img: 'estacion-cinta-editor-0', ...LAPTOP }).focus(0.5, 'editor', { padding: 30 })
+        .tap(1.6, 'logo').swap(1.8, 'estacion-cinta-editor').highlight(2.2, 3.8, 'handle', { tag: 'Tirador', padding: 10, dim: false })
+        .tap(4.0, 'handle').swap(4.4, 'estacion-cinta-editor-2').focus(5.4, 'list', { padding: 20 }).highlight(6.0, 9.2, 'grip', { tag: 'Arrastra para ordenar', padding: 8 });
+      s.caption(0.5, 3, 'Como en <b>Word</b>: haz clic en un logo y arrastra una esquina para agrandarlo', 5.2);
+      s.caption(5.2, 3, 'En la lista, <b>arrastra</b> los logos (o usa las flechas) para ordenarlos');
+    });
+
+    V.scene(7.5, (s) => {
+      s.device('laptop', { img: 'estacion-cinta-editor-2', ...LAPTOP }).focus(0.4, 'row', { padding: 30 }).highlight(1.2, 7.2, 'effect', { tag: 'Realce', padding: 8 });
+      s.caption(0.5, 4, '<b>Realce</b>, si un logo no se lee en la LED: definir, contorno blanco o los dos');
+    }, { wipe: true });
+
+    V.scene(6, (s) => {
+      s.device('led', { img: 'led-cinta', x: 360, y: 180, w: 1200 }).highlight(0.8, 5.8, 'ribbon', { padding: 0, dim: false });
+      s.caption(0.5, 4, 'Todos los logos sobre el mismo fondo, <b>legibles</b> y con el tamaño que elegiste');
+    });
 
     V.scene(7.5, (s) => {
       s.device('laptop', { img: 'estacion-pantalla-lista', ...LAPTOP }).focus(0.6, 'card', { padding: 10 })
         .highlight(1.8, 4.4, 'list', { tag: 'Imágenes y vídeos', padding: 6 }).highlight(4.6, 7.3, 'upload', { tag: 'Subir o arrastrar', padding: 6 });
-      s.caption(0.5, 3, '<b>Lista de reproducción</b>: imágenes y vídeos a pantalla completa, en bucle');
+      s.caption(0.5, 5, '<b>Lista de reproducción</b>: imágenes y vídeos a pantalla completa, en bucle');
     });
 
     V.scene(6, (s) => {
       s.device('led', { img: 'led-publicidad', x: 360, y: 180, w: 1200 });
-      s.caption(0.5, 3, 'Con <b>Publicidad y vídeos</b>, la LED reproduce tu lista');
+      s.caption(0.5, 5, 'Con <b>Publicidad y vídeos</b>, la LED reproduce tu lista');
     });
 
     V.scene(7.5, (s) => {
       s.device('laptop', { img: 'estacion-pantalla-contenido', ...LAPTOP }).focus(0.6, 'card', { padding: 10 })
         .highlight(1.8, 4.4, 'pauseAds', { tag: 'En la pausa', padding: 6 })
         .highlight(4.6, 7.3, 'endAds', { tag: 'Al terminar', below: true, padding: 6 });
-      s.caption(0.5, 4, 'Publicidad <b>automática</b> en la pausa y al terminar el partido');
+      s.caption(0.5, 6, 'Publicidad <b>automática</b> en la pausa y al terminar el partido');
     }, { wipe: true });
 
     V.scene(9, (s) => {
@@ -265,13 +310,19 @@
         .highlight(1.6, 3.6, 'brightness', { tag: 'Brillo de la imagen', padding: 6 })
         .highlight(3.8, 6.0, 'format', { tag: 'Monitor completo o tamaño LED', padding: 6 })
         .highlight(6.2, 8.8, 'fit', { tag: 'Publicidad: llena toda la LED', padding: 6 });
-      s.caption(0.5, 5, '<b>Salida</b>: monitor, brillo, formato exacto de la LED y ajuste de la publicidad');
+      s.caption(0.5, 7, '<b>Salida</b>: monitor, brillo, formato exacto de la LED y ajuste de la publicidad');
     });
 
-    V.scene(8, (s) => {
-      s.device('led', { img: 'led-celebracion', x: 360, y: 180, w: 1200 }).swap(3.6, 'led-resumen');
-      s.caption(0.5, 6, 'Fin del partido: <b>celebración</b> y <b>resumen</b> con estadísticas reales');
+    V.scene(10, (s) => {
+      s.device('led', { img: 'led-celebracion', x: 360, y: 180, w: 1200 }).swap(3.2, 'led-ganador').swap(6.2, 'led-resumen');
+      s.caption(0.5, 8, 'Fin del partido: <b>celebración</b>, el marcador con el <b>ganador</b> y las <b>estadísticas</b>');
     }, { wipe: true });
+
+    V.scene(6.5, (s) => {
+      s.device('laptop', { img: 'estacion-pantalla-contenido', ...LAPTOP }).focus(0.6, 'card', { padding: 10 })
+        .highlight(1.6, 6.3, 'endStats', { tag: 'Mostrar las estadísticas', below: true, padding: 6 });
+      s.caption(0.5, 8, 'Las estadísticas se pueden <b>quitar</b> en cada pantalla');
+    });
 
     V.scene(5.5, (s) => {
       s.text('Para que se vea <span class="yellow">perfecto</span>', { x: 330, y: 190, size: 84, at: 0.1 });

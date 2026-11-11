@@ -9,7 +9,7 @@
  *
  *   escena.device(tipo, opciones)  portátil, teléfono, LED o ventana con una captura
  *     .focus(t, zona)              acercamiento suave a una parte ('all' = entera)
- *     .highlight(t0, t1, zona, { tag })  recuadro amarillo con etiqueta
+ *     .highlight(t0, t1, zona, { tag })  recuadro amarillo con etiqueta (right: anclada a la derecha)
  *     .tap(t, zona)                toque de dedo
  *     .swap(t, captura)            cambia a otra captura (fundido)
  *   escena.text(html, opciones)    texto que entra animado
@@ -183,8 +183,8 @@
       };
       const api = {
         focus(t, r, { padding = 40, dur = 1.0 } = {}) { focuses.push({ t, rect: rectOf(r, padding), dur }); return api; },
-        highlight(t0, t1, r, { tag = '', below = false, padding = 10, dim = true } = {}) {
-          const h = el('div', 'hl' + (dim ? '' : ' nodim'), over, tag ? `<span class="tag${below ? ' below' : ''}">${tag}</span>` : '');
+        highlight(t0, t1, r, { tag = '', below = false, right = false, padding = 10, dim = true } = {}) {
+          const h = el('div', 'hl' + (dim ? '' : ' nodim'), over, tag ? `<span class="tag${below ? ' below' : ''}${right ? ' right' : ''}">${tag}</span>` : '');
           highlights.push({ h, t0, t1, rect: rectOf(r, padding) });
           return api;
         },
