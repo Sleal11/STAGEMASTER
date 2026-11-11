@@ -1055,6 +1055,50 @@ test('Historial: guarda cada partido terminado una sola vez; deshacer el final l
   assert.strictEqual(res.code, 'FORBIDDEN', 'Un teléfono no puede leer el historial');
 });
 
+test('Partidos aleatorios por el servidor real en las 9 modalidades (3 sistemas × 3 desempates), con «Deshacer»', async () => {
+  // El mismo partido se juega en el motor aquí y por el servidor (teléfono → servidor → pantalla):
+  // después de cada acción, el árbitro, la pantalla y el motor deben coincidir
+  const { createMatch, applyAction } = require('./sports/padel/engine');
+  let seed = 4242;
+  const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const board = (st) => JSON.stringify([st.players, st.setScores, st.phase, st.server, st.status, st.winner || null]);
+  const before = (await send(estacion, 'station:history', {})).total;
+  let played = 0;
+  for (const scoringSystem of ['advantage', 'goldenPoint', 'starPoint']) {
+    for (const tiebreakType of ['tiebreak', 'superTiebreak', 'none']) {
+      const cfg = config({ gamesPerSet: 2, totalSets: 3, scoringSystem, tiebreakType, initialServer: random() < 0.5 ? 'A' : 'B' });
+      const res0 = await send(estacion, 'setupMatch', { matchId: 'pista-1', config: cfg, force: true });
+      assert.ok(res0.ok, `${scoringSystem}/${tiebreakType}: partido nuevo`);
+      let local = createMatch(cfg);
+      const fresh = (st) => st && st.config.scoringSystem === scoringSystem && st.config.tiebreakType === tiebreakType &&
+        board({ ...st, players: { A: { ...st.players.A, name: cfg.nameA }, B: { ...st.players.B, name: cfg.nameB } } }) === board(local);
+      await waitFor(() => fresh(telefono1.states['pista-1']) && fresh(pantalla1.states['pista-1']), `${scoringSystem}/${tiebreakType}: partido nuevo`);
+      local = createMatch({ ...cfg, nameA: telefono1.states['pista-1'].players.A.name, nameB: telefono1.states['pista-1'].players.B.name });
+      for (let i = 0; i < 400 && local.status === 'playing'; i++) {
+        const roll = random();
+        const name = roll < 0.08 ? 'undo' : roll < 0.1 ? 'changeServer' : random() < 0.55 ? 'pointA' : 'pointB';
+        const version = telefono1.states['pista-1'].version;
+        const res = await action(telefono1, 'pista-1', name);
+        const next = applyAction(local, name);
+        const changed = next !== local;   // «Deshacer» sin nada que deshacer no cambia nada
+        local = next;
+        if (!res.ok) throw new Error(`${scoringSystem}/${tiebreakType}: «${name}» rechazado (${res.code})`);
+        if (!changed) { await sleep(30); continue; }
+        await waitFor(() => telefono1.states['pista-1'].version > version && pantalla1.states['pista-1'].version === telefono1.states['pista-1'].version,
+          `${scoringSystem}/${tiebreakType} acción ${i}`);
+        assert.strictEqual(board(telefono1.states['pista-1']), board(local), `${scoringSystem}/${tiebreakType}: árbitro ≠ motor tras ${name} (#${i})`);
+        assert.strictEqual(board(pantalla1.states['pista-1']), board(local), `${scoringSystem}/${tiebreakType}: pantalla ≠ motor tras ${name} (#${i})`);
+      }
+      assert.strictEqual(local.status, 'finished', `${scoringSystem}/${tiebreakType}: el partido termina`);
+      played++;
+    }
+  }
+  await sleep(200);
+  const after = (await send(estacion, 'station:history', {})).total;
+  assert.strictEqual(after, before + played, 'Cada partido terminado queda en el historial');
+  return `${played} partidos`;
+});
+
 test('/health responde con el estado de ambos partidos', async () => {
   const body = await (await fetch(`http://localhost:${PORT}/health`)).json();
   assert.strictEqual(body.ok, true);

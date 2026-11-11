@@ -195,7 +195,7 @@ no ha crecido de forma continua.
 | Resolución real de la pantalla (anotarla) | El marcador ocupa la pantalla sin cortes |
 | 30 min sin tocar nada | La pantalla no se apaga ni aparece protector |
 | Final del partido | Trofeo azul junto al ganador, su fila resaltada en azul, "PARTIDO FINALIZADO" arriba |
-| Cinta con logos de fondo blanco | Se ven sin el recuadro blanco, separados por igual; los logos negros, en blanco |
+| Cinta con logos de fondo blanco, negro o de color (stickers en JPG) | Se ven sin su recuadro, separados por igual; los logos negros, en blanco; la placa negra de un sticker con borde claro se respeta |
 | Pausar el partido (estación o teléfono) | La pantalla muestra EN PAUSA; no se puede puntuar hasta Reanudar |
 
 ---

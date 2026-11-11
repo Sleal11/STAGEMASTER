@@ -1,7 +1,7 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.10.0** (2.9.0 + realce de logos, tamaño con tiradores, nombres completos en la celebración y abreviados en las estadísticas; 2.9.0: SET/MATCH POINT, cinta de logos con orden, tamaño y fondo, estadísticas animadas, menos amarillo; 2.8.0: panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
+compactación de la conversación). Estado: **versión 2.10.1** (2.10.0 + stickers con fondo de color, partidos aleatorios contra un árbitro de referencia, motor ~20× más rápido y limpieza; 2.10.0: 2.9.0 + realce de logos, tamaño con tiradores, nombres completos en la celebración y abreviados en las estadísticas; 2.9.0: SET/MATCH POINT, cinta de logos con orden, tamaño y fondo, estadísticas animadas, menos amarillo; 2.8.0: panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
 estéticos, pestaña «En vivo», teléfonos que no conectaban, publicidad que llena la LED y estación
 desde el portátil remoto, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
@@ -80,7 +80,7 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 
 | Fase | Resultado | Archivos principales |
 |---|---|---|
-| 1 Auditoría | `docs/desarrollo/AUDITORIA-V3.md` | — |
+| 1 Auditoría | Plan de la versión 3 (documento retirado en 2.10.1: está en el historial de git) | — |
 | 2 Historial | Pestaña Historial: día, rango, pista, jugador, detalle, CSV; sin duplicados; deshacer anula | `server/core/history.js`, `js/station/history.js` |
 | 3 Publicidad en la pausa | Lista durante la pausa; vuelve con el mismo tanteo; opción por pantalla | `server/core/screens.js` (`matchPauseChanged`) |
 | 4 Brillo | Brillo de la **imagen** por pantalla (10-100 %) | `d-dimmer` en `score.html`; `docs/BRILLO-LED.md` |
@@ -102,13 +102,13 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 | Análisis profundo final + paso a `main` + etiqueta | Cuando Santiago lo pida | — |
 | `.gitignore` de `*.exe` en la raíz | Propuesto, sin hacer | Confirmación de Santiago |
 | **Firma digital del .exe** («la app no es segura») | Sin firma. Mientras tanto: .zip en el enlace de prueba (con LEEME), USB y pasos en `docs/DESCARGA-Y-SEGURIDAD.md` | Decisión y coste: Azure Artifact Signing (solo empresas de EE. UU./Canadá/UE/RU o personas de EE. UU./Canadá) o certificado OV; datos legales de la empresa |
-| **Colores de la marca** (índigo / claro) | **En espera** por decisión de Santiago: la app sigue con su paleta azul oscuro | Maquetas, paleta y temas listos en `docs/desarrollo/maquetas-marca/` (ver su LEEME); falta elegir opción por parte (LED / estación / teléfono) y el color de la Pista 2 |
+| **Colores de la marca** (índigo / claro) | **En espera** por decisión de Santiago: la app sigue con su paleta azul oscuro | Paleta de la marca: índigo `#3C40C4`, índigo profundo `#242888`/`#444490`, azul cielo `#3898F4`, azul real `#1E5AC6`, celeste `#84D0FC`, fondo claro `#F0F8FC`, amarillo `#F9D207`. Recomendación: LED en índigo; estación y teléfono a elegir. Las maquetas de 2.6 (`docs/desarrollo/maquetas-marca/`) se retiraron en 2.10.1 porque la interfaz cambió; siguen en el historial de git (commit `4fab116`). Falta elegir opción por parte (LED / estación / teléfono) y el color de la Pista 2 |
 
 ## 6. Pruebas
 
 | Comando | Contenido |
 |---|---|
-| `npm test` | Motor 55 · núcleo 73 · monitores 14 · integración 45 |
+| `npm test` | Motor 65 · partidos aleatorios 1620 · núcleo 76 · monitores 14 · integración 48 |
 | `npm run test:e2e` | 11 conjuntos con Chromium y Electron reales: history, pause, brightness, screens, formats, station-ui (versión oculta, formatos, diálogo de resolución, avisos), live (pestaña En vivo), layout (matriz 4 formatos × 6 estados, incluido «GANADOR»), phone (partido completo), desktop, remote |
 | CI (`.github/workflows/stagemaster-windows.yml`) | En Windows: `npm test`, `desktop/displayModes.win.test.js` (resoluciones reales, sin cambiar la pantalla), `desktop/firewall.win.test.js` (diagnóstico y reglas del firewall, que borra al terminar), compilación y publicación del exe |
 
@@ -310,3 +310,17 @@ Ronda 10 (versión 2.10.0) — **realce de logos, tiradores y nombres**:
   usa la MISMA forma en las dos parejas; más separación; en LED 416 × 208 sin el título.
 - Celebración: `finale.fitCelebration` ajusta la letra al ancho (sin «…»; dos líneas si < 55 %).
 - Pruebas: ribbon.e2e (realce, tiradores), finale.e2e (nombres largos), core (effects).
+
+Ronda 11 (versión 2.10.1) — **stickers, partidos aleatorios y limpieza**:
+- `logo-cleaner.removeBackground`: quita el fondo de CUALQUIER color desde los bordes (semillas = colores
+  dominantes del borde; crece con `BG_STEP` 26 entre vecinos y `BG_RANGE` 64 respecto a su color de
+  partida; aborta si quedaría < 3 %); `removeLeftovers` quita líneas finas pegadas al borde y motas.
+  `exposed()`: solo se recolorea, define o invierte lo que toca lo transparente (la placa negra de un
+  sticker se respeta). «Auto» usa una curva suave (`GENTLE_CONTRAST` 3,5). Se procesa a 600 px de alto.
+- Estación: el panel no se redibuja mientras se arrastra un tirador (`isResizing`).
+- Motor: `deepCopy` comparte el historial (inmutable) en vez de copiarlo: ~20× más rápido por acción.
+- `engine.random.test.js`: árbitro de referencia independiente; 540 modalidades × 3 partidos, con
+  deshacer, cambiar saque y finalizar; también en `npm test`. Integración: 9 modalidades por el servidor
+  real (árbitro = pantalla = motor) y al historial.
+- Retirados: `docs/desarrollo/AUDITORIA-V3.md`, `docs/desarrollo/maquetas-marca/` (paleta copiada arriba),
+  `build/icon.png` (duplicado de `desktop/icon.png`).

@@ -5,10 +5,11 @@
  * la cinta quedan como parches blancos. Esta función prepara una copia limpia
  * de cada imagen (en el navegador, sin tocar el archivo original):
  *
- *   1. Quita el fondo BLANCO que toca los bordes de la imagen (relleno desde
- *      los bordes): el blanco de DENTRO del logo se conserva (p. ej. las
- *      letras blancas del logo de Pepsi).
- *   2. Suaviza el borde para que no quede un halo blanco.
+ *   1. Quita el FONDO que rodea al logo desde los bordes de la imagen, sea
+ *      blanco, negro, de color, un degradado o una foto (2.10.1: los logos
+ *      tipo «sticker» en JPG): el blanco o el color de DENTRO del logo se
+ *      conserva (p. ej. las letras blancas del logo de Pepsi).
+ *   2. Suaviza el borde para que no quede un halo del fondo.
  *   3. Recorta los márgenes vacíos: todos los logos quedan igual de separados.
  *   4. Las partes grises o negras (sin color) que no se distinguirían del fondo
  *      de la cinta se aclaran (cinta oscura) o se oscurecen (cinta clara): el
@@ -22,8 +23,9 @@
  * el archivo no indique su tamaño).
  *
  * REALCE de cada logo (2.10, «Realce» en la estación; `effect`):
- *   - 'auto'    (por defecto): se DEFINE solo si una parte importante del logo
- *               apenas se distingue del fondo (letras marrones, plateadas…).
+ *   - 'auto'    (por defecto): si una parte importante del logo apenas se
+ *               distingue de la cinta (letras marrones, plateadas…), se aclara
+ *               con una curva SUAVE que conserva el relieve (logos metálicos).
  *   - 'define'  «Definir»: las partes que no contrastan se aclaran (cinta
  *               oscura) u oscurecen (clara) conservando su tono, hasta leerse.
  *   - 'outline' «Contorno»: un borde blanco alrededor de todo el logo (azul
@@ -35,10 +37,15 @@
  * («Fondo de la cinta»: oscuro o claro, en la estación).
  */
 
-const MAX_SIDE      = 1600;  // las imágenes grandes se reducen antes de procesarlas
+const MAX_SIDE      = 1600;  // las imágenes grandes se reducen antes de procesarlas…
+const MAX_HEIGHT    = 600;   // …y a este alto (en la cinta un logo no pasa de ~350 px en 1080p):
+                             // igual de nítido y hasta 5 veces más rápido
 const WHITE_MIN     = 226;   // un píxel es "blanco de fondo" si R, G y B superan esto…
 const WHITE_SPREAD  = 30;    // …y apenas tienen color (diferencia entre canales)
-const FEATHER_MIN   = 170;   // claros junto al fondo: transparencia parcial (sin halo)
+const BG_STEP       = 26;    // fondo: diferencia máxima de color entre dos píxeles vecinos
+const BG_RANGE      = 64;    // …y respecto al color del borde del que parte (no se cuela en el logo)
+const BG_SEED_SHARE = 0.05;  // un color del borde es «de fondo» si ocupa al menos esto del borde
+const BG_MIN_LEFT   = 0.03;  // si al quitar el fondo queda menos de esto, no se quita nada
 /** Fondos de la cinta: luminancia relativa (WCAG) y color al que pasa lo que no se ve */
 const BACKGROUNDS = {
   dark:  { lum: 0.015, ink: [255, 255, 255] },   // azul de la cinta (#08204A) → blanco
@@ -54,6 +61,7 @@ const SVG_SIDE      = 800;   // lado mayor al dibujar un SVG
  * un gris o un color apagado (marrón, plateado, azul marino).
  */
 const DEFINE_CONTRAST = { grey: 9, muted: 5, vivid: 2.2 };
+const GENTLE_CONTRAST = 3.5; // «Automático»: contraste al que llega lo más oscuro (curva suave)
 const AUTO_DEFINE   = 0.1;   // «Auto»: se define si al menos esta parte del logo no se lee
 const OUTLINE       = 0.022; // grosor del contorno (fracción del lado menor del logo)
 
@@ -108,7 +116,7 @@ async function process(url, bg, fx) {
     height = ratio >= 1 ? Math.round(SVG_SIDE / ratio) : SVG_SIDE;
   }
   if (!width || !height) return url;
-  const scale = Math.min(1, MAX_SIDE / Math.max(width, height));
+  const scale = Math.min(1, MAX_SIDE / Math.max(width, height), MAX_HEIGHT / height);
   width = Math.round(width * scale);
   height = Math.round(height * scale);
 
@@ -120,12 +128,12 @@ async function process(url, bg, fx) {
   const image = ctx.getImageData(0, 0, width, height);
   const px = image.data;
 
-  // Un logo que ya tiene el fondo transparente no necesita quitar el blanco
+  // Un logo que ya tiene el fondo transparente no necesita quitar el fondo
   // (antes, en un logo BLANCO sobre transparente, se comía el propio logo)
-  const removed = hasTransparentBorder(px, width, height) ? false : removeWhiteBackground(px, width, height);
-  const recolored = adaptToBackground(px, bg);
-  const define = fx === 'define' || fx === 'both' || (fx === 'auto' && hiddenShare(px, bg) >= AUTO_DEFINE);
-  const defined = define && defineParts(px, bg);
+  const removed = hasTransparentBorder(px, width, height) ? false : removeBackground(px, width, height);
+  const recolored = adaptToBackground(px, bg, width, height);
+  const define = fx === 'define' || fx === 'both' || (fx === 'auto' && hiddenShare(px, bg, width, height) >= AUTO_DEFINE);
+  const defined = define && defineParts(px, bg, width, height, fx === 'auto');
   const outline = fx === 'outline' || fx === 'both';
   const box = opaqueBounds(px, width, height);
   if (!box) return url;   // quedaría vacía: mejor la original
@@ -141,8 +149,26 @@ async function process(url, bg, fx) {
   return out.toDataURL('image/png');
 }
 
-/** Relleno desde los bordes: el blanco conectado al borde pasa a transparente */
-function removeWhiteBackground(px, width, height) {
+/**
+ * Quita el FONDO del logo: lo que rodea al logo desde los bordes de la imagen,
+ * sea del color que sea («varita mágica» desde los bordes):
+ *   - Semillas: los píxeles del borde de los colores que dominan el borde (así
+ *     una letra que toca el borde no cuenta como fondo).
+ *   - El fondo se extiende a cada vecino de color parecido (BG_STEP) que no se
+ *     aleje demasiado del color del borde del que parte (BG_RANGE): sigue
+ *     degradados, fotos desenfocadas y el ruido del JPG; se detiene en el
+ *     contorno del logo aunque esté difuminado.
+ *   - El blanco conectado al borde también es fondo (como antes).
+ *   - Si casi no quedara nada (la imagen ERA el anuncio, p. ej. un banner a
+ *     sangre), no se quita nada.
+ *   - Restos: líneas finas pegadas al borde (marcos, el borde de una captura)
+ *     y motas sueltas de unos pocos píxeles.
+ *   - Borde suave: lo que se parece al fondo quitado queda semitransparente.
+ * @returns {boolean} se quitó algo
+ */
+function removeBackground(px, width, height) {
+  const total = width * height;
+  const colorAt = (p) => (px[p * 4] >> 5) << 6 | (px[p * 4 + 1] >> 5) << 3 | (px[p * 4 + 2] >> 5);
   const isWhite = (p) => {
     const i = p * 4;
     if (px[i + 3] < 8) return true;   // ya transparente: también es "fondo"
@@ -150,24 +176,48 @@ function removeWhiteBackground(px, width, height) {
     const max = Math.max(px[i], px[i + 1], px[i + 2]);
     return min >= WHITE_MIN && max - min <= WHITE_SPREAD;
   };
-  const total = width * height;
+  const near = (p, q, limit) => {
+    const i = p * 4, j = q * 4;
+    const dr = px[i] - px[j], dg = px[i + 1] - px[j + 1], db = px[i + 2] - px[j + 2];
+    return dr * dr + dg * dg + db * db <= limit * limit;
+  };
+
+  // Colores dominantes del borde (cajas de 32 niveles por canal)
+  const borderPixels = [];
+  for (let x = 0; x < width; x++) borderPixels.push(x, (height - 1) * width + x);
+  for (let y = 1; y < height - 1; y++) borderPixels.push(y * width, y * width + width - 1);
+  const counts = new Map();
+  borderPixels.forEach((p) => { const c = colorAt(p); counts.set(c, (counts.get(c) || 0) + 1); });
+  // (un blanco que solo asoma por el borde, p. ej. la cinta de un sticker, no es fondo)
+  const dominant = (p) => px[p * 4 + 3] < 8 || counts.get(colorAt(p)) >= borderPixels.length * BG_SEED_SHARE;
+
   const background = new Uint8Array(total);
   const queue = new Int32Array(total);
+  const origin = new Int32Array(total);   // píxel del borde del que viene cada píxel de fondo
   let head = 0;
   let tail = 0;
-  const push = (p) => { if (!background[p] && isWhite(p)) { background[p] = 1; queue[tail++] = p; } };
-
-  for (let x = 0; x < width; x++) { push(x); push((height - 1) * width + x); }
-  for (let y = 0; y < height; y++) { push(y * width); push(y * width + width - 1); }
+  borderPixels.forEach((p) => { if (!background[p] && dominant(p)) { background[p] = 1; origin[p] = p; queue[tail++] = p; } });
+  // Parecido al vecino Y a su color de partida: el fondo no «se cuela» en el logo
+  // por un borde suave (difuminado del JPG), por mucho que cada paso sea pequeño
+  const grow = (from, p) => {
+    if (background[p]) return;
+    if ((near(from, p, BG_STEP) && near(origin[from], p, BG_RANGE)) || (isWhite(p) && isWhite(from))) {
+      background[p] = 1;
+      origin[p] = origin[from];
+      queue[tail++] = p;
+    }
+  };
   while (head < tail) {
     const p = queue[head++];
     const x = p % width;
-    if (x > 0) push(p - 1);
-    if (x < width - 1) push(p + 1);
-    if (p >= width) push(p - width);
-    if (p < total - width) push(p + width);
+    if (x > 0) grow(p, p - 1);
+    if (x < width - 1) grow(p, p + 1);
+    if (p >= width) grow(p, p - width);
+    if (p < total - width) grow(p, p + width);
   }
+  if (total - tail < total * BG_MIN_LEFT) return false;   // no era un fondo: era el anuncio entero
 
+  removeLeftovers(px, background, width, height);
   let removed = 0;
   for (let p = 0; p < total; p++) {
     if (!background[p]) continue;
@@ -176,18 +226,55 @@ function removeWhiteBackground(px, width, height) {
   }
   if (removed === 0) return false;
 
-  // Borde suave: píxeles claros pegados al fondo quitado → semitransparentes
+  // Borde suave: los píxeles del logo pegados al fondo y de color parecido → semitransparentes
   for (let p = 0; p < total; p++) {
     if (background[p]) continue;
     const x = p % width;
-    const touches = (x > 0 && background[p - 1]) || (x < width - 1 && background[p + 1]) ||
-      (p >= width && background[p - width]) || (p < total - width && background[p + width]);
-    if (!touches) continue;
-    const i = p * 4;
-    const min = Math.min(px[i], px[i + 1], px[i + 2]);
-    if (min >= FEATHER_MIN) px[i + 3] = Math.round(px[i + 3] * (WHITE_MIN - min) / (WHITE_MIN - FEATHER_MIN));
+    const next = (x > 0 && background[p - 1] && p - 1) || (x < width - 1 && background[p + 1] && p + 1) ||
+      (p >= width && background[p - width] && p - width) || (p < total - width && background[p + width] && p + width);
+    if (!next) continue;
+    const i = p * 4, j = next * 4;
+    const d = Math.hypot(px[i] - px[j], px[i + 1] - px[j + 1], px[i + 2] - px[j + 2]);
+    if (d < BG_STEP * 3) px[i + 3] = Math.round(px[i + 3] * Math.max(0.25, d / (BG_STEP * 3)));
   }
   return true;
+}
+
+/**
+ * Restos que no son el logo (se marcan como fondo): líneas finas pegadas al
+ * borde de la imagen (marco, borde de una captura de pantalla) y motas sueltas.
+ */
+function removeLeftovers(px, background, width, height) {
+  const total = width * height;
+  const seen = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  const thin = Math.max(2, Math.min(width, height) * 0.03);
+  const speck = Math.max(6, total * 0.00002);
+  for (let start = 0; start < total; start++) {
+    if (seen[start] || background[start] || px[start * 4 + 3] < 8) continue;
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = start;
+    seen[start] = 1;
+    let x0 = width, y0 = height, x1 = 0, y1 = 0;
+    while (head < tail) {
+      const p = queue[head++];
+      const x = p % width;
+      const y = (p - x) / width;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+      const visit = (q) => { if (!seen[q] && !background[q] && px[q * 4 + 3] >= 8) { seen[q] = 1; queue[tail++] = q; } };
+      if (x > 0) visit(p - 1);
+      if (x < width - 1) visit(p + 1);
+      if (p >= width) visit(p - width);
+      if (p < total - width) visit(p + width);
+    }
+    const touchesBorder = x0 === 0 || y0 === 0 || x1 === width - 1 || y1 === height - 1;
+    const isLine = touchesBorder && Math.min(x1 - x0 + 1, y1 - y0 + 1) <= thin;
+    if (isLine || tail <= speck) for (let k = 0; k < tail; k++) background[queue[k]] = 1;
+  }
 }
 
 /** Canal sRGB (0-255) → valor lineal (para la luminancia relativa WCAG) */
@@ -217,7 +304,7 @@ const isGrey = (px, i) => Math.max(px[i], px[i + 1], px[i + 2]) - Math.min(px[i]
  *   - Logo de COLORES: solo las partes grises/negras que no se verían pasan a
  *     tinta, y las de color casi invisibles también; el resto conserva su color.
  */
-function adaptToBackground(px, bg) {
+function adaptToBackground(px, bg, width, height) {
   let count = 0, greys = 0, lum = 0, dark = 0, light = 0;
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] < 128) continue;
@@ -231,10 +318,13 @@ function adaptToBackground(px, bg) {
     }
   }
   if (!count) return false;
-  const paint = (test) => {
+  // Solo lo que se ve CONTRA LA CINTA (toca lo transparente): lo oscuro de dentro
+  // de un sticker, rodeado de su propio borde claro, ya se ve y se respeta
+  const paint = (test, all = false) => {
+    const outside = all ? null : exposed(px, width, height, test);
     let changed = 0;
     for (let i = 0; i < px.length; i += 4) {
-      if (px[i + 3] < 8 || !test(i)) continue;
+      if (px[i + 3] < 8 || (all ? !test(i) : !outside[i >> 2])) continue;
       [px[i], px[i + 1], px[i + 2]] = bg.ink;
       changed++;
     }
@@ -246,25 +336,64 @@ function adaptToBackground(px, bg) {
     if (twoTone) {
       const hidden = bg.lum < 0.5 ? dark : light;    // el tono que no se ve sobre esta cinta
       if (hidden <= count - hidden) return false;    // se ve la mayor parte: se deja como está
+      // Si ese tono queda DENTRO del logo (placa negra con su aro blanco), ya se ve
+      const hiddenTone = (i) => isGrey(px, i) && (bg.lum < 0.5 ? luminance(px, i) < 0.06 : luminance(px, i) > 0.55);
+      const outside = exposed(px, width, height, hiddenTone);
+      let seen = 0;
+      for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= 128 && outside[i >> 2]) seen++;
+      if (seen < count * 0.08) return false;
       for (let i = 0; i < px.length; i += 4) {
         if (px[i + 3] < 8 || !isGrey(px, i)) continue;
         px[i] = 255 - px[i]; px[i + 1] = 255 - px[i + 1]; px[i + 2] = 255 - px[i + 2];
       }
       return true;
     }
-    if (contrastWith(lum / count, bg) < MIN_CONTRAST) return paint(() => true);
+    if (contrastWith(lum / count, bg) < MIN_CONTRAST) return paint(() => true, true);
     return paint((i) => isGrey(px, i) && contrastWith(luminance(px, i), bg) < PART_CONTRAST);
   }
   // De colores: las partes grises que no se ven solo se cambian si son una parte
   // importante (p. ej. el texto); los detalles pequeños (un filete blanco) se respetan
   const hiddenGrey = (i) => isGrey(px, i) && contrastWith(luminance(px, i), bg) < PART_CONTRAST;
+  const outside = exposed(px, width, height, hiddenGrey);
   let hidden = 0;
-  for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= 128 && hiddenGrey(i)) hidden++;
+  for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= 128 && outside[i >> 2]) hidden++;
   const darkRibbon = bg.lum < 0.5;
   return paint((i) => (hidden >= count * 0.3 && hiddenGrey(i)) ||
     // Sobre la cinta oscura, un color casi invisible (azul marino, granate muy oscuro) también;
     // sobre la clara, los colores (dorados, amarillos) se conservan
     (darkRibbon && !isGrey(px, i) && contrastWith(luminance(px, i), bg) < 1.3));
+}
+
+/**
+ * Píxeles que cumplen `test` (recibe el índice en `px`) y se ven CONTRA LA
+ * CINTA: tocan lo transparente o el borde, directamente o a través de otros
+ * píxeles que también lo cumplen. Lo que queda encerrado dentro del logo (la
+ * placa negra de un sticker con su borde blanco) no cuenta.
+ */
+function exposed(px, width, height, test) {
+  const total = width * height;
+  const mark = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let head = 0;
+  let tail = 0;
+  const ok = (p) => px[p * 4 + 3] >= 8 && test(p * 4);
+  const clear = (p) => px[p * 4 + 3] < 128;
+  for (let p = 0; p < total; p++) {
+    if (!ok(p)) continue;
+    const x = p % width;
+    if (clear(p) || x === 0 || x === width - 1 || p < width || p >= total - width ||
+        clear(p - 1) || clear(p + 1) || clear(p - width) || clear(p + width)) { mark[p] = 1; queue[tail++] = p; }
+  }
+  while (head < tail) {
+    const p = queue[head++];
+    const x = p % width;
+    const visit = (q) => { if (!mark[q] && ok(q)) { mark[q] = 1; queue[tail++] = q; } };
+    if (x > 0) visit(p - 1);
+    if (x < width - 1) visit(p + 1);
+    if (p >= width) visit(p - width);
+    if (p < total - width) visit(p + width);
+  }
+  return mark;
 }
 
 /** Contraste que necesita un píxel para leerse (según sea gris, apagado o vivo) */
@@ -276,12 +405,13 @@ function neededContrast(px, i) {
 }
 
 /** Parte del logo (opaca) que no se lee bien sobre el fondo de la cinta */
-function hiddenShare(px, bg) {
+function hiddenShare(px, bg, width, height) {
+  const outside = exposed(px, width, height, (i) => contrastWith(luminance(px, i), bg) < neededContrast(px, i));
   let count = 0, hidden = 0;
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] < 128) continue;
     count++;
-    if (contrastWith(luminance(px, i), bg) < neededContrast(px, i)) hidden++;
+    if (outside[i >> 2]) hidden++;
   }
   return count ? hidden / count : 0;
 }
@@ -292,25 +422,38 @@ function hiddenShare(px, bg) {
  * su DEFINE_CONTRAST. Conserva el tono: un marrón pasa a canela,
  * un azul marino a azul claro, un plateado oscuro a plateado claro.
  */
-function defineParts(px, bg) {
+function defineParts(px, bg, width, height, gentle = false) {
   const memo = new Map();
+  const dark = bg.lum < 0.5;
+  // Luminancia con la que un píxel llega a un contraste dado con la cinta
+  const lumFor = (ratio) => (dark ? ratio * (bg.lum + 0.05) - 0.05 : (bg.lum + 0.05) / ratio - 0.05);
+  const floor = lumFor(GENTLE_CONTRAST);
+  // Luminancia objetivo de cada píxel. Fuerte («Definir»): justo el contraste que
+  // necesita. Suave («Automático», cinta oscura): una curva que aclara lo oscuro
+  // pero CONSERVA el orden de los tonos (el relieve de un logo metálico no se aplana)
+  const targetLum = (l, needed) => {
+    const full = lumFor(needed);
+    if (!gentle || !dark) return full;
+    return l + floor * (1 - l / full) * (1 - l);
+  };
   // Se aclara hacia el blanco (cinta oscura) o se oscurece hacia el negro (cinta
   // clara): así el dorado sigue siendo dorado y no se vuelve verdoso
   const ink = bg.lum < 0.5 ? [255, 255, 255] : [0, 0, 0];
   const mix = (r, g, b, t) => [r + (ink[0] - r) * t, g + (ink[1] - g) * t, b + (ink[2] - b) * t].map(Math.round);
   const lumOf = (c) => 0.2126 * linear(c[0]) + 0.7152 * linear(c[1]) + 0.0722 * linear(c[2]);
+  const outside = exposed(px, width, height, (i) => contrastWith(luminance(px, i), bg) < neededContrast(px, i));
   let changed = 0;
   for (let i = 0; i < px.length; i += 4) {
-    if (px[i + 3] < 8) continue;
-    const needed = neededContrast(px, i);
-    if (contrastWith(luminance(px, i), bg) >= needed) continue;
+    if (px[i + 3] < 8 || !outside[i >> 2]) continue;
     const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
     let color = memo.get(key);
     if (!color) {
+      const target = targetLum(luminance(px, i), neededContrast(px, i));
+      const reached = (l) => (dark ? l >= target : l <= target);
       let lo = 0, hi = 1;
       for (let k = 0; k < 10; k++) {
         const t = (lo + hi) / 2;
-        if (contrastWith(lumOf(mix(px[i], px[i + 1], px[i + 2], t)), bg) >= needed) hi = t; else lo = t;
+        if (reached(lumOf(mix(px[i], px[i + 1], px[i + 2], t)))) hi = t; else lo = t;
       }
       color = mix(px[i], px[i + 1], px[i + 2], hi);
       memo.set(key, color);

@@ -148,10 +148,24 @@ const LOGOS = {
       const brownLogo = svgUrl('<rect x="0" y="0" width="200" height="160" fill="#5A2E10"/><rect x="200" y="0" width="200" height="160" fill="#FF7A00"/>');
       const brownNone = (await read(await cleanLogo(brownLogo, 'dark', 'none'))).at(0.25, 0.5);
       const brownAuto = (await read(await cleanLogo(brownLogo, 'dark', 'auto'))).at(0.25, 0.5);
-      return { grows: ring.w > plain.w && ring.h > plain.h, edge: ring.top(), plainEdge: plain.top(), brownNone, brownAuto };
+      // Sticker en JPG con fondo de color (2.10.1): rojo → aro blanco → placa negra con texto blanco
+      const sticker = await read(await cleanLogo(svgUrl('<rect width="400" height="160" fill="#B00201"/>' +
+        '<circle cx="200" cy="80" r="70" fill="#FFFFFF"/><circle cx="200" cy="80" r="60" fill="#000000"/>' +
+        '<rect x="160" y="70" width="80" height="20" fill="#FFFFFF"/>'), 'dark', 'auto'));
+      const blackBg = await read(await cleanLogo(svgUrl('<rect width="400" height="160" fill="#000000"/>' +
+        '<rect x="100" y="40" width="200" height="80" fill="#E0B020"/>'), 'dark', 'auto'));
+      return { grows: ring.w > plain.w && ring.h > plain.h, edge: ring.top(), plainEdge: plain.top(), brownNone, brownAuto,
+        sticker: { w: sticker.w, corner: sticker.at(0.02, 0.02), ring: sticker.top(), plate: sticker.at(0.5, 0.25), text: sticker.at(0.5, 0.5) },
+        blackBg: { w: blackBg.w, center: blackBg.at(0.5, 0.5), corner: blackBg.at(0.02, 0.02) } };
     });
     T.check('«Contorno»: borde blanco alrededor del logo', fx.grows && fx.edge.slice(0, 3).every((v) => v > 230) && fx.plainEdge[1] < 120,
       `${fx.plainEdge} → ${fx.edge}`);
+    const sk = fx.sticker;
+    T.check('Sticker con fondo de color: se quita el fondo y se conservan el aro blanco, la placa negra y su texto',
+      sk.w < 200 && sk.corner[3] === 0 && sk.ring[0] > 230 && sk.plate.slice(0, 3).every((v) => v < 40) && sk.text.slice(0, 3).every((v) => v > 230),
+      JSON.stringify(sk));
+    T.check('Logo sobre fondo NEGRO: se quita el negro (antes quedaba un rectángulo blanco)',
+      fx.blackBg.w <= 220 && fx.blackBg.corner[3] === 0 && fx.blackBg.center[0] > 200 && fx.blackBg.center[2] < 100, JSON.stringify(fx.blackBg));
     const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     T.check('«Automático»: la parte marrón oscura se aclara (sigue siendo cálida) y lo vivo se conserva',
       lum(fx.brownAuto) > lum(fx.brownNone) + 60 && fx.brownAuto[0] > fx.brownAuto[2], `${fx.brownNone} → ${fx.brownAuto}`);

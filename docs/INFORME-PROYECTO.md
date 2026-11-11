@@ -1,4 +1,4 @@
-# StageMaster · Informe del proyecto (versión 2.10.0)
+# StageMaster · Informe del proyecto (versión 2.10.1)
 
 > Estado a **noviembre de 2026**. Versión que está operando en eventos reales.
 > Resumen corto: [`RESUMEN.md`](../RESUMEN.md). Historial del desarrollo:
@@ -123,7 +123,7 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 - Cada cambio en la rama de trabajo compila el `.exe` y el `.zip` **en un Windows real**
   (GitHub Actions) tras pasar las pruebas, y los publica en el enlace fijo de prueba:
   `releases/download/prueba/StageMaster-prueba.exe` (y `.zip`).
-- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.10.0` → Releases.
+- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.10.1` → Releases.
 - Mientras se valida una versión grande, la prueba se publica en `prueba-nueva`
   (la anterior sigue en `prueba`); variable `PRUEBA_TAG` del flujo de compilación.
 
@@ -135,7 +135,7 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 | Teléfono | QR único → código de la pista (decide la pista; nunca se repite) → «Conectado a PISTA X» → configurar y puntuar; cambiar de pista con su código; deshacer con doble toque; pausa; un teléfono por pista (reemplazar pide confirmación); reconexión sola; resumen al terminar |
 | Pantallas | Hasta 8; espejos; marcador con sets en la cabecera, saque y punto de oro; identificar; pantalla «Próximo partido» |
 | Final del partido | Celebración de los ganadores (una vez por final) y resumen con estadísticas registradas (juegos, puntos, puntos de oro, breaks, mejor racha, duración sin pausas) en la LED, el teléfono y el historial; la publicidad final espera a la celebración |
-| Publicidad | Cinta (logos sin fondo blanco, vídeos cortos, mensajes, cambio o desplazamiento); lista de reproducción (imágenes y vídeos en bucle, con o sin sonido); publicidad automática en la pausa y al terminar; subir arrastrando; **ajuste a la salida** (llena la LED como el marcador) |
+| Publicidad | Cinta (logos sin su fondo —blanco, negro, de color o foto—, vídeos cortos, mensajes, cambio o desplazamiento); lista de reproducción (imágenes y vídeos en bucle, con o sin sonido); publicidad automática en la pausa y al terminar; subir arrastrando; **ajuste a la salida** (llena la LED como el marcador) |
 | Salida | Monitor completo o tamaño exacto de la LED (guardable con nombre) y posición; brillo de la imagen; diagnóstico (píxeles reales, Hz, escala, EDID); cambiar resolución en Windows con vuelta automática |
 | En vivo | Vista previa en movimiento de cada pantalla y su estado real; aviso si alguna no se ve |
 | Historial | Partidos terminados por día, rango, pista o jugador; detalle; exportar CSV |
@@ -147,16 +147,22 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 | Conjunto | Pruebas | Qué cubre |
 |---|---|---|
 | Motor del pádel | 65 | Todas las reglas FIP, SET POINT / MATCH POINT, estadísticas (con deshacer) y 4 000 acciones aleatorias |
+| Partidos aleatorios | 1 620 partidos · 181 000 acciones | Las 540 modalidades (games 1-6 × 1, 3, 5, 7 y 9 sets × ventaja, punto de oro y FIP 2026 × tie break, súper tie break y sin desempate × saque A o B), con «Deshacer», «Cambiar saque» y «Finalizar» al azar; cada acción se compara con un árbitro de referencia escrito aparte (marcador, saque, fase, sets, ganador, punto de oro, SET/MATCH POINT y estadísticas) |
 | Núcleo del servidor | 76 | Cinta (orden, tamaño, alto, fondo), Partidos, versiones, códigos de pista únicos, tokens, pantallas, publicidad, formatos, migraciones |
 | Monitores | 14 | Qué pantalla va en qué monitor al conectar/desconectar |
-| Integración | 47 | Servidor real + estación + teléfonos (el código decide la pista) + pantallas + portátil remoto por la IP de red |
-| Navegador y Electron (e2e) | 15 conjuntos · 381 comprobaciones | Cinta de logos (orden, tamaño, arrastrar, logos fijos, fondo), set point y match point, estación (zonas, minimizar, pestañas con resumen, Todos/Ninguno, Historial al instante, resolución lenta), teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
+| Integración | 48 | Servidor real + estación + teléfonos (el código decide la pista) + pantallas + portátil remoto por la IP de red |
+| Navegador y Electron (e2e) | 15 conjuntos · 391 comprobaciones | Cinta de logos (orden, tamaño con tiradores, arrastrar, logos fijos, fondo, realce, stickers con fondo de color), set point y match point, estación (zonas, minimizar, pestañas con resumen, Todos/Ninguno, Historial al instante, resolución lenta), teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
 | Windows real (CI) | 2 | Cambio de resolución y firewall en un Windows de verdad |
 
 ## 5. Análisis de errores (y su corrección)
 
 | Problema | Efecto | Corrección |
 |---|---|---|
+| Logos tipo sticker en JPG con fondo negro, rojo o una foto (2.10.1) | Aviador (fondo negro) salía como un rectángulo BLANCO; El Wey y La Condesa, dentro de su recuadro de color; Cielo Rosa con la barra gris de la captura | Se quita el fondo de cualquier color desde los bordes (sin colarse en el logo aunque su borde esté difuminado); las líneas finas del borde y las motas se descartan |
+| La placa negra de un sticker se volvía blanca y se comía su texto blanco (2.10.1) | «EL WEY» y «AUTO REPUESTOS» desaparecían | Solo se aclara lo oscuro que toca la cinta; lo que queda dentro del logo, rodeado de su borde claro, se respeta |
+| «Automático» aplanaba los logos metálicos (2.10.1) | Zumaque quedaba desvaído | Curva suave que conserva el orden de los tonos; «Definir» sigue siendo el modo fuerte |
+| La vista previa se vaciaba si llegaba un cambio mientras se arrastraba un tirador (2.10.1) | El logo desaparecía bajo el ratón | El panel espera a que se suelte el tirador |
+| Cada punto copiaba el historial de «Deshacer» varias veces (2.10.1) | Hasta 50 estados copiados por acción | El historial se comparte (nunca se modifica): el motor es ~20 veces más rápido por punto |
 | Logos plateados, marrones o azul marino poco legibles en la LED (2.10.0) | Contraste suficiente «en papel» pero apagados en la LED | Realce por logo: automático (aclara lo que no se lee, conservando el tono), definir, contorno blanco o los dos |
 | Nombres largos cortados con «…» en la celebración (2.10.0) | «FEDERICO CHINGOT…» | La letra se ajusta al ancho: nombres siempre completos |
 | Estadísticas con nombres largos pegados al título (2.10.0) | Cabecera apretada y difícil de leer | Más separación y abreviatura igual en las dos parejas («A. Tapia», «Tapia») |
@@ -201,7 +207,7 @@ ya era atómico y todas las órdenes validan sus datos.
 2. **Router propio** para el evento (sin Internet, con contraseña) y el portátil enchufado a la corriente.
 3. Publicidad en **2:1** (832 × 416 o 1664 × 832, como `marketing/videos-led/`) y vídeos MP4 H.264.
 4. Hacer el **simulacro** de [`SIMULACRO-EVENTO.md`](SIMULACRO-EVENTO.md) antes de cada evento grande.
-5. Publicar la versión para el cliente en **Releases** (`v2.10.0`) y usar ese enlace fijo.
+5. Publicar la versión para el cliente en **Releases** (`v2.10.1`) y usar ese enlace fijo.
 
 ### Mejoras de funcionalidad (por orden de valor)
 | # | Mejora | Valor | Esfuerzo |
@@ -209,7 +215,7 @@ ya era atómico y todas las órdenes validan sus datos.
 | 1 | **Cola de partidos por pista** (cargar los próximos partidos de un torneo y pasar al siguiente con un clic) | Ahorra tiempo entre partidos | Medio |
 | 2 | **Copia de seguridad de la configuración** (pantallas, formatos, publicidad) para pasarla a otro portátil | Montaje más rápido | Bajo |
 | 3 | **Aviso sonoro** en la estación si una pantalla o un teléfono se desconecta | Reacción inmediata | Bajo |
-| 4 | **Colores de marca** del marcador (maquetas listas en `docs/desarrollo/maquetas-marca/`) | Identidad visual | Medio |
+| 4 | **Colores de marca** del marcador (paleta en `docs/desarrollo/CONTEXTO-DESARROLLO.md`) | Identidad visual | Medio |
 | 5 | **Brillo físico** desde StageMaster (SDK del procesador LED) | Control total de la LED | Depende del fabricante |
 | 6 | **Firma digital** del `.exe` (certificado OV o servicio de firma) | Sin avisos de Windows | Coste anual |
 | 7 | **Más estadísticas** (duración por set) y exportar PDF del resultado del historial | Valor para organizadores | Medio |

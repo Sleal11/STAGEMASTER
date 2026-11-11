@@ -1,13 +1,14 @@
 {
   "name": "stagemaster",
-  "version": "2.10.0",
+  "version": "2.10.1",
   "description": "Marcador profesional de pádel para eventos: 2 partidos, hasta 8 pantallas (LED y monitores, también en portátiles remotos), publicidad y vídeos, historial, teléfonos de árbitro",
   "main": "desktop/main.js",
   "scripts": {
     "start": "node server/index.js",
     "app": "electron .",
-    "test": "node server/sports/padel/engine.test.js && node server/core/core.test.js && node desktop/monitors.test.js && node server/integration.test.js",
+    "test": "node server/sports/padel/engine.test.js && node server/sports/padel/engine.random.test.js && node server/core/core.test.js && node desktop/monitors.test.js && node server/integration.test.js",
     "test:engine": "node server/sports/padel/engine.test.js",
+    "test:random": "node server/sports/padel/engine.random.test.js",
     "test:server": "node server/core/core.test.js",
     "test:desktop": "node desktop/monitors.test.js",
     "test:integration": "node server/integration.test.js",

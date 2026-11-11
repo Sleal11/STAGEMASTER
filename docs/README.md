@@ -27,5 +27,3 @@ Empieza por [`RESUMEN.md`](../RESUMEN.md) (una página) o por el informe complet
 | Documento | Para qué |
 |---|---|
 | [`desarrollo/CONTEXTO-DESARROLLO.md`](desarrollo/CONTEXTO-DESARROLLO.md) | Estado, forma de trabajar, identidad visual, decisiones y rondas de cambios |
-| [`desarrollo/AUDITORIA-V3.md`](desarrollo/AUDITORIA-V3.md) | Auditoría y plan de la versión 3 |
-| [`desarrollo/maquetas-marca/`](desarrollo/maquetas-marca/) | Colores de marca (en espera hasta que se decida aplicarlos) |

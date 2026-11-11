@@ -28,7 +28,7 @@ import { confirmDialog } from './dialogs.js';
 import { pickFiles, deleteAd } from './uploads.js';
 import { remotesShowing } from './remotes.js';
 import { collapseButton, isCollapsed } from './collapse.js';
-import { editorHtml, drawPreviews, moved, initRibbonDrag, initRibbonResize } from './ribbon-editor.js';
+import { editorHtml, drawPreviews, moved, initRibbonDrag, initRibbonResize, isResizing } from './ribbon-editor.js';
 
 const TABS = [
   { id: 'content', label: 'Contenido',             icon: 'sliders' },
@@ -56,7 +56,8 @@ export function renderScreens(state) {
   if (!dragReady) {
     dragReady = true;
     initRibbonDrag(container, (screenId, items) => update(screenId, { ribbon: { items } }));
-    initRibbonResize(container, (screenId, name, size) => update(screenId, { ribbon: { sizes: { [name]: size === 100 ? null : size } } }));
+    initRibbonResize(container, (screenId, name, size) => update(screenId, { ribbon: { sizes: { [name]: size === 100 ? null : size } } }),
+      () => renderScreens(ctx.state));
   }
   // Pantallas quitadas (en esta estación o en otra ventana): fuera su tarjeta
   container.querySelectorAll('[data-screen-card]').forEach((card) => {
@@ -103,7 +104,8 @@ export function renderScreens(state) {
     });
     // Panel: no se toca mientras el moderador escribe en él (un botón con el foco no cuenta)
     const panel = card.querySelector('[data-part="panel"]');
-    const editing = panel.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
+    // …ni mientras se arrastra un tirador de la vista previa de la cinta
+    const editing = (panel.contains(document.activeElement) && document.activeElement.matches('input, textarea, select')) || isResizing();
     if (!editing) patch(panel, panelHtml(tab, screen, state));
   });
   drawPreviews();

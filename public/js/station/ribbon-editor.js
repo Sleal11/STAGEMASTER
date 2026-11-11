@@ -22,6 +22,7 @@ import { logoHeight, paginate, LOGO_GAP, LOGO_SIZE } from '../common/ribbon-layo
 const MAX_PREVIEW_TURNS = 8;   // «Cambia cada cierto tiempo»: se muestran los primeros turnos
 const aspects = new Map();     // url → proporción del logo limpio (o null si falla)
 let selected = null;           // { screenId, name }: logo seleccionado en la vista previa
+let resizing = false;          // se está arrastrando un tirador: la vista previa espera
 
 /** Nombre visible de cada realce (logo-cleaner.js: LOGO_EFFECTS) */
 const EFFECT_LABELS = {
@@ -110,6 +111,7 @@ function measure(url, background, effect) {
  * @param {Object} [override] - { screenId, name, size }: tamaño mientras se arrastra el control
  */
 export function drawPreviews(override = null) {
+  if (resizing) return;   // se redibuja al soltar el tirador
   document.querySelectorAll('[data-ribbon-preview]').forEach((box) => {
     const screen = ctx.state.screens.find((s) => s.id === box.dataset.ribbonPreview);
     if (!screen) return;
@@ -121,6 +123,7 @@ export function drawPreviews(override = null) {
     box.dataset.key = key;
     Promise.all(files.map((f) => measure(f.url, bg, effectOf(screen, f.name)))).then((measured) => {
       if (box.dataset.key !== key) return;
+      if (resizing) { delete box.dataset.key; return; }   // se termina de dibujar al soltar
       // Miniaturas de la lista: también con el logo limpio, sobre el fondo de la cinta
       const list = document.querySelector(`[data-ribbon-list="${screen.id}"]`);
       if (list) {
@@ -170,6 +173,9 @@ export function drawPreviews(override = null) {
   });
 }
 
+/** Se está arrastrando un tirador: el panel de la pantalla no se redibuja hasta soltar */
+export const isResizing = () => resizing;
+
 /** Marca el logo seleccionado en la vista previa y en la lista (null = ninguno) */
 function select(next) {
   selected = next;
@@ -184,8 +190,9 @@ function select(next) {
  * recuadro con tiradores; arrastrar un tirador cambia el tamaño en directo
  * (la vista previa, el control de la lista y el porcentaje) y al soltar se
  * envía: onResize(screenId, name, size). Clic fuera de los logos: se deselecciona.
+ * onEnd(): al soltar, para redibujar lo que llegó mientras se arrastraba.
  */
-export function initRibbonResize(container, onResize) {
+export function initRibbonResize(container, onResize, onEnd) {
   let drag = null;
   container.addEventListener('click', (e) => {
     const logo = e.target.closest('.rb-logo');
@@ -200,6 +207,7 @@ export function initRibbonResize(container, onResize) {
     const img = logo.querySelector('img');
     select({ screenId: logo.dataset.screen, name: logo.dataset.name });
     handle.setPointerCapture(e.pointerId);
+    resizing = true;
     drag = { logo, img, corner: handle.dataset.corner, x: e.clientX, y: e.clientY,
       w: img.offsetWidth, h: img.offsetHeight, start: Number(logo.dataset.size), size: Number(logo.dataset.size) };
     logo.classList.add('is-resizing');
@@ -227,7 +235,9 @@ export function initRibbonResize(container, onResize) {
     const { logo, start, size } = drag;
     logo.classList.remove('is-resizing');
     drag = null;
+    resizing = false;
     if (size !== start) onResize(logo.dataset.screen, logo.dataset.name, size);
+    onEnd();   // lo que llegó mientras se arrastraba
   };
   container.addEventListener('pointerup', end);
   container.addEventListener('pointercancel', end);

@@ -554,8 +554,19 @@ function toggleServer(server) {
  * Crea una copia profunda del objeto usando JSON.
  * Funciona correctamente con nuestro modelo de datos (objetos planos, arrays, strings, números).
  * IMPORTANTE: No usar con objetos que tengan funciones, Dates, o referencias circulares.
+ *
+ * El HISTORIAL no se copia: se comparte. Sus estados nunca se modifican (el motor
+ * siempre trabaja sobre copias y crea un array nuevo al añadir o quitar uno), así
+ * que copiarlo en cada paso (hasta 50 estados, varias veces por punto) solo
+ * gastaba tiempo: ahora cada punto cuesta lo mismo con o sin historial.
  */
 function deepCopy(obj) {
+  if (obj && Array.isArray(obj.history)) {
+    const { history, ...rest } = obj;
+    const copy = JSON.parse(JSON.stringify(rest));
+    copy.history = history;
+    return copy;
+  }
   return JSON.parse(JSON.stringify(obj));
 }
 

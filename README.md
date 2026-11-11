@@ -87,6 +87,7 @@ También queda en **Actions** → la ejecución → **Artifacts** → `StageMast
 | Comando | Qué prueba |
 |---|---|
 | `npm run test:engine` | Reglas del pádel (motor puro) y 4000 acciones aleatorias |
+| `npm run test:random` | 1620 partidos aleatorios en las 540 modalidades (games 1-6 × 1-9 sets × ventaja / punto de oro / FIP 2026 × tie break / súper tie break / sin desempate × saque), comparados punto a punto con un árbitro de referencia independiente (incluido en `npm test`) |
 | `npm run test:server` | Partidos, versiones, pausa, PIN/tokens, pantallas, cinta, lista de reproducción, publicidad al terminar, formatos LED, migración |
 | `npm run test:desktop` | Qué pantalla va en qué monitor (conectar/desconectar monitores) |
 | `npm run test:integration` | Servidor real + estación + 2 teléfonos + pantallas virtuales: reproductor, publicidad final y en la pausa, historial, varias pantallas y espejos, portátil remoto por la IP de red, resoluciones, QR, escritorio |
@@ -190,7 +191,6 @@ hacer que `Match.js` elija el motor según el deporte y crear su vista de pantal
 - [`docs/VARIAS-PANTALLAS.md`](docs/VARIAS-PANTALLAS.md) — varias pantallas, espejos y portátiles remotos: requisitos de red y distancias.
 - [`docs/RESOLUCIONES.md`](docs/RESOLUCIONES.md) — resolución del monitor vs formato LED, EDID, el caso 1920×1120.
 - [`docs/BRILLO-LED.md`](docs/BRILLO-LED.md) — brillo de la imagen vs brillo físico de los módulos.
-- [`docs/desarrollo/AUDITORIA-V3.md`](docs/desarrollo/AUDITORIA-V3.md) — auditoría y plan de la versión 3.
 - [`docs/DESCARGA-Y-SEGURIDAD.md`](docs/DESCARGA-Y-SEGURIDAD.md) — «la app no es segura»: descargar y abrir el .exe; firma digital.
 - [`docs/desarrollo/CONTEXTO-DESARROLLO.md`](docs/desarrollo/CONTEXTO-DESARROLLO.md) — estado, forma de trabajar, identidad visual, pendientes y decisiones (para continuar el desarrollo).
 
