@@ -23,6 +23,8 @@
  *      partidos y pantallas a la vez que el principal. El servidor decide qué
  *      puede hacer (todo menos enlazar/desvincular y el hardware del
  *      principal) y la corta al momento si el principal lo desvincula.
+ *      Con «Abrirla siempre al iniciar» (autoStation) se abre sola al conectar.
+ *   7. Usa los mismos colores (tema) que la estación del principal.
  *
  * Ventana de control: desktop/remote/remote.html (sin acceso a Node: habla
  * con este proceso por preload.js).
@@ -48,6 +50,8 @@ let build     = null;
 let status    = 'unpaired';   // unpaired | connecting | connected | reconnecting
 let lastError = null;
 let screensList = [];
+let theme     = 'dark';      // tema de la estación del principal (evento 'appearance')
+let autoOpened = false;      // la estación ya se abrió sola en esta sesión
 let quitting  = false;
 const discovered = new Map();   // 'ip:puerto' → { address, port, name, version, seen }
 
@@ -77,7 +81,16 @@ function connect() {
     reconnectionDelayMax: 3000,
     timeout: 5000,
   });
-  socket.on('connect', () => { lastError = null; setStatus('connected'); report(); });
+  socket.on('connect', () => {
+    lastError = null;
+    setStatus('connected');
+    report();
+    // «Abrirla siempre al iniciar»: la estación del moderador se abre sola (una vez por sesión)
+    if (remote().autoStation && !autoOpened && stationOptions) { autoOpened = true; openStation(stationOptions); }
+  });
+  socket.on('appearance', (appearance) => {
+    if (appearance && appearance.ui !== theme) { theme = appearance.ui; pushState(); }
+  });
   socket.on('disconnect', () => setStatus('reconnecting'));
   socket.on('connect_error', (err) => {
     lastError = err.message === 'xhr poll error' || err.message === 'timeout'
@@ -237,6 +250,8 @@ function state() {
     discovered: [...discovered.values()].map(({ address, port, name, version }) => ({ address, port, name, version })),
     screens: screensList,
     stationOpen: !!stationWin && !stationWin.isDestroyed(),
+    autoStation: !!r.autoStation,
+    theme,
     desktop: windows.getState(),
   };
 }
@@ -306,6 +321,12 @@ function registerIpc(options) {
     return { ok: true };
   }));
   ipcMain.handle('remote:openStation', only(() => openStation(options)));
+  ipcMain.handle('remote:setAutoStation', only((enabled) => {
+    remote().autoStation = enabled === true;
+    save();
+    pushState();
+    return { ok: true };
+  }));
   ipcMain.handle('remote:unpair', only(() => {
     unpair(null);
     return { ok: true };
@@ -336,8 +357,11 @@ function registerIpc(options) {
 // ARRANQUE
 // ─────────────────────────────────────────────────────────────────
 
+let stationOptions = null;   // { background, icon } para abrir la estación sola
+
 async function start(options) {
   build = options.build;
+  stationOptions = options;
   settings = options.settings;
   settings.remote = settings.remote || {};
   Menu.setApplicationMenu(null);

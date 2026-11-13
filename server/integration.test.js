@@ -154,6 +154,7 @@ function createDevice(nombre, auth, host = 'localhost') {
   socket.on('screenRemoved', () => { device.removed = true; });
   socket.on('remoteState', (st) => { device.remoteState = st; });
   socket.on('remoteRevoked', (r) => { device.remoteRevoked = r; });
+  socket.on('appearance', (a) => { device.appearance = a; });
   socket.on('stationRevoked', (r) => { device.stationRevoked = r; });
   socket.on('historyChanged', () => { device.historyChanged = (device.historyChanged || 0) + 1; });
   dispositivos.push(device);
@@ -1097,6 +1098,23 @@ test('Partidos aleatorios por el servidor real en las 9 modalidades (3 sistemas 
   const after = (await send(estacion, 'station:history', {})).total;
   assert.strictEqual(after, before + played, 'Cada partido terminado queda en el historial');
   return `${played} partidos`;
+});
+
+test('Colores (temas): la estación los elige, se guardan y llegan al instante a teléfonos y pantallas', async () => {
+  await waitFor(() => telefono1.appearance && pantalla1.appearance, 'tema al conectar');
+  assert.deepStrictEqual(telefono1.appearance, { ui: 'dark', led: 'dark' }, 'Por defecto: oscuro');
+  let res = await send(estacion, 'station:appearance', { ui: 'light', led: 'alt' });
+  assert.ok(res.ok && res.appearance.ui === 'light' && res.appearance.led === 'alt');
+  await waitFor(() => telefono1.appearance.ui === 'light' && pantalla1.appearance.led === 'alt', 'el tema llega a todos');
+  await waitFor(() => estacion.stationState.appearance.ui === 'light', 'la estación lo ve');
+  const saved = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'apariencia.json'), 'utf8'));
+  assert.deepStrictEqual([saved.ui, saved.led], ['light', 'alt'], 'Se guarda en data/apariencia.json');
+  res = await send(estacion, 'station:appearance', { ui: 'neon' });
+  assert.strictEqual(res.code, 'INVALID_APPEARANCE', 'Tema inexistente');
+  res = await send(telefono1, 'station:appearance', { ui: 'dark' });
+  assert.strictEqual(res.code, 'FORBIDDEN', 'Un teléfono no puede cambiar los colores');
+  await send(estacion, 'station:appearance', { ui: 'dark', led: 'dark' });
+  await waitFor(() => telefono1.appearance.ui === 'dark', 'vuelve a oscuro');
 });
 
 test('/health responde con el estado de ambos partidos', async () => {

@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('stagemaster', {
   setMonitor: (screenId, value) => ipcRenderer.invoke('remote:setMonitor', screenId, value),
   openScreen: (screenId) => ipcRenderer.invoke('remote:openScreen', screenId),
   openStation: () => ipcRenderer.invoke('remote:openStation'),
+  setAutoStation: (enabled) => ipcRenderer.invoke('remote:setAutoStation', enabled),
   unpair:     () => ipcRenderer.invoke('remote:unpair'),
   retry:      () => ipcRenderer.invoke('remote:retry'),
   useAsMain:  () => ipcRenderer.invoke('remote:useAsMain'),

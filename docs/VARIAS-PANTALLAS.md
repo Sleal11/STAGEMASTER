@@ -39,14 +39,17 @@ Cada pantalla necesita una **salida de vídeo** del portátil. Un portátil suel
 
 1. Conecta los dos portátiles a la **misma red** (ver requisitos abajo).
 2. En el **portátil remoto**: abre StageMaster → en la estación, sección *Portátiles remotos* →
-   **«Usar este portátil como pantalla remota»**. StageMaster se reinicia en ese modo (lo recuerda).
-3. En la ventana «Pantalla remota» aparece el principal («StageMaster en …»). Elígelo (o escribe su
+   **«Usar este portátil como portátil remoto»**. StageMaster se reinicia en ese modo (lo recuerda).
+3. En la ventana «Portátil remoto» aparece el principal («StageMaster en …»). Elígelo (o escribe su
    dirección, la que muestra la estación arriba, p. ej. `192.168.1.10:3000`).
 4. Escribe el **código de enlace** de 6 cifras que muestra la estación del principal y pulsa *Enlazar*.
 5. Elige qué pantalla va en cada monitor de este portátil (las demás: «No mostrar aquí»).
 6. Si también quieres **controlar desde este portátil**, pulsa **«Abrir estación del moderador»**:
    se abre la estación del principal (la misma: partidos, puntos, pantallas, publicidad, En vivo e
-   Historial) en una ventana de este portátil.
+   Historial) en una ventana de este portátil. Con **«Abrirla siempre al iniciar»** se abre sola
+   cada vez que este portátil arranca y conecta con el principal.
+7. Arriba de la ventana, **«Este portátil es: Portátil remoto / Portátil principal»** cambia de modo
+   en cualquier momento (StageMaster se reinicia).
 
 A partir de ahí, al abrir StageMaster en el portátil remoto se conecta solo.
 

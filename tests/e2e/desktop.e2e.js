@@ -7,7 +7,7 @@
  * temporales y comprueba desde la estación:
  *   - Elegir «Ventana de prueba» abre la ventana de la pantalla
  *   - «Añadir pantalla» → su ventana se abre al elegir monitor; «Quitar» la cierra
- *   - «Usar este portátil como pantalla remota» guarda el modo y reinicia
+ *   - «Usar este portátil como portátil remoto» guarda el modo y reinicia
  *
  * Requisitos: Electron descargado y una pantalla (Xvfb en Linux).
  */
@@ -93,7 +93,7 @@ const isScreen = (page, n) => page.url().includes(`/score.html?pantalla=${n}`);
     T.check('…y la Pantalla 1 sigue abierta', app.windows().some((w) => isScreen(w, 1)));
 
     // ── Pasar a pantalla remota ──
-    T.check('La estación ofrece «Usar este portátil como pantalla remota»', await S.isVisible('[data-action="useAsRemote"]'));
+    T.check('La estación ofrece «Usar este portátil como portátil remoto»', await S.isVisible('[data-action="useAsRemote"]'));
     const exited = app.waitForEvent('close');
     await S.click('[data-action="useAsRemote"]');
     await exited;

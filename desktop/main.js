@@ -19,7 +19,7 @@
  *   - PORTÁTIL PRINCIPAL (este archivo): servidor + estación + pantallas.
  *   - PANTALLA REMOTA (remote.js): otro portátil, lejos, que muestra
  *     pantallas del principal por la red. Se elige desde la estación
- *     («Usar este portátil como pantalla remota») y se recuerda.
+ *     («Usar este portátil como portátil remoto») y se recuerda.
  *
  * Relación con otros archivos:
  *   → server/index.js          startServer() con el "adaptador de escritorio"
@@ -384,15 +384,15 @@ const desktopAdapter = {
   useAsRemote() {
     dialog.showMessageBox(stationWindow, {
       type: 'question',
-      buttons: ['Cancelar', 'Usar como pantalla remota'],
+      buttons: ['Cancelar', 'Usar como portátil remoto'],
       defaultId: 0,
       cancelId: 0,
-      title: 'Pantalla remota',
-      message: '¿Usar este portátil como pantalla remota?',
-      detail: 'StageMaster se reiniciará sin estación ni partidos: mostrará en sus monitores las pantallas ' +
-        'de OTRO portátil (el principal) por la red. Necesitarás el código de enlace que aparece en la ' +
-        'estación del portátil principal. Los partidos de este portátil se conservan y puedes volver ' +
-        'a usarlo como principal cuando quieras.',
+      title: 'Portátil remoto',
+      message: '¿Usar este portátil como portátil remoto?',
+      detail: 'StageMaster se reiniciará conectado a OTRO portátil (el principal) por la red: podrás usar su ' +
+        'estación del moderador completa y/o mostrar sus pantallas en los monitores de este portátil. ' +
+        'Necesitarás el código de enlace que aparece en la estación del principal. Los partidos de este ' +
+        'portátil se conservan y puedes volver a usarlo como principal cuando quieras.',
     }).then(({ response }) => {
       if (response !== 1) return;
       quitting = true;

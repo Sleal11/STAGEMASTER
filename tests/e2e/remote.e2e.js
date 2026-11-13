@@ -5,7 +5,7 @@
  *
  * Simula dos portátiles en el mismo equipo:
  *   PRINCIPAL  servidor de StageMaster (como el .exe en modo principal)
- *   REMOTO     StageMaster (Electron) en modo «pantalla remota», con su propia
+ *   REMOTO     StageMaster (Electron) en modo «portátil remoto», con su propia
  *              carpeta de datos, que encuentra al principal por la red (UDP),
  *              se enlaza con el código y abre la Pantalla 2 por la red (IP, no localhost).
  *
@@ -61,7 +61,7 @@ const score = (page) => page.evaluate(() =>
     const ui = await app.firstWindow();
     H.watchErrors(ui, 'ventana del remoto', errors);
     await ui.waitForSelector('#rm-pair:not(.hidden)');
-    T.check('Arranca en modo «pantalla remota» sin enlazar (sin servidor ni estación propios)', true);
+    T.check('Arranca en modo «portátil remoto» sin enlazar (sin servidor ni estación propios)', true);
 
     // ── Descubrimiento y enlace ──
     await ui.waitForSelector(`#rm-found button[data-port="${port}"]`, { timeout: 10000 });
@@ -96,6 +96,19 @@ const score = (page) => page.evaluate(() =>
     await H.waitFor(() => st.state.screens[1].displays.some((d) => d.remote === 'Portátil pista 2'), 'pantalla remota en la tarjeta');
     T.check('La tarjeta de la Pantalla 2 indica «en Portátil pista 2»', true);
     await D.screenshot({ path: `${H.OUT}/remoto-pantalla-2.png` });
+
+    // ── Colores: el remoto sigue el tema de la estación del principal ──
+    await st.send('station:appearance', { ui: 'alt' });
+    await ui.waitForFunction(() => document.documentElement.dataset.theme === 'alt', null, { timeout: 5000 });
+    T.check('Colores: la ventana del remoto usa el tema elegido en el principal (alternativo)', true);
+    await st.send('station:appearance', { ui: 'dark' });
+    await ui.waitForFunction(() => document.documentElement.dataset.theme === 'dark', null, { timeout: 5000 });
+    // «Abrirla siempre al iniciar» se guarda (modo.json)
+    await ui.click('.rm-auto .switch-track');
+    await ui.waitForFunction(() => document.getElementById('rm-auto-station').checked);
+    T.check('«Estación del moderador» y «Pantallas en este portátil» a la vista; «Abrirla siempre al iniciar» se guarda',
+      await ui.isVisible('#rm-station') && (await ui.textContent('#rm-screens-count')).includes('pantalla'));
+    await ui.click('.rm-auto .switch-track');
 
     // ── Estación del moderador abierta desde el remoto ──
     await ui.waitForSelector('#rm-station:not([disabled])');

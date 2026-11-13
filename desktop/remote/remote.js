@@ -18,6 +18,9 @@
 
   function render(state) {
     current = state;
+    // Mismos colores que la estación del principal (oscuro, claro o alternativo)
+    const theme = ['dark', 'light', 'alt'].includes(state.theme) ? state.theme : 'dark';
+    if (document.documentElement.dataset.theme !== theme) document.documentElement.dataset.theme = theme;
     // Versión: no se muestra; se ve al pasar el ratón por el logo
     $('rm-brand').title = state.build ? `StageMaster ${state.build.version} · ${state.build.commit}` : '';
     const connected = state.status === 'connected';
@@ -112,6 +115,11 @@
     $('rm-retry').classList.toggle('hidden', state.status === 'connected');
     $('rm-station').disabled = state.status !== 'connected';
     $('rm-station').textContent = state.stationOpen ? 'Ir a la estación del moderador' : 'Abrir estación del moderador';
+    $('rm-auto-station').checked = !!state.autoStation;
+    const shown = state.screens.filter((s) => state.desktop.assignments[s.id]).length;
+    $('rm-screens-count').textContent = state.screens.length
+      ? `${shown} de ${state.screens.length} ${state.screens.length === 1 ? 'pantalla' : 'pantallas'} en los monitores de este portátil`
+      : 'Esperando la lista de pantallas del principal…';
 
     const list = $('rm-screens');
     // No se redibuja mientras se elige en una lista
@@ -157,6 +165,7 @@
   });
   $('rm-retry').addEventListener('click', () => api.retry());
   $('rm-station').addEventListener('click', () => api.openStation());
+  $('rm-auto-station').addEventListener('change', (event) => api.setAutoStation(event.target.checked));
   $('rm-unpair').addEventListener('click', () => {
     if (window.confirm('¿Desenlazar este portátil? Sus pantallas se apagarán y para volver a mostrarlas hará falta el código de la estación.')) api.unpair();
   });

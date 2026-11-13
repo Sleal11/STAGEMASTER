@@ -1,26 +1,28 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <!--
-    remote.html — Ventana de control del portátil en modo «pantalla remota»
+    remote.html — Ventana de control del portátil en modo «portátil remoto»
 
-    Enlazar con el portátil principal (código de 6 cifras) y elegir qué
-    pantallas se muestran en los monitores de ESTE portátil.
+    1. Enlazar con el portátil principal (código de 6 cifras de su estación).
+    2. Elegir cómo se usa: ESTACIÓN DEL MODERADOR (la interfaz completa, igual
+       que en el principal) y/o PANTALLAS en los monitores de este portátil.
     Habla con desktop/remote.js a través de preload.js (window.stagemaster).
   -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>StageMaster · Pantalla remota</title>
+  <title>StageMaster · Portátil remoto</title>
   <link rel="stylesheet" href="../../public/css/shared.css" />
   <link rel="stylesheet" href="../../public/css/station.css" />
+  <link rel="stylesheet" href="../../public/css/themes.css" />
   <link rel="stylesheet" href="remote.css" />
 </head>
 <body class="station-body">
   <header class="st-top">
     <div class="st-brand" id="rm-brand">
-      <div class="st-logo">STAGE<span>MASTER</span></div>
-      <div class="st-title">Pantalla remota</div>
+      <div class="st-logo has-logo-image"><img class="brand-logo-img" src="../../public/img/logo-stagemaster.png" alt="StageMaster" /></div>
+      <div class="st-title">Portátil remoto</div>
     </div>
     <div class="st-conn" role="status">
       <span id="rm-dot" class="dot"></span>
@@ -29,67 +31,86 @@
   </header>
 
   <main class="st-main rm-main">
-    <!-- Sin enlazar: elegir el principal y escribir el código -->
+    <!-- Modo de este portátil: siempre a la vista -->
+    <section class="rm-mode" aria-label="Modo de este portátil">
+      <span class="rm-mode-label">Este portátil es</span>
+      <div class="segmented rm-mode-switch">
+        <button type="button" class="is-active" aria-pressed="true">Portátil remoto</button>
+        <button id="rm-main" type="button" aria-pressed="false" title="Reinicia StageMaster como portátil principal: servidor, partidos y estación propios">Portátil principal</button>
+      </div>
+      <span class="rm-mode-hint">Remoto: usa los partidos y pantallas de otro portátil (el principal) por la red.</span>
+    </section>
+
+    <!-- Sin enlazar: pasos -->
     <section id="rm-pair" class="st-card rm-card hidden">
       <header class="st-card-head"><span class="st-card-name">Enlazar con el portátil principal</span></header>
       <div class="st-card-body">
         <p class="rm-lead">En el portátil principal, la estación muestra el <strong>código de enlace</strong> en
           «Portátiles remotos». Los dos portátiles tienen que estar en la <strong>misma red</strong>
           (mismo router o switch; con o sin Internet).</p>
-        <div class="field"><span class="field-label">Principal</span>
-          <div class="field-control">
+        <ol class="rm-steps">
+          <li><span class="rm-step-num">1</span><div class="rm-step-body"><strong>Portátil principal</strong>
             <div id="rm-found" class="rm-found"></div>
-            <div class="rm-manual">
-              <input id="rm-address" class="input" type="text" placeholder="o escribe su dirección: 192.168.1.10:3000" autocomplete="off" spellcheck="false" />
-            </div>
-          </div>
-        </div>
-        <div class="field"><span class="field-label">Código</span>
-          <div class="field-control"><input id="rm-code" class="input rm-code" type="text" inputmode="numeric" maxlength="6" placeholder="6 cifras" autocomplete="off" /></div>
-        </div>
-        <div class="field"><span class="field-label">Este portátil</span>
-          <div class="field-control"><input id="rm-name" class="input" type="text" maxlength="40" placeholder="Nombre (ej. Portátil pista 2)" />
-            <span class="hint">Así aparecerá en la estación del principal.</span></div>
-        </div>
+            <input id="rm-address" class="input" type="text" placeholder="o escribe su dirección: 192.168.1.10:3000" autocomplete="off" spellcheck="false" />
+          </div></li>
+          <li><span class="rm-step-num">2</span><div class="rm-step-body"><strong>Código de enlace</strong>
+            <input id="rm-code" class="input rm-code" type="text" inputmode="numeric" maxlength="6" placeholder="6 cifras" autocomplete="off" />
+          </div></li>
+          <li><span class="rm-step-num">3</span><div class="rm-step-body"><strong>Nombre de este portátil</strong>
+            <input id="rm-name" class="input" type="text" maxlength="40" placeholder="Ej. Portátil pista 2" />
+            <span class="hint">Así aparecerá en la estación del principal.</span>
+          </div></li>
+        </ol>
         <div class="rm-actions">
           <button id="rm-pair-btn" class="btn btn-primary" type="button">Enlazar</button>
           <span id="rm-pair-msg" class="rm-msg" role="alert"></span>
         </div>
+        <div class="rm-after">
+          <strong>Después de enlazar podrás:</strong>
+          <span>usar la <b>estación del moderador</b> completa (partidos, árbitros, pantallas, cinta, publicidad e historial)
+            y/o <b>mostrar pantallas</b> en los monitores de este portátil.</span>
+        </div>
       </div>
     </section>
 
-    <!-- Enlazado: estado y pantallas -->
+    <!-- Enlazado -->
     <section id="rm-linked" class="hidden">
       <div class="st-card rm-card">
         <header class="st-card-head"><span class="st-card-name">Portátil principal</span><span id="rm-server-chip" class="pill"></span></header>
         <div class="st-card-body">
           <div id="rm-status" class="rm-status"></div>
-          <div class="rm-station">
-            <button id="rm-station" class="btn btn-primary" type="button">Abrir estación del moderador</button>
-            <span class="hint">Controla desde aquí partidos, pantallas y publicidad, a la vez que el portátil principal.
-              Enlazar o desvincular portátiles solo se hace en el principal.</span>
-          </div>
           <div class="rm-actions">
             <button id="rm-retry" class="btn btn-ghost btn-sm" type="button">Reintentar ahora</button>
             <button id="rm-unpair" class="btn btn-danger-ghost btn-sm" type="button">Desenlazar este portátil</button>
           </div>
         </div>
       </div>
+
+      <h2 class="rm-uses-title">¿Cómo usarás este portátil?</h2>
+      <div class="rm-uses">
+        <article class="rm-use">
+          <div class="rm-use-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 12h20"/><path d="M15 4v16"/></svg></div>
+          <h3>Estación del moderador</h3>
+          <p>La interfaz <strong>original completa</strong>: partidos, árbitros, pantallas, cinta, publicidad e historial,
+            a la vez que el portátil principal. Enlazar o desvincular portátiles solo se hace en el principal.</p>
+          <button id="rm-station" class="btn btn-primary" type="button">Abrir estación del moderador</button>
+          <label class="switch rm-auto"><input id="rm-auto-station" type="checkbox" /><span class="switch-track"></span>
+            <span>Abrirla siempre al iniciar este portátil</span></label>
+        </article>
+        <article class="rm-use">
+          <div class="rm-use-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></div>
+          <h3>Pantallas en este portátil</h3>
+          <p>Elige el monitor de cada pantalla que va <strong>aquí</strong>; las demás, en «No mostrar». Lo que muestra cada
+            una (partido, cinta, publicidad, formato LED y brillo) se cambia en la estación.</p>
+          <span id="rm-screens-count" class="rm-count"></span>
+        </article>
+      </div>
+
       <div class="st-card rm-card">
         <header class="st-card-head"><span class="st-card-name">Pantallas en este portátil</span></header>
-        <div class="st-card-body">
-          <p class="rm-lead">Elige el monitor de cada pantalla que va en <strong>este</strong> portátil. Las demás,
-            en «No mostrar» (se ven en el principal o en otro portátil). Lo que muestra cada pantalla
-            (partido, cinta, publicidad, formato LED y brillo) se cambia en la estación: la del principal o
-            «Abrir estación del moderador» desde aquí.</p>
-          <div id="rm-screens" class="rm-screens"></div>
-        </div>
+        <div class="st-card-body"><div id="rm-screens" class="rm-screens"></div></div>
       </div>
     </section>
-
-    <footer class="rm-footer">
-      <button id="rm-main" class="btn btn-ghost btn-sm" type="button">Usar este portátil como principal</button>
-    </footer>
   </main>
   <script src="remote.js"></script>
 </body>

@@ -4,7 +4,7 @@
  * Muestra el CÓDIGO DE ENLACE que se escribe en el otro portátil, los
  * portátiles enlazados (conectado o no, su IP y qué pantalla muestra en qué
  * monitor) y permite desvincularlos. Si es la aplicación de escritorio,
- * también convertir ESTE portátil en pantalla remota.
+ * también convertir ESTE portátil en portátil remoto.
  *
  * En la estación abierta desde un portátil REMOTO no hay código ni botones:
  * enlazar y desvincular es solo del portátil principal.
@@ -38,14 +38,14 @@ function codeHtml(remotes, state) {
         <button type="button" class="btn btn-ghost btn-sm" data-action="newCode">${icon('refresh')}Nuevo código</button>
       </div>
       <div class="st-remote-help">
-        <p><strong>Pantallas en otro portátil</strong> (pistas lejos de este): en el otro portátil abre StageMaster,
-          pulsa <em>«Usar este portátil como pantalla remota»</em>, elige <strong>«${esc(remotes.serverName)}»</strong>
+        <p><strong>Otro portátil</strong> (una pista lejos de este o un segundo moderador): en el otro portátil abre StageMaster,
+          pulsa <em>«Usar este portátil como portátil remoto»</em>, elige <strong>«${esc(remotes.serverName)}»</strong>
           (este portátil, <code>${where}</code>) y escribe este código.</p>
-        <p class="muted">Los dos portátiles en la misma red: cable Ethernet a un switch o router (lo más fiable), o Wi-Fi.
-          No hace falta Internet. Desde ese portátil también se puede abrir esta estación
-          («Abrir estación del moderador») para controlar partidos y pantallas a la vez; aquí puedes desvincularlo cuando quieras.</p>
+        <p class="muted">Ese portátil puede usar la <strong>estación del moderador completa</strong> (igual que esta, a la vez)
+          y/o <strong>mostrar pantallas</strong> en sus monitores. Los dos en la misma red: cable Ethernet a un switch o router
+          (lo más fiable), o Wi-Fi; no hace falta Internet. Aquí puedes desvincularlo cuando quieras.</p>
         ${state.desktop && state.desktop.canUseAsRemote
-          ? `<button type="button" class="btn btn-ghost btn-sm" data-action="useAsRemote">${icon('screen')}Usar este portátil como pantalla remota</button>` : ''}
+          ? `<button type="button" class="btn btn-ghost btn-sm" data-action="useAsRemote">${icon('screen')}Usar este portátil como portátil remoto</button>` : ''}
       </div>
     </div>`;
 }
