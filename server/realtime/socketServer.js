@@ -63,6 +63,7 @@
  *   station:remoteCode                              estación: código de enlace nuevo
  *   station:unlinkRemote { remoteId }               estación: desvincula un portátil remoto
  *   station:useAsRemote                             estación: este portátil pasa a modo remoto (escritorio)
+ *   station:appearance { ui, led }                  estación: temas (oscuro, claro o alternativo)
  *   remote:pair { code, name }                      portátil remoto → { token, remoteId, name }
  *   remote:report { monitors, screens }             portátil remoto: dónde muestra cada pantalla
  *   display:report { viewport, renderedMatchId, renderedVersion, adErrors, playing, soundBlocked }   pantalla
@@ -76,6 +77,7 @@
  *   screenRemoved                                   pantalla que el operador ha quitado
  *   stationState { matches, screens, ads, network } estación
  *   historyChanged { court, saved }                 estación: se guardó (saved) o anuló un partido del historial
+ *   appearance { ui, led }                          TODOS al conectar y al cambiar: temas (core/appearance.js)
  *   remoteState { serverName, screens }             portátil remoto: pantallas que puede mostrar
  *   remoteRevoked { message }                       portátil remoto desvinculado (token inválido)
  *   stationRevoked { message }                      estación de un portátil remoto desvinculado
@@ -117,8 +119,10 @@ const SYNC_TOLERANCE_MS = 2000;
  * @param {Object}  [deps.history] - Historial de partidos (core/history.js)
  * @param {Object}  [deps.remotes] - Portátiles remotos enlazados (core/remotes.js)
  * @param {Object}  [deps.formats] - Formatos de salida guardados (core/formats.js)
+ * @param {Object}  [deps.appearance] - Temas de la estación/teléfonos y de las LED (core/appearance.js)
  */
-function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = null, history = null, remotes = null, formats = null }) {
+function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = null, history = null, remotes = null, formats = null,
+  appearance = null }) {
   const savedFormats = () => (formats ? formats.list() : []);
   const pinGuard  = auth.createPinGuard();
   const codeGuard = auth.createPinGuard();
@@ -197,6 +201,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     if (role === 'preview')    onPreviewConnected(socket);
     if (role === 'controller') onControllerConnected(socket);
     if (role === 'remote')     onRemoteConnected(socket);
+    if (appearance) socket.emit('appearance', appearance.get());
 
     // ── Marcador (teléfono vinculado o estación) ─────────────────
     handle(socket, 'setupMatch', ({ matchId, config, force } = {}) => {
@@ -259,6 +264,16 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
         pushOne(id, matchChanged);
       });
       scheduleStationState();
+    });
+
+    // ── Temas (oscuro, claro o alternativo): a todos los dispositivos al instante ──
+    handle(socket, 'station:appearance', (changes = {}) => {
+      requireStation(socket, 'station:appearance');
+      if (!appearance) throw appError('FORBIDDEN', 'No disponible');
+      const next = appearance.update({ ui: changes.ui, led: changes.led });
+      io.emit('appearance', next);
+      scheduleStationState();
+      return { appearance: next };
     });
 
     // ── Formatos de salida guardados (tamaños personalizados con nombre) ──
@@ -907,6 +922,7 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
         .concat(savedFormats().map((f) => ({ ...f, label: `${f.label} · ${f.width} × ${f.height} px`, name: f.label, saved: true })))
         .concat({ id: 'custom', label: 'Personalizado (ancho × alto)', width: null, height: null }),
       limits:  LIMITS,
+      appearance: appearance ? appearance.get() : { ui: 'dark', led: 'dark' },
       network,
       desktop: desktop ? desktop.getState() : null,
       remotes: remotes ? remotesSummary(now) : null,

@@ -44,6 +44,16 @@
   --d-match:       #E8455F;   /* MATCH POINT                              */
   --d-win-row:     #11408C;   /* fila del ganador (azul más vivo)         */
   --d-pause:       #FFB020;   /* partido en pausa                         */
+  /* Para los temas (css/themes.css) */
+  --d-text:        #FFFFFF;   /* nombres, games, títulos                  */
+  --d-label:       #EAF5FF;   /* datos de las estadísticas                */
+  --d-header-top:  #0D2B60;
+  --d-glow:        #0D2B60;   /* centro de la pantalla en espera          */
+  --d-panel-top:   #0E3270;   /* panel de estadísticas                    */
+  --d-panel-bottom: #0A2556;
+  --d-cel-1: #04122B; --d-cel-2: #071C42; --d-cel-3: #0A2658;   /* celebración */
+  --d-ribbon-top:  #0B2654;   /* cinta con fondo oscuro                   */
+  --d-ribbon-bottom: #041024;
 
   width: 100%;
   height: 100%;
@@ -103,7 +113,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   gap: 2cqw;
   min-width: 0;
   padding: 0 var(--safe-x);
-  background: linear-gradient(180deg, #0D2B60 0%, var(--d-header) 100%);
+  background: linear-gradient(180deg, var(--d-header-top) 0%, var(--d-header) 100%);
   border-bottom: var(--line) solid var(--d-light);
 }
 
@@ -116,7 +126,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   font-weight: 700;
   font-size: calc(var(--header-h) * 0.42);
   letter-spacing: 0.06em;
-  color: #FFFFFF;
+  color: var(--d-text);
   white-space: nowrap;
 }
 
@@ -188,7 +198,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   font-weight: 700;
   font-size: min(30cqh, 16cqw);
   line-height: 1;
-  color: #FFFFFF;
+  color: var(--d-text);
   text-transform: uppercase;
 }
 
@@ -307,7 +317,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #FFFFFF;
+  color: var(--d-text);
 }
 
 /* Pareja con un solo nombre (ej. "EQUIPO AZUL"): una línea más grande */
@@ -328,7 +338,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 }
 
 .d-sets  { font-size: min(21cqh, 12cqw); background: var(--d-sets-bg); color: #FFFFFF; }
-.d-games { font-size: min(25cqh, 15cqw); color: #FFFFFF; }
+.d-games { font-size: min(25cqh, 15cqw); color: var(--d-text); }
 /* PUNTOS: el dato que más cambia → caja azul claro con número oscuro */
 .d-pts   { font-size: min(26cqh, 17cqw); background: var(--d-light); color: var(--d-ink); }
 
@@ -348,16 +358,35 @@ html { width: 100%; height: 100%; overflow: hidden; }
 /* ── Separador entre parejas ────────────────────────────────────── */
 .d-divider { display: flex; align-items: center; justify-content: center; }
 
+/* «GANADOR»: grande y con las letras separadas (se lee de lejos en la LED); el
+   separador crece para que quepa sin tocar las filas; la flecha señala la fila ganadora */
+.display.has-winner .d-board { grid-template-rows: 8cqh 1fr 13cqh 1fr; }
+.d-divider { gap: min(2.4cqh, 1.4cqw); }
+.display.has-winner .d-divider::before,
+.display.has-winner .d-divider::after {
+  content: ''; flex: 1 1 0; max-width: 34%; height: max(2px, 0.5cqh); border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--d-light));
+}
+.display.has-winner .d-divider::after { background: linear-gradient(90deg, var(--d-light), transparent); }
 .d-divider-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
   font-family: var(--font-score);
   font-weight: 700;
-  font-size: min(5cqh, 2.8cqw);   /* alto total 1,36 × 5 = 6,8cqh < 8cqh del separador */
+  font-size: min(8.4cqh, 4.6cqw);   /* alto total ≈ 1,3 × 8,4 = 11cqh < 13cqh del separador */
   line-height: 1;
-  padding: 0.18em 0.8em;
-  border-radius: 0.3em;
+  letter-spacing: 0.3em;
+  padding: 0.14em 0.5em 0.14em 0.8em;   /* el espacio tras la última letra se compensa */
+  border-radius: 0.28em;
   color: var(--d-ink);
   background: var(--d-light);
+  box-shadow: 0 0 2.6cqh rgba(143, 211, 255, 0.55);
+  animation: winnerLabelIn 700ms 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
+.d-divider-label[data-side="A"]::before { content: '▲'; font-size: 0.62em; letter-spacing: 0; }
+.d-divider-label[data-side="B"]::before { content: '▼'; font-size: 0.62em; letter-spacing: 0; }
+@keyframes winnerLabelIn { from { opacity: 0; transform: scale(0.7); letter-spacing: 0.05em; } to { opacity: 1; transform: none; } }
 
 .d-divider-label:empty { display: none; }
 
@@ -385,7 +414,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   font-size: calc(var(--header-h) * 0.3);
   line-height: 1.1;
   white-space: nowrap;
-  color: #FFFFFF;
+  color: var(--d-text);
   background: var(--d-row);
   border: max(2px, calc(var(--header-h) * 0.03)) solid var(--d-row-edge);
 }
@@ -413,7 +442,8 @@ html { width: 100%; height: 100%; overflow: hidden; }
   .d-games   { font-size: min(32cqh, 9cqw); }
   .d-pts     { font-size: min(34cqh, 11cqw); }
   .d-cell    { height: 86%; }
-  .d-divider-label { display: none; }   /* el badge de la cabecera ya lo indica */
+  .display.has-winner .d-board { grid-template-rows: 1fr 17cqh 1fr; }
+  .d-divider-label { font-size: min(12cqh, 6.4cqw); letter-spacing: 0.22em; }
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -422,7 +452,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
 .d-ribbon {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #0B2654 0%, #041024 100%);
+  background: linear-gradient(180deg, var(--d-ribbon-top) 0%, var(--d-ribbon-bottom) 100%);
   border-top: var(--line) solid var(--d-light);
 }
 
@@ -542,7 +572,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, #0D2B60 0%, var(--d-bg) 70%);
+  background: radial-gradient(ellipse at center, var(--d-glow) 0%, var(--d-bg) 70%);
 }
 
 .d-standby-logo {
@@ -551,7 +581,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   font-weight: 700;
   font-size: 16cqh;
   letter-spacing: 0.06em;
-  color: #FFFFFF;
+  color: var(--d-text);
   animation: fadeIn 800ms ease;
 }
 
@@ -680,7 +710,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   border-radius: min(2.6cqh, 1.6cqw);
   background:
     radial-gradient(ellipse 60% 80% at 50% -20%, rgba(143, 211, 255, 0.16), transparent 70%),
-    linear-gradient(180deg, #0E3270 0%, var(--d-row) 55%, #0A2556 100%);
+    linear-gradient(180deg, var(--d-panel-top) 0%, var(--d-row) 55%, var(--d-panel-bottom) 100%);
   border: max(2px, 0.4cqh) solid rgba(143, 211, 255, 0.35);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2cqh 5cqh rgba(0, 0, 0, 0.35);
   animation: sumIn 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -712,7 +742,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   letter-spacing: 0.035em;
   word-spacing: 0.08em;
   text-transform: uppercase;
-  color: #FFFFFF;
+  color: var(--d-text);
 }
 .sum-team.is-winner .sum-name { color: var(--d-light); }
 .sum-title { display: flex; flex-direction: column; align-items: center; gap: min(0.6cqh, 0.4cqw); }
@@ -751,7 +781,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.82);
 }
-.sum-val.is-lead { color: #FFFFFF; text-shadow: 0 0 2.4cqh rgba(143, 211, 255, 0.75); }
+.sum-val.is-lead { color: var(--d-text); text-shadow: 0 0 2.4cqh rgba(143, 211, 255, 0.75); }
 .sum-mid { display: flex; flex-direction: column; align-items: stretch; gap: min(1.5cqh, 1cqw); min-width: 0; }
 .sum-label {
   text-align: center;
@@ -763,7 +793,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   line-height: 1.15;
   letter-spacing: 0.03em;
   word-spacing: 0.1em;
-  color: #EAF5FF;
+  color: var(--d-label);
 }
 /* Barra: la parte de A (celeste) crece hacia la izquierda y la de B (blanca) hacia la derecha */
 .sum-bar { display: flex; gap: min(0.6cqh, 0.4cqw); height: max(4px, 1.9cqh); }
@@ -814,7 +844,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   inset: 0;
   z-index: 8;
   overflow: hidden;
-  background: linear-gradient(180deg, #04122B 0%, #071C42 55%, #0A2658 100%);
+  background: linear-gradient(180deg, var(--d-cel-1) 0%, var(--d-cel-2) 55%, var(--d-cel-3) 100%);
   animation: celIn 450ms ease both, celOut 600ms 5400ms ease forwards;
 }
 /* Foco de luz sobre la pista */
@@ -881,7 +911,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   font-size: min(15cqh, 7.2cqw);
   line-height: 1.02;
   text-transform: uppercase;
-  color: #FFFFFF;
+  color: var(--d-text);
   max-width: 100%;
   filter: drop-shadow(0 0.4cqh 1.6cqh rgba(0, 0, 0, 0.6));
 }
@@ -924,7 +954,7 @@ html { width: 100%; height: 100%; overflow: hidden; }
   animation: celBrand 600ms 1900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .cel-brand-logo { display: inline-flex; align-items: center; height: 6.5cqh; font-family: var(--font-score); font-weight: 700;
-  font-style: italic; font-size: 5.4cqh; letter-spacing: 0.02em; color: #FFFFFF; }
+  font-style: italic; font-size: 5.4cqh; letter-spacing: 0.02em; color: var(--d-text); }
 .cel-brand-logo > span { color: var(--d-light); }
 .cel-brand-logo .brand-logo-img { height: 100%; width: auto; max-width: 26cqw; object-fit: contain; }
 .cel-brand-text { font-family: var(--font-score); font-weight: 700; font-size: 3.6cqh; letter-spacing: 0.4em;

@@ -1,0 +1,102 @@
+/*
+ * themes.css — Temas de colores (se eligen en la estación: «Colores»)
+ *
+ *   <html data-theme="dark">   Oscuro: el de siempre (no necesita nada aquí)
+ *   <html data-theme="light">  Claro de marca: blanco azulado, índigo y azul cielo
+ *   <html data-theme="alt">    Alternativo: índigo de marca, celeste y amarillo
+ *
+ * Paleta de la marca: índigo #3C40C4 · índigo profundo #242888/#1E2270 ·
+ * azul cielo #3898F4/#3088E4 · azul real #1E5AC6 · celeste #84D0FC ·
+ * fondo claro #F0F8FC · amarillo #F9D207.
+ *
+ * Solo cambia variables (shared.css, station.css, control.css, score.css) y
+ * lo poco que en esas hojas es un color fijo pensado para fondo oscuro.
+ * El tema de la estación/teléfonos y el de las pantallas LED son independientes
+ * (theme-boot.js: data-scope ui / led).
+ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   ALTERNATIVO · ÍNDIGO DE MARCA
+   ═══════════════════════════════════════════════════════════════════ */
+:root[data-theme="alt"] {
+  --bg-primary: #3C40C4; --bg-secondary: #3236B4; --bg-card: #2A2EA2; --bg-input: #23278F;
+  --accent-primary: #3088E4; --accent-bright: #3898F4; --accent-cyan: #84D0FC;
+  --text-primary: #FFFFFF; --text-secondary: #D3DCFF; --text-muted: #B9C1F2;
+  --border-color: rgba(132, 208, 252, 0.28); --border-bright: rgba(132, 208, 252, 0.6);
+  --shadow-card: 0 4px 24px rgba(20, 22, 90, 0.45);
+}
+:root[data-theme="alt"] .station-body {
+  --st-bg: #3C40C4; --st-surface: #2E32AA; --st-surface-2: #2A2EA2; --st-inset: #23278F;
+  --st-border: #5357D2; --st-border-2: #7A7EE6; --st-text: #FFFFFF; --st-soft: #D3DCFF;
+  --st-accent: #84D0FC; --st-primary: #3898F4; --st-muted: #BCC3F3; --st-gold: #F9D207;
+  --st-strong: #FFFFFF; --st-on-accent: #1E2270; --st-raised: #4347C8;
+  --st-chip: rgba(30, 34, 112, 0.88); --st-chip-text: #FFFFFF; --st-head-bg: #2A2EA2;
+  --st-group-bg: rgba(30, 34, 112, 0.32); --st-group-edge: rgba(132, 208, 252, 0.3);
+  --st-bad-bg: #4A1A4E; --st-bad-text: #FFB8C6;
+  --st-raised-hover: #5458D6; --st-pin-bg: #1E2270; --st-zone-bg: rgba(30, 34, 112, 0.3);
+}
+:root[data-theme="alt"] .score-body {
+  --d-bg: #2B2FA8; --d-header: #3236B4; --d-row: #3C40C4; --d-row-edge: #6A6EE0;
+  --d-sets-bg: #3898F4; --d-light: #84D0FC; --d-light-soft: #CDEBFF; --d-ink: #1E2270;
+  --d-win-row: #4A62E0; --d-text: #FFFFFF;
+  --d-header-top: #3E42C8; --d-glow: #4A4ED0; --d-panel-top: #4044C6; --d-panel-bottom: #2C30A6;
+  --d-cel-1: #1E2270; --d-cel-2: #2A2EA2; --d-cel-3: #3438B8;
+  --d-ribbon-top: #2E32AA; --d-ribbon-bottom: #1E2270;
+}
+:root[data-theme="alt"] .station-body .st-code { color: #F9D207; }
+:root[data-theme="alt"] .btn-point-b { background: linear-gradient(145deg, #2A2EA2, #1E2270); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   CLARO DE MARCA
+   ═══════════════════════════════════════════════════════════════════ */
+:root[data-theme="light"] {
+  --bg-primary: #F0F8FC; --bg-secondary: #FFFFFF; --bg-card: #FFFFFF; --bg-input: #E8F2FB;
+  --accent-primary: #3C40C4; --accent-bright: #3088E4; --accent-cyan: #1E5AC6;
+  --text-primary: #1E2270; --text-secondary: #3A4398; --text-muted: #5D6AA3;
+  --border-color: #CFE2F3; --border-bright: #9CC3EA;
+  --shadow-card: 0 4px 18px rgba(30, 34, 112, 0.12);
+  --shadow-btn: 0 4px 16px rgba(48, 136, 228, 0.3);
+  --danger-bg: rgba(229, 57, 53, 0.08);
+}
+/* Logo índigo sobre fondo claro (en todas las interfaces) */
+:root[data-theme="light"] .brand-logo-img { content: url('../img/logo-stagemaster-indigo.png'); }
+
+/* Estación */
+:root[data-theme="light"] .station-body {
+  --st-bg: #F0F8FC; --st-surface: #FFFFFF; --st-surface-2: #FFFFFF; --st-inset: #EEF5FC;
+  --st-border: #CFE2F3; --st-border-2: #9CC3EA; --st-text: #1E2270; --st-soft: #3A4398;
+  --st-accent: #3088E4; --st-primary: #3C40C4; --st-muted: #5D6AA3; --st-gold: #E0B000;
+  --st-ok: #16A34A; --st-warn: #D97706; --st-bad: #DC2626;
+  --st-strong: #1E2270; --st-on-accent: #FFFFFF; --st-raised: #E3EEFB;
+  --st-chip: rgba(30, 34, 112, 0.86); --st-chip-text: #FFFFFF; --st-head-bg: #F4F9FE;
+  --st-group-bg: #F7FBFF; --st-group-edge: #D6E6F5;
+  --st-bad-bg: #FDECEC; --st-bad-text: #B42318;
+  --st-pin-bg: #EAF3FC; --st-pin-text: #3C40C4; --st-raised-hover: #D3E4F8; --st-zone-bg: rgba(255, 255, 255, 0.65);
+}
+:root[data-theme="light"] .station-body .pill.set { background: #1E2270; color: #FFFFFF; }
+
+/* Teléfono */
+:root[data-theme="light"] .btn-point-b { background: linear-gradient(145deg, #3C40C4, #2A2EA2); }
+:root[data-theme="light"] .btn-point .btn-point-action { color: #FFFFFF; }
+
+/* Pantalla LED (el claro deslumbra más en una LED: pensado para monitores y pantallas de interior) */
+:root[data-theme="light"] .score-body {
+  --d-bg: #EAF3FB; --d-header: #FFFFFF; --d-row: #FFFFFF; --d-row-edge: #C7DCF1;
+  --d-sets-bg: #3C40C4; --d-light: #3088E4; --d-light-soft: #4A55A0; --d-ink: #FFFFFF;
+  --d-win-row: #E2EFFC; --d-text: #1E2270; --d-label: #1E2270;
+  --d-header-top: #FFFFFF; --d-glow: #FFFFFF; --d-panel-top: #FFFFFF; --d-panel-bottom: #EEF5FC;
+  --d-cel-1: #DCEBFA; --d-cel-2: #EEF6FD; --d-cel-3: #FFFFFF;
+  --d-ribbon-top: #1E2270; --d-ribbon-bottom: #14175A;
+}
+:root[data-theme="light"] .score-body.is-led { background: #EAF3FB; }
+:root[data-theme="light"] .d-pts.is-advantage { background: #1E2270; color: #FFFFFF; box-shadow: 0 0 2.6cqh rgba(30, 34, 112, 0.35); }
+:root[data-theme="light"] .d-badge.is-set { background: #1E2270; color: #FFFFFF; box-shadow: none; }
+:root[data-theme="light"] .d-row.is-set-point .d-pts { box-shadow: 0 0 0 max(2px, 0.6cqh) #1E2270, 0 0 3cqh rgba(30, 34, 112, 0.35); }
+:root[data-theme="light"] .sum-val { color: rgba(30, 34, 112, 0.7); }
+:root[data-theme="light"] .sum-val.is-lead { text-shadow: none; color: #3C40C4; }
+:root[data-theme="light"] .sum-title span { background-image: linear-gradient(100deg, #3088E4 35%, #1E2270 50%, #3088E4 65%); }
+:root[data-theme="light"] .cel-names span { background-image: linear-gradient(100deg, #1E2270 40%, #3C40C4 50%, #1E2270 60%); }
+:root[data-theme="light"] .cel-names { filter: none; }
+:root[data-theme="light"] .cel-glints { background: radial-gradient(ellipse 48% 46% at 62% 46%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.4) 70%, transparent 100%); }
+:root[data-theme="light"] .cel-court { opacity: 0.35; }
+:root[data-theme="light"] .cel-brand { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 18%, rgba(255, 255, 255, 0.95) 82%, transparent); }

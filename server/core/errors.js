@@ -27,6 +27,8 @@
  *   STATION_LOCAL_ONLY   La estación solo se abre en el portátil principal o en un portátil remoto enlazado
  *   MAIN_ONLY            Acción que solo puede hacer la estación del portátil principal
  *   DISPLAY_LOCAL_ONLY   Las pantallas solo se abren en el propio portátil
+ *   INVALID_FORMAT       Formato de salida guardado inválido
+ *   INVALID_APPEARANCE   Tema de colores no válido
  */
 
 class AppError extends Error {

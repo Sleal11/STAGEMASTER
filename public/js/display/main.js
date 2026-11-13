@@ -27,6 +27,7 @@ import { createScoreboard }  from './scoreboard.js';
 import { createRibbon }      from './ribbon.js';
 import { createMediaPlayer } from './media-player.js';
 import { createFinale }      from './finale.js';
+import { followTheme }       from '../common/theme.js';
 
 const IDENTIFY_MS = 6000;
 
@@ -108,6 +109,7 @@ function connectToServer() {
     dom.waitingCourt.textContent = 'Pantalla quitada en la estación';
     dom.waiting.querySelector('.d-waiting-text').textContent = 'Esta ventana ya se puede cerrar';
   });
+  followTheme(socket, 'led');
   socket.on('screenConfig', applyScreenConfig);
   socket.on('matchUpdate', (payload) => {
     // Solo el partido asignado (el servidor ya filtra por sala)

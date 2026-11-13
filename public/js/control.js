@@ -36,6 +36,7 @@
 import * as ScoreFormat from './common/score-format.js';
 import { applyLogo }    from './common/brand.js';
 import { icon, esc }    from './common/ui.js';
+import { followTheme }  from './common/theme.js';
 
 // ─────────────────────────────────────────────────────────────────
 // ESTADO GLOBAL DEL PANEL
@@ -458,6 +459,7 @@ function connectToServer() {
   var token = readToken();
   socket = io({ auth: token ? { role: 'controller', token: token } : { role: 'controller' } });
 
+  followTheme(socket, 'ui');
   socket.on('connect', function () {
     setConnectionStatus('connected', myCourt ? 'Conectado · ' + myCourt.label : 'Conectado');
     // Sin token: código de pista. Con token: el servidor responderá con

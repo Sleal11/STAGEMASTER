@@ -40,6 +40,9 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const SPEED_LABELS = { slow: 'Lenta', normal: 'Normal', fast: 'Rápida' };
 /** Alto de la cinta: 0 = automático (19 % de la pantalla; 21 % en LED pequeñas) */
 const RIBBON_HEIGHTS = [[0, 'Automático (recomendado)'], [16, '16 %'], [20, '20 %'], [24, '24 % · logos más grandes'], [28, '28 %'], [32, '32 %']];
+/** Opciones del alto: las fijas y, si se ajustó con el tirador, el valor elegido */
+const heightOptions = (current) => (RIBBON_HEIGHTS.some(([v]) => v === current) ? RIBBON_HEIGHTS
+  : RIBBON_HEIGHTS.concat([[current, `${current} % (ajustado a mano)`]]).sort((a, b) => a[0] - b[0]));
 let dragReady = false;
 /** Ajuste de la publicidad a la salida (screenConfig.MEDIA_FITS) */
 const FIT_LABELS = {
@@ -57,7 +60,7 @@ export function renderScreens(state) {
     dragReady = true;
     initRibbonDrag(container, (screenId, items) => update(screenId, { ribbon: { items } }));
     initRibbonResize(container, (screenId, name, size) => update(screenId, { ribbon: { sizes: { [name]: size === 100 ? null : size } } }),
-      () => renderScreens(ctx.state));
+      () => renderScreens(ctx.state), (screenId, height) => update(screenId, { ribbon: { height } }));
   }
   // Pantallas quitadas (en esta estación o en otra ventana): fuera su tarjeta
   container.querySelectorAll('[data-screen-card]').forEach((card) => {
@@ -466,9 +469,10 @@ function ribbonPanel(screen, state) {
       field('Fondo', `<div class="segmented" role="group">${background('dark', 'Oscuro')}${background('light', 'Claro (blanco)')}</div>`,
         'Todos los logos van sobre este mismo fondo. Oscuro: como el marcador. Claro: para logos pensados para fondo blanco. ' +
         'Lo que no se vería (texto negro sobre oscuro, blanco sobre claro) se ajusta solo.') +
-      field('Alto', `<select class="input" data-action="ribbonHeight" data-screen="${screen.id}">${RIBBON_HEIGHTS.map(([v, t]) =>
+      field('Alto', `<select class="input" data-action="ribbonHeight" data-screen="${screen.id}">${heightOptions(ribbon.height || 0).map(([v, t]) =>
         `<option value="${v}"${v === (ribbon.height || 0) ? ' selected' : ''}>${t}</option>`).join('')}</select>`,
-        'Más alta = logos más grandes y legibles en la LED (el marcador se reparte el resto).'), { off }) +
+        'Más alta = logos más grandes y legibles en la LED (el marcador se reparte el resto). ' +
+        'También se cambia arrastrando el borde de arriba de la cinta en la vista previa.'), { off }) +
     editorHtml(screen, off);
 }
 

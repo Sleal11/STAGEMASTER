@@ -28,6 +28,8 @@ import { renderRemotes, onRemotesClick } from './remotes.js';
 import { renderLive, setLiveVisible } from './live.js';
 import { initHistory, updateCourts, setHistoryVisible, onHistoryChanged, onReconnected as historyReconnected } from './history.js';
 import { initCollapse, expand } from './collapse.js';
+import { initAppearance, refreshAppearance } from './appearance.js';
+import { followTheme } from '../common/theme.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -39,6 +41,7 @@ function connectToServer() {
   }
   const socket = window.io({ auth: { role: 'station', remoteToken: remoteToken || undefined } });
   ctx.socket = socket;
+  followTheme(socket, 'ui');
 
   socket.on('connect', () => {
     setConnection('ok', 'Servidor conectado');
@@ -85,6 +88,7 @@ function render(state) {
   renderZoneSummaries(state);
   renderLive(state);
   updateCourts(state);
+  refreshAppearance();
   tick();
 }
 
@@ -181,6 +185,7 @@ function showView(view) {
 
 applyLogo();
 initCollapse();
+initAppearance();
 initDialogs();
 initUploads();
 initHistory();

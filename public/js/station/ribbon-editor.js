@@ -77,7 +77,8 @@ export function editorHtml(screen, off) {
   }).join('');
   return `<section class="st-group${off ? ' is-off' : ''}"><h4 class="st-group-title">${icon('sliders')}Orden, tamaño y realce de los logos</h4>
       <p class="st-group-note">Así se verá la cinta en esta pantalla. <strong>Haz clic en un logo</strong> de la vista previa y arrastra
-        sus esquinas para agrandarlo o achicarlo (como una imagen en Word). En la lista: arrastra los logos (o usa las flechas) para
+        sus esquinas para agrandarlo o achicarlo (como una imagen en Word); arrastra el <strong>borde de arriba</strong>
+        de la cinta para hacerla más alta o más baja. En la lista: arrastra los logos (o usa las flechas) para
         ordenarlos, ajusta el tamaño (100 % = automático) y el <strong>realce</strong> si un logo no se lee bien en la LED.</p>
       <div class="rb-preview" data-ribbon-preview="${screen.id}"></div>
       <div class="rb-list" data-ribbon-list="${screen.id}">${rows}</div>
@@ -86,14 +87,24 @@ export function editorHtml(screen, off) {
 
 /** Tamaño real de la cinta de esa pantalla (ancho / alto) */
 function ribbonRatio(screen) {
+  const { w, h } = outputSize(screen);
+  return w / (h * ribbonFraction(screen));
+}
+
+function outputSize(screen) {
   const out = screen.output;
   const viewport = screen.displays[0] && screen.displays[0].viewport;
   const fixed = out.format !== 'fill';
-  const w = fixed ? out.width : (viewport ? viewport.width : 1920);
-  const h = fixed ? out.height : (viewport ? viewport.height : 1080);
-  const fraction = screen.ribbon.height ? screen.ribbon.height / 100 : (h <= 300 ? 0.21 : 0.19);
-  return w / (h * fraction);
+  return { w: fixed ? out.width : (viewport ? viewport.width : 1920), h: fixed ? out.height : (viewport ? viewport.height : 1080) };
 }
+
+/** Alto de la cinta (fracción de la pantalla): el elegido, o el automático (19 %; 21 % en LED pequeñas) */
+function ribbonFraction(screen) {
+  return screen.ribbon.height ? screen.ribbon.height / 100 : (outputSize(screen).h <= 300 ? 0.21 : 0.19);
+}
+
+/** Alto de la cinta permitido al arrastrar su borde (LIMITS.ribbonHeight del servidor) */
+const HEIGHT_RANGE = () => (ctx.state && ctx.state.limits && ctx.state.limits.ribbonHeight) || [14, 32];
 
 function measure(url, background, effect) {
   const key = background + '|' + effect + '|' + url;
@@ -153,7 +164,14 @@ export function drawPreviews(override = null) {
           ${['nw', 'ne', 'sw', 'se'].map((c) => `<i class="rb-handle" data-corner="${c}"></i>`).join('')}
           <b class="rb-badge">${l.size} %</b></span>` };
       };
-      const strip = (inner, cls = '') => `<div class="rb-strip ${cls}${bg === 'light' ? ' is-light' : ''}" style="height:${H}px;--h:${H}px">${inner}</div>`;
+      let first = true;
+      const strip = (inner, cls = '') => {
+        // Tirador del ALTO de la cinta en el borde de arriba (como al estirar una imagen en Word)
+        const handle = first ? `<i class="rb-height-handle" data-screen="${screen.id}" data-strip="${H}" data-fraction="${ribbonFraction(screen)}"
+          title="Arrastra para hacer la cinta más alta o más baja · doble clic: automático"><span>Alto ${Math.round(ribbonFraction(screen) * 100)} %${screen.ribbon.height ? '' : ' · auto'}</span></i>` : '';
+        first = false;
+        return `<div class="rb-strip ${cls}${bg === 'light' ? ' is-light' : ''}" style="height:${H}px;--h:${H}px">${handle}${inner}</div>`;
+      };
       let html;
       if (motion === 'scroll') {
         html = strip(logos.map((l) => img(l, false).html).join(''), 'is-scroll') +
@@ -191,9 +209,52 @@ function select(next) {
  * (la vista previa, el control de la lista y el porcentaje) y al soltar se
  * envía: onResize(screenId, name, size). Clic fuera de los logos: se deselecciona.
  * onEnd(): al soltar, para redibujar lo que llegó mientras se arrastraba.
+ * El borde de arriba de la cinta (.rb-height-handle) cambia su ALTO igual:
+ * onHeight(screenId, porcentaje); doble clic → automático (0).
  */
-export function initRibbonResize(container, onResize, onEnd) {
+export function initRibbonResize(container, onResize, onEnd, onHeight) {
   let drag = null;
+  let heightDrag = null;
+  container.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.rb-height-handle');
+    if (!handle) return;
+    e.preventDefault();
+    e.stopPropagation();
+    handle.setPointerCapture(e.pointerId);
+    resizing = true;
+    const fraction = Number(handle.dataset.fraction);
+    heightDrag = { handle, y: e.clientY, strip: Number(handle.dataset.strip), fraction, value: Math.round(fraction * 100), start: Math.round(fraction * 100),
+      strips: Array.from(handle.closest('[data-ribbon-preview]').querySelectorAll('.rb-strip')) };
+    handle.classList.add('is-active');
+  });
+  container.addEventListener('pointermove', (e) => {
+    if (!heightDrag) return;
+    const [min, max] = HEIGHT_RANGE();
+    const d = heightDrag;
+    // Hacia arriba crece (la cinta está abajo de la pantalla)
+    const height = d.strip - (e.clientY - d.y);
+    const value = Math.min(max, Math.max(min, Math.round((d.fraction * 100 * height) / d.strip)));
+    if (value === d.value) return;
+    d.value = value;
+    const px = Math.round((d.strip * value) / (d.fraction * 100));
+    d.strips.forEach((strip) => { strip.style.height = px + 'px'; });
+    d.handle.querySelector('span').textContent = `Alto ${value} %`;
+  });
+  const endHeight = () => {
+    if (!heightDrag) return;
+    const { handle, value, start } = heightDrag;
+    handle.classList.remove('is-active');
+    heightDrag = null;
+    resizing = false;
+    if (value !== start) onHeight(handle.dataset.screen, value);
+    onEnd();
+  };
+  container.addEventListener('pointerup', endHeight);
+  container.addEventListener('pointercancel', endHeight);
+  container.addEventListener('dblclick', (e) => {
+    const handle = e.target.closest('.rb-height-handle');
+    if (handle) onHeight(handle.dataset.screen, 0);
+  });
   container.addEventListener('click', (e) => {
     const logo = e.target.closest('.rb-logo');
     if (logo) select({ screenId: logo.dataset.screen, name: logo.dataset.name });

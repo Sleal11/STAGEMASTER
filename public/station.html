@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <script src="js/common/theme-boot.js" data-scope="ui"></script>
   <!--
     station.html — Estación operadora (solo en el portátil)
 
@@ -25,6 +26,7 @@
   <title>StageMaster · Estación operadora</title>
   <link rel="stylesheet" href="css/shared.css" />
   <link rel="stylesheet" href="css/station.css" />
+  <link rel="stylesheet" href="css/themes.css" />
 </head>
 <body class="station-body">
 
@@ -49,6 +51,9 @@
     <div class="st-top-actions">
       <button id="st-open-ads" class="btn btn-ghost hidden" type="button">
         <svg class="icon"><use href="img/icons.svg#folder"></use></svg>Carpeta de publicidad
+      </button>
+      <button id="st-theme" class="btn btn-ghost" type="button" title="Colores de la estación, los teléfonos y las pantallas">
+        <svg class="icon"><use href="img/icons.svg#palette"></use></svg>Colores
       </button>
       <button id="st-help" class="btn btn-ghost" type="button">
         <svg class="icon"><use href="img/icons.svg#help"></use></svg>Ayuda
@@ -270,6 +275,16 @@
     <div class="st-dialog-actions">
       <span id="dlg-modes-choice" class="st-mode-choice"></span>
       <button type="button" id="dlg-modes-ok" class="btn btn-primary">Probar</button>
+    </div>
+  </dialog>
+
+  <!-- ── Diálogo: colores (temas) ─────────────────────────────────── -->
+  <dialog id="dlg-theme" class="st-dialog">
+    <h3 class="st-dialog-title">Colores</h3>
+    <p class="st-dialog-message">Se aplican al instante en todos los dispositivos conectados.</p>
+    <div id="dlg-theme-body"></div>
+    <div class="st-dialog-actions">
+      <button type="button" id="dlg-theme-close" class="btn btn-primary">Listo</button>
     </div>
   </dialog>
 
