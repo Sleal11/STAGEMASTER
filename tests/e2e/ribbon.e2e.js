@@ -99,6 +99,21 @@ const LOGOS = {
     await H.waitFor(() => (st.state.screens[0].ribbon.sizes['b-ancho.svg'] || 100) > 100, 'tirador');
     T.check('Arrastrar un tirador agranda el logo (porcentaje en directo y guardado al soltar)',
       parseInt(live, 10) > 100 && st.state.screens[0].ribbon.sizes['b-ancho.svg'] === parseInt(live, 10), `${live} → ${st.state.screens[0].ribbon.sizes['b-ancho.svg']} %`);
+    // Alto de la cinta arrastrando su borde de arriba (como Word); doble clic = automático
+    const edge = `${card} .rb-height-handle`;
+    await S.waitForSelector(edge);
+    const eb = await (await S.$(edge)).boundingBox();
+    await S.mouse.move(eb.x + eb.width / 2, eb.y + 5);
+    await S.mouse.down();
+    await S.mouse.move(eb.x + eb.width / 2, eb.y - 25, { steps: 6 });
+    const liveHeight = await S.textContent(`${edge} span`);
+    await S.mouse.up();
+    await H.waitFor(() => st.state.screens[0].ribbon.height > 0, 'alto con el borde');
+    T.check('Arrastrar el borde de arriba de la cinta la hace más alta (porcentaje en directo y guardado al soltar)',
+      parseInt(liveHeight.replace(/\D+/g, ''), 10) === st.state.screens[0].ribbon.height, `${liveHeight} → ${st.state.screens[0].ribbon.height} %`);
+    await S.dblclick(edge);
+    await H.waitFor(() => st.state.screens[0].ribbon.height === 0, 'alto automático');
+    T.check('Doble clic en el borde: alto automático', true);
     await S.click(`${card} [data-action="ribbonBg"][data-bg="light"]`);
     await H.waitFor(() => st.state.screens[0].ribbon.background === 'light', 'fondo claro');
     await S.selectOption(`${card} select[data-action="ribbonHeight"]`, '24');

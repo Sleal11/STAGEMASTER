@@ -290,7 +290,46 @@ function renderFinished() {
  */
 function dispatch(action) {
   if (!matchState || !myCourt) return;
-  sendRequest('matchAction', { matchId: myCourt.matchId, action: action, version: matchState.version });
+  sendRequest('matchAction', { matchId: myCourt.matchId, action: action, version: matchState.version }, {
+    // Vibración corta cuando el servidor confirma (el árbitro no necesita mirar el teléfono);
+    // doble y más larga si no se pudo. En iPhone (sin vibración) no hace nada.
+    onSuccess: function () { buzz(action === 'undo' ? [20, 60, 20] : 18); },
+    onError:   function () { buzz([60, 80, 60]); return false; },
+  });
+}
+
+/**
+ * «Último: punto para …»: qué cambió entre el estado anterior y el nuevo, venga
+ * de este teléfono o de la estación (así el árbitro confirma sin mirar la LED).
+ */
+function describeLastAction(previous, next) {
+  var el = document.getElementById('last-action');
+  if (!el) return;
+  var startOf = function (s) { return s && s.timing ? s.timing.startedAt : null; };
+  // Sin partido o partido nuevo: nada que contar
+  if (!next || !previous || startOf(next) !== startOf(previous)) { el.textContent = ''; return; }
+  if (next.version === previous.version) return;
+  var before = previous.stats && previous.stats.points;
+  var after = next.stats && next.stats.points;
+  var text = '';
+  if (before && after) {
+    var totalBefore = before.A + before.B;
+    var totalAfter = after.A + after.B;
+    if (totalAfter === totalBefore + 1) {
+      var side = after.A > before.A ? 'A' : 'B';
+      text = 'Último: punto para ' + next.players[side].name;
+    } else if (totalAfter < totalBefore) {
+      text = 'Último: se deshizo un punto';
+    }
+  }
+  if (!text && next.server !== previous.server) text = 'Último: cambio de saque';
+  if (!text && next.paused !== previous.paused) text = next.paused ? 'Último: partido en pausa' : 'Último: partido reanudado';
+  if (text) el.textContent = text;
+}
+
+/** Vibración del teléfono (si el navegador la permite) */
+function buzz(pattern) {
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (_) { /* sin vibración */ }
 }
 
 /** Manejador del botón "Punto A" */
@@ -572,6 +611,7 @@ function applyServerState(state) {
   if (!state && matchState) {
     showToast('No hay ningún partido activo en el servidor', true);
   }
+  describeLastAction(matchState, state);
 
   matchState = state || null;
   routeToScreen();

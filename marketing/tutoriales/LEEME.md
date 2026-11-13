@@ -10,7 +10,7 @@
 | `StageMaster-tutorial-3-pantallas-y-publicidad.mp4` | Marcador LED, cinta (logos fijos, tamaño con tiradores como en Word, ordenar, realce), lista de reproducción, publicidad automática, salida, final del partido (celebración, ganador, estadísticas y su opción) y consejos |
 | `StageMaster-tutorial-4-varias-pantallas-y-remoto.mp4` | Añadir pantallas y espejos, En vivo, portátil remoto con su estación y seguridad |
 
-Hechos con la interfaz de la versión 2.10.1. Los logos de la cinta son marcas **inventadas** de ejemplo.
+Hechos con la interfaz de la versión 2.11.0 (incluye «Colores» y el portátil remoto renovado). Los logos de la cinta son marcas **inventadas** de ejemplo.
 
 ## Volver a generarlos
 

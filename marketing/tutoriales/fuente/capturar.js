@@ -182,6 +182,28 @@ async function finish(st, matchId) {
     await S.click('.st-zone-courts .st-zone-head [data-collapse]');
     await S.waitForTimeout(400);
 
+    // Colores: el diálogo y la estación en claro y en alternativo
+    await S.click('#st-theme');
+    await S.waitForSelector('#dlg-theme[open] .theme-option');
+    await shot(S, 'estacion-colores', { dialog: '#dlg-theme', ui: '#dlg-theme .theme-group:first-child', led: '#dlg-theme .theme-group:last-child',
+      button: '#st-theme' });
+    for (const theme of ['light', 'alt']) {
+      await st.send('station:appearance', { ui: theme, led: theme });
+      await S.waitForFunction((t) => document.documentElement.dataset.theme === t, theme);
+      await S.click('#dlg-theme-close');
+      await S.waitForTimeout(500);
+      await shot(S, `estacion-tema-${theme}`, { card1: '[data-match-card="pista-1"]' });
+      await D1.waitForFunction((t) => document.documentElement.dataset.theme === t, theme);
+      await D1.waitForTimeout(800);
+      await shot(D1, `led-tema-${theme}`, { board: '#d-board' });
+      await S.click('#st-theme');
+    }
+    await st.send('station:appearance', { ui: 'dark', led: 'dark' });
+    await S.click('#dlg-theme-close');
+    await S.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    await D1.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    await S.waitForTimeout(400);
+
     // Diálogo «Nuevo partido»
     await S.click('[data-match-card="pista-1"] [data-action="setup"]');
     await S.waitForSelector('#dlg-setup[open]');
@@ -241,12 +263,14 @@ async function finish(st, matchId) {
     await shot(S, 'estacion-cinta-editor-0', { ...editorParts, logo });
     await S.click(logo);
     await shot(S, 'estacion-cinta-editor', editorParts);
-    const hb = await (await S.$(`${logo} .rb-handle[data-corner="se"]`)).boundingBox();
+    const handleEl = await S.waitForSelector(`${logo} .rb-handle[data-corner="se"]`, { state: 'visible', timeout: 5000 });
+    const hb = await handleEl.boundingBox();
     await S.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
     await S.mouse.down();
     await S.mouse.move(hb.x + 40, hb.y + 24, { steps: 10 });
     await S.mouse.up();
-    await H.waitFor(() => (st.state.screens[0].ribbon.sizes['ferreteria-el-tornillo.svg'] || 100) > 100, 'tamaño con el tirador');
+    const pantalla1 = () => st.state.screens.find((s) => s.id === 'pantalla-1');
+    await H.waitFor(() => (pantalla1().ribbon.sizes['ferreteria-el-tornillo.svg'] || 100) > 100, 'tamaño con el tirador');
     await S.waitForTimeout(1500);
     await showEditor();
     await shot(S, 'estacion-cinta-editor-2', editorParts);
@@ -342,22 +366,23 @@ async function finish(st, matchId) {
     }
 
     // Ventana del portátil remoto (aplicación de escritorio) con datos de ejemplo
-    const W = await browser.newPage({ viewport: { width: 1000, height: 780 }, deviceScaleFactor: 2 });
+    const W = await browser.newPage({ viewport: { width: 1000, height: 1000 }, deviceScaleFactor: 2 });
     await W.addInitScript((version) => {
       const state = {
         build: { version, commit: '' }, hostname: 'PORTATIL-PISTA-2', status: 'connected', error: null, paired: true,
         server: { address: '192.168.1.10', port: 3000, name: 'PORTATIL-PRINCIPAL' }, name: 'Portátil pista 2', discovered: [],
-        stationOpen: false,
+        stationOpen: false, autoStation: true, theme: 'dark',
         screens: [{ id: 'pantalla-1', label: 'Pantalla 1', matchLabel: 'Pista 1', mirrorOf: null }, { id: 'pantalla-2', label: 'Pantalla 2', matchLabel: 'Pista 2', mirrorOf: null }],
         desktop: { monitors: [{ key: 'm1', label: 'Monitor 1', width: 1920, height: 1080, primary: true }, { key: 'm2', label: 'Monitor 2', width: 1920, height: 1080, primary: false }],
           assignments: { 'pantalla-2': 'm2' }, preferences: { 'pantalla-1': 'none', 'pantalla-2': 'm2' }, closed: [] },
       };
       const ok = () => Promise.resolve({ ok: true });
-      window.stagemaster = { state: () => Promise.resolve(state), pair: ok, setMonitor: ok, openScreen: ok, unpair: ok, retry: ok, useAsMain: ok, openStation: ok, onState: () => {} };
+      window.stagemaster = { state: () => Promise.resolve(state), pair: ok, setMonitor: ok, openScreen: ok, unpair: ok, retry: ok, useAsMain: ok, openStation: ok, setAutoStation: ok, onState: () => {} };
     }, require('../../../package.json').version);
     await W.goto('file://' + path.join(H.ROOT, 'desktop', 'remote', 'remote.html'));
     await W.waitForSelector('#rm-linked:not(.hidden)');
-    await shot(W, 'remoto-ventana', { station: '#rm-station', screens: '#rm-screens', status: '#rm-status' });
+    await shot(W, 'remoto-ventana', { station: '#rm-station', screens: '#rm-screens', status: '#rm-status', uses: '.rm-uses',
+      mode: '.rm-mode', auto: '.rm-auto' });
 
     fs.writeFileSync(path.join(OUT, 'zonas.json'), JSON.stringify(zones, null, 2));
     console.log(`\n${Object.keys(zones).length} capturas en ${OUT}`);

@@ -1,7 +1,7 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.10.1** (2.10.0 + stickers con fondo de color, partidos aleatorios contra un árbitro de referencia, motor ~20× más rápido y limpieza; 2.10.0: 2.9.0 + realce de logos, tamaño con tiradores, nombres completos en la celebración y abreviados en las estadísticas; 2.9.0: SET/MATCH POINT, cinta de logos con orden, tamaño y fondo, estadísticas animadas, menos amarillo; 2.8.0: panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
+compactación de la conversación). Estado: **versión 2.11.0** (2.10.1 + temas oscuro/claro/alternativo, «GANADOR» grande, alto de la cinta con tirador, portátil remoto renovado y optimizaciones; 2.10.1: 2.10.0 + stickers con fondo de color, partidos aleatorios contra un árbitro de referencia, motor ~20× más rápido y limpieza; 2.10.0: 2.9.0 + realce de logos, tamaño con tiradores, nombres completos en la celebración y abreviados en las estadísticas; 2.9.0: SET/MATCH POINT, cinta de logos con orden, tamaño y fondo, estadísticas animadas, menos amarillo; 2.8.0: panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
 estéticos, pestaña «En vivo», teléfonos que no conectaban, publicidad que llena la LED y estación
 desde el portátil remoto, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
@@ -102,13 +102,13 @@ Versión 3 (petición «NUEVA FASE», todas sus fases completadas):
 | Análisis profundo final + paso a `main` + etiqueta | Cuando Santiago lo pida | — |
 | `.gitignore` de `*.exe` en la raíz | Propuesto, sin hacer | Confirmación de Santiago |
 | **Firma digital del .exe** («la app no es segura») | Sin firma. Mientras tanto: .zip en el enlace de prueba (con LEEME), USB y pasos en `docs/DESCARGA-Y-SEGURIDAD.md` | Decisión y coste: Azure Artifact Signing (solo empresas de EE. UU./Canadá/UE/RU o personas de EE. UU./Canadá) o certificado OV; datos legales de la empresa |
-| **Colores de la marca** (índigo / claro) | **En espera** por decisión de Santiago: la app sigue con su paleta azul oscuro | Paleta de la marca: índigo `#3C40C4`, índigo profundo `#242888`/`#444490`, azul cielo `#3898F4`, azul real `#1E5AC6`, celeste `#84D0FC`, fondo claro `#F0F8FC`, amarillo `#F9D207`. Recomendación: LED en índigo; estación y teléfono a elegir. Las maquetas de 2.6 (`docs/desarrollo/maquetas-marca/`) se retiraron en 2.10.1 porque la interfaz cambió; siguen en el historial de git (commit `4fab116`). Falta elegir opción por parte (LED / estación / teléfono) y el color de la Pista 2 |
+| **Colores de la marca** (índigo / claro) | **Hecho en 2.11.0**: temas elegibles en la estación («Colores») | Paleta de la marca: índigo `#3C40C4`, índigo profundo `#242888`/`#444490`, azul cielo `#3898F4`, azul real `#1E5AC6`, celeste `#84D0FC`, fondo claro `#F0F8FC`, amarillo `#F9D207`. Recomendación: LED en índigo; estación y teléfono a elegir. Las maquetas de 2.6 (`docs/desarrollo/maquetas-marca/`) se retiraron en 2.10.1 porque la interfaz cambió; siguen en el historial de git (commit `4fab116`). Falta elegir opción por parte (LED / estación / teléfono) y el color de la Pista 2 |
 
 ## 6. Pruebas
 
 | Comando | Contenido |
 |---|---|
-| `npm test` | Motor 65 · partidos aleatorios 1620 · núcleo 76 · monitores 14 · integración 48 |
+| `npm test` | Motor 65 · partidos aleatorios 1620 · núcleo 76 · monitores 14 · integración 49 |
 | `npm run test:e2e` | 11 conjuntos con Chromium y Electron reales: history, pause, brightness, screens, formats, station-ui (versión oculta, formatos, diálogo de resolución, avisos), live (pestaña En vivo), layout (matriz 4 formatos × 6 estados, incluido «GANADOR»), phone (partido completo), desktop, remote |
 | CI (`.github/workflows/stagemaster-windows.yml`) | En Windows: `npm test`, `desktop/displayModes.win.test.js` (resoluciones reales, sin cambiar la pantalla), `desktop/firewall.win.test.js` (diagnóstico y reglas del firewall, que borra al terminar), compilación y publicación del exe |
 
@@ -324,3 +324,20 @@ Ronda 11 (versión 2.10.1) — **stickers, partidos aleatorios y limpieza**:
   real (árbitro = pantalla = motor) y al historial.
 - Retirados: `docs/desarrollo/AUDITORIA-V3.md`, `docs/desarrollo/maquetas-marca/` (paleta copiada arriba),
   `build/icon.png` (duplicado de `desktop/icon.png`).
+
+Ronda 13 (versión 2.11.0) — **temas, «GANADOR», alto de la cinta, portátil remoto y análisis completo**:
+- Temas: `server/core/appearance.js` (data/apariencia.json; `ui` y `led`: dark | light | alt), evento
+  `appearance` a TODOS al conectar y al cambiar (`station:appearance`, solo estación). Clientes:
+  `js/common/theme-boot.js` (pone `<html data-theme>` antes de pintar, desde localStorage) y
+  `js/common/theme.js` (`followTheme(socket, 'ui'|'led')`). Estilos: `css/themes.css` (solo variables
+  + pocos ajustes); en station.css/score.css los colores fijos pasaron a variables (`--st-strong`,
+  `--st-on-accent`, `--st-raised`, `--st-chip`, `--st-pin-bg`, `--st-zone-bg`…, `--d-text`, `--d-label`,
+  `--d-panel-*`, `--d-cel-*`, `--d-ribbon-*`). Logo índigo `img/logo-stagemaster-indigo.png` en el claro
+  (CSS `content`). Estación: botón «Colores» (`station/appearance.js`). Ayuda y portátil remoto también.
+- LED: `.display.has-winner` agranda el separador; `#d-divider-label[data-side]` pone ▲/▼.
+- Cinta: `.rb-height-handle` en la vista previa (`initRibbonResize(…, onHeight)`), 14-32 %, doble clic = 0.
+- Portátil remoto: `desktop/remote/remote.html` rehecho (modo remoto/principal, pasos, «¿Cómo usarás este
+  portátil?»: Estación del moderador con `autoStation` (abrirla al iniciar) y Pantallas); sigue el tema.
+- Teléfono: vibración al confirmarse un punto; «Último: …» bajo Deshacer (diferencia de `stats.points`).
+- Optimización: caché LRU de logos (80), caché del historial por tamaño+fecha, nombre reservado en subidas
+  simultáneas, Inter 800 local, socket.io-client 4.8.4, CI sube solo los vídeos que cambiaron.

@@ -32,6 +32,8 @@ const MAX_UPLOAD_BYTES = 2 * 1024 ** 3;
  */
 function createAdsRouter({ onChange, onRemoved, authorize }) {
   const router = express.Router();
+  // Nombres de las subidas en curso: dos subidas a la vez con el mismo nombre no se pisan
+  const uploading = new Map(Object.keys(ads.CATEGORIES).map((c) => [c, new Set()]));
 
   router.use((req, res, next) => {
     if (authorize(req)) return next();
@@ -53,7 +55,10 @@ function createAdsRouter({ onChange, onRemoved, authorize }) {
 
     const folder = ads.folderOf(category);
     fs.mkdirSync(folder, { recursive: true });
-    const name = ads.uniqueFileName(category, safe);
+    const reserved = uploading.get(category);
+    const name = ads.uniqueFileName(category, safe, reserved);
+    reserved.add(name.toLowerCase());
+    res.on('close', () => reserved.delete(name.toLowerCase()));
     const finalPath = path.join(folder, name);
     const tempPath  = path.join(folder, `.${name}.${process.pid}.subiendo`);
     const out = fs.createWriteStream(tempPath);

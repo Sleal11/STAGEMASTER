@@ -82,6 +82,8 @@ const H = require('./harness');
     await D.waitForFunction(() => document.getElementById('pts-a').textContent === '30');
     T.check('Cada punto llega a la pantalla al momento (30-0)', true);
     await tapPoint('b');
+    await P.waitForFunction(() => document.getElementById('last-action').textContent.includes('Coello'));
+    T.check('Bajo «Deshacer»: «Último: punto para …» (lo que se registró)', (await P.textContent('#last-action')).startsWith('Último: punto para'));
     const v = st.match('pista-1').state.version;
     await P.tap('#btn-undo');
     await H.sleep(300);
@@ -91,6 +93,8 @@ const H = require('./harness');
     await H.waitFor(() => st.match('pista-1').state.version > v, 'deshacer');
     await D.waitForFunction(() => document.getElementById('pts-b').textContent === '0');
     T.check('Deshacer desde el teléfono corrige la pantalla', true);
+    await P.waitForFunction(() => document.getElementById('last-action').textContent.includes('deshizo'));
+    T.check('…y la última acción pasa a «se deshizo un punto»', true);
     await tapPoint('a');
     await tapPoint('a');
     // Reglamento: el set se gana con 2 games de diferencia (1-0 no basta): otro game

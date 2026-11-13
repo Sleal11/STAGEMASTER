@@ -98,6 +98,9 @@ function renderZoneSummaries(state) {
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const playing  = count(state.matches, (m) => m.state && m.state.status === 'playing');
   const finished = count(state.matches, (m) => m.state && m.state.status === 'finished');
+  // Título de la ventana (barra de tareas): se ve si hay partidos en juego sin abrir la estación
+  const title = (playing ? `● ${plural(playing, 'partido en juego', 'partidos en juego')} · ` : '') + 'StageMaster · Estación';
+  if (document.title !== title) document.title = title;
   patch($('st-courts-summary'), [plural(state.matches.length, 'pista', 'pistas'),
     playing && `<span class="dot ok"></span>${playing} en juego`, finished && `${finished} ${finished === 1 ? 'finalizada' : 'finalizadas'}`]
     .filter(Boolean).join(' · '));

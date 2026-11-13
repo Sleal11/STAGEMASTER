@@ -2,25 +2,30 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <script src="js/common/theme-boot.js" data-scope="ui"></script>
   <!-- ayuda.html — Guía rápida para el cliente (se abre desde el botón "Ayuda" de la estación) -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>StageMaster · Ayuda</title>
   <link rel="stylesheet" href="css/shared.css" />
   <style>
-    body { background: #06142C; padding: 28px; line-height: 1.55; font-size: 16px; }
+    /* Colores del tema elegido en la estación (oscuro, claro o alternativo) */
+    :root { --h-bg: #06142C; --h-accent: #8FD3FF; --h-text: #DCEBFA; --h-strong: #FFFFFF; --h-soft: #BEE6FF; --h-line: #1E4F9C; --h-tip: #0C2C63; --h-muted: #7D99BE; }
+    :root[data-theme="alt"] { --h-bg: #3C40C4; --h-accent: #84D0FC; --h-text: #E6EAFF; --h-soft: #D3DCFF; --h-line: #5357D2; --h-tip: #2A2EA2; --h-muted: #B9C1F2; }
+    :root[data-theme="light"] { --h-bg: #F0F8FC; --h-accent: #3C40C4; --h-text: #2A3270; --h-strong: #1E2270; --h-soft: #3A4398; --h-line: #CFE2F3; --h-tip: #FFFFFF; --h-muted: #5D6AA3; }
+    body { background: var(--h-bg); color: var(--h-text); padding: 28px; line-height: 1.55; font-size: 16px; }
     main { max-width: 860px; margin: 0 auto; }
-    h1 { font-family: var(--font-score); font-size: 2rem; margin-bottom: 4px; }
-    h2 { display: flex; align-items: center; gap: 10px; margin: 30px 0 10px; font-size: 1.1rem; color: #8FD3FF; text-transform: uppercase; letter-spacing: 1px; }
+    h1 { font-family: var(--font-score); font-size: 2rem; margin-bottom: 4px; color: var(--h-strong); }
+    h2 { display: flex; align-items: center; gap: 10px; margin: 30px 0 10px; font-size: 1.1rem; color: var(--h-accent); text-transform: uppercase; letter-spacing: 1px; }
     h2 .icon { width: 22px; height: 22px; }
-    p, li { color: #DCEBFA; }
+    p, li { color: var(--h-text); }
     ol, ul { padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
-    strong { color: #fff; }
-    .intro { color: #BEE6FF; }
+    strong { color: var(--h-strong); }
+    .intro { color: var(--h-soft); }
     table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-    td { padding: 8px 10px; border-bottom: 1px solid #1E4F9C; vertical-align: top; color: #DCEBFA; }
-    td:first-child { width: 34%; font-weight: 700; color: #fff; }
-    .version { margin-top: 36px; font-size: 0.8rem; color: #7D99BE; text-align: center; }
-    .tip { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: #0C2C63; border-left: 4px solid #8FD3FF; }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--h-line); vertical-align: top; color: var(--h-text); }
+    td:first-child { width: 34%; font-weight: 700; color: var(--h-strong); }
+    .version { margin-top: 36px; font-size: 0.8rem; color: var(--h-muted); text-align: center; }
+    .tip { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: var(--h-tip); border-left: 4px solid var(--h-accent); }
   </style>
 </head>
 <body>
@@ -52,6 +57,7 @@
     <li>El árbitro escanea con la cámara el <strong>QR de «Acceso de los árbitros»</strong> (uno solo para todas las pistas).</li>
     <li>Escribe el <strong>código de su pista</strong> (4 cifras, en la tarjeta de cada pista). El código decide la pista: su teléfono confirma <strong>CONECTADO A PISTA 1</strong> (o 2).</li>
     <li>Arriba verá siempre <strong>CONTROLAS PISTA 1</strong>: suma puntos, deshace, cambia el saque y puede pausar. Para dirigir otra pista: <strong>Cambiar de pista</strong> y el código de la otra.</li>
+    <li>Bajo <strong>Deshacer</strong> se lee lo último registrado («Último: punto para …», venga del teléfono o de la estación) y, en Android, el teléfono <strong>vibra</strong> al confirmarse cada punto.</li>
   </ol>
   <p class="tip">Teléfonos: bloqueo automático en <strong>Nunca</strong> y modo avión con la Wi-Fi activada.</p>
 
@@ -59,7 +65,7 @@
   <table>
     <tr><td>Marcador</td><td>El partido, con la <strong>cinta publicitaria</strong> abajo si está activa. Sin partido, se ve la lista de reproducción (o "Próximo partido").</td></tr>
     <tr><td>Publicidad y vídeos</td><td>La <strong>lista de reproducción</strong> a pantalla completa, en bucle. Con <strong>Pausar</strong>, <strong>Reanudar</strong> y <strong>Detener</strong> (vuelve al marcador). Si hay un partido en juego, pide confirmación.</td></tr>
-    <tr><td>Al terminar el partido</td><td><strong>Celebración</strong> de los ganadores (6 s, estilo retransmisión: pista de pádel, pala y pelota, resultado por set y la firma de StageMaster) y después se alternan cada 10 s el <strong>marcador con el ganador</strong> (fila destacada, trofeo y «GANADOR») y las <strong>estadísticas</strong> en grande (si los nombres no caben, se abrevian igual en las dos parejas: «A. Tapia / A. Coello» o «Tapia / Coello»; en la celebración los nombres salen siempre completos): juegos y puntos ganados, puntos de oro, breaks, mejor racha y duración (sin las pausas). Las estadísticas se pueden quitar en cada pantalla: <strong>Contenido → Final del partido</strong>. Si está activada la publicidad al terminar, empieza después de la celebración. Con un partido nuevo vuelve el marcador.</td></tr>
+    <tr><td>Al terminar el partido</td><td><strong>Celebración</strong> de los ganadores (6 s, estilo retransmisión: pista de pádel, pala y pelota, resultado por set y la firma de StageMaster) y después se alternan cada 10 s el <strong>marcador con el ganador</strong> (fila destacada, trofeo y «▲ GANADOR» en grande, señalando la fila ganadora) y las <strong>estadísticas</strong> en grande (si los nombres no caben, se abrevian igual en las dos parejas: «A. Tapia / A. Coello» o «Tapia / Coello»; en la celebración los nombres salen siempre completos): juegos y puntos ganados, puntos de oro, breaks, mejor racha y duración (sin las pausas). Las estadísticas se pueden quitar en cada pantalla: <strong>Contenido → Final del partido</strong>. Si está activada la publicidad al terminar, empieza después de la celebración. Con un partido nuevo vuelve el marcador.</td></tr>
     <tr><td>Identificar</td><td>Muestra "PANTALLA 1" en grande, con su tamaño real en píxeles.</td></tr>
     <tr><td>Añadir pantalla</td><td>Hasta 8. La papelera de su tarjeta la quita (pide confirmación).</td></tr>
   </table>
@@ -71,10 +77,13 @@
   <p class="tip">Cada pestaña es un botón grande con su <strong>resumen a la vista</strong> (p. ej. «Cinta · Apagada», «Lista de reproducción · 3 archivos», «Salida · Monitor completo»). Dentro, los ajustes van en grupos con título. Los archivos se ven con <strong>miniatura</strong>, con <strong>Todos</strong> / <strong>Ninguno</strong> y, en la lista de reproducción, con su <strong>número de orden</strong>.</p>
   <table>
     <tr><td>Contenido</td><td><strong>Origen</strong>: propio o <strong>igual que otra pantalla</strong> (espejo: lo mismo y a la vez, con su propio monitor, formato y brillo; ej. una LED a cada lado de la pista). Qué partido muestra (varias pantallas pueden mostrar el mismo), la <strong>publicidad en la pausa</strong> y la <strong>publicidad al terminar</strong>: al acabar el partido se ve el resultado unos segundos y después la lista de reproducción. Vuelve al marcador con <strong>Volver al marcador</strong>, al empezar otro partido o al deshacer el último punto.</td></tr>
-    <tr><td>Cinta</td><td>Activar o quitar la cinta, elegir logos (PNG, JPG o SVG: el fondo se quita solo, sea blanco, negro, de color o una foto; en un sticker se respeta su placa interior) y vídeos cortos (siempre sin sonido) y escribir mensajes (uno por línea y <strong>Aplicar mensajes</strong>). <strong>Movimiento</strong>: <strong>uno cada vez</strong>, <strong>logos fijos</strong> (varios a la vez; si no caben, por grupos que se turnan) o <strong>desplazamiento continuo</strong>. <strong>Aspecto</strong>: fondo <strong>oscuro</strong> o <strong>claro</strong> (todos los logos sobre el mismo fondo; lo que no se vería, como un texto negro sobre el oscuro, se ajusta solo) y el <strong>alto</strong> de la cinta (más alta = logos más grandes). <strong>Orden, tamaño y realce de los logos</strong>: vista previa de cómo se verá. <strong>Como en Word</strong>: haz clic en un logo de la vista previa y arrastra sus esquinas para agrandarlo o achicarlo. En la lista, arrastra los logos (o usa las flechas) para ordenarlos y ajusta el tamaño (100 % = automático). <strong>Realce</strong>, por si un logo no se lee bien en la LED: <strong>Automático</strong> (aclara solo las partes que no se ven, como un texto marrón o plateado), <strong>Definir</strong>, <strong>Contorno blanco</strong> (un borde alrededor de todo el logo), <strong>Definir + contorno</strong> o <strong>Sin realce</strong>.</td></tr>
+    <tr><td>Cinta</td><td>Activar o quitar la cinta, elegir logos (PNG, JPG o SVG: el fondo se quita solo, sea blanco, negro, de color o una foto; en un sticker se respeta su placa interior) y vídeos cortos (siempre sin sonido) y escribir mensajes (uno por línea y <strong>Aplicar mensajes</strong>). <strong>Movimiento</strong>: <strong>uno cada vez</strong>, <strong>logos fijos</strong> (varios a la vez; si no caben, por grupos que se turnan) o <strong>desplazamiento continuo</strong>. <strong>Aspecto</strong>: fondo <strong>oscuro</strong> o <strong>claro</strong> (todos los logos sobre el mismo fondo; lo que no se vería, como un texto negro sobre el oscuro, se ajusta solo) y el <strong>alto</strong> de la cinta (más alta = logos más grandes; también arrastrando el <strong>borde de arriba</strong> de la vista previa, como en Word; doble clic = automático). <strong>Orden, tamaño y realce de los logos</strong>: vista previa de cómo se verá. <strong>Como en Word</strong>: haz clic en un logo de la vista previa y arrastra sus esquinas para agrandarlo o achicarlo. En la lista, arrastra los logos (o usa las flechas) para ordenarlos y ajusta el tamaño (100 % = automático). <strong>Realce</strong>, por si un logo no se lee bien en la LED: <strong>Automático</strong> (aclara solo las partes que no se ven, como un texto marrón o plateado), <strong>Definir</strong>, <strong>Contorno blanco</strong> (un borde alrededor de todo el logo), <strong>Definir + contorno</strong> o <strong>Sin realce</strong>.</td></tr>
     <tr><td>Lista de reproducción</td><td>Imágenes y vídeos a pantalla completa (en orden alfabético), segundos de cada imagen y si los vídeos llevan sonido.</td></tr>
     <tr><td>Salida</td><td>En qué <strong>monitor</strong> se ve (con su resolución real, Hz y escalado), el <strong>brillo de la imagen</strong> y el <strong>formato</strong>: <strong>monitor completo</strong> o <strong>personalizado</strong> con el tamaño exacto de la LED (ancho × alto, p. ej. 832 × 416 o 416 × 208, que puedes <strong>guardar</strong> con un nombre), con su posición (normalmente 0, 0). <strong>Publicidad</strong>: cómo ocupan la pantalla las imágenes y vídeos; <strong>Automático</strong> (recomendado) los estira para que llenen todo, igual que el marcador (una foto vertical se ve completa sobre un fondo difuminado); también <strong>Estirar siempre</strong>, <strong>Llenar recortando los bordes</strong> o <strong>Completa con fondo difuminado</strong>. En Windows, <strong>Cambiar resolución del monitor…</strong> ofrece solo los modos que admite; si no pulsas <strong>Mantener</strong> en 15 s, vuelve solo al anterior.</td></tr>
   </table>
+
+  <h2><svg class="icon"><use href="img/icons.svg#palette"></use></svg>Colores</h2>
+  <p>Arriba, <strong>Colores</strong>: <strong>Oscuro</strong> (el de siempre), <strong>Claro</strong> (blanco de marca) o <strong>Alternativo</strong> (índigo de marca), por separado para la <strong>estación y los teléfonos</strong> y para las <strong>pantallas LED</strong>. Se aplica al instante en todos los dispositivos y se recuerda. En una LED, el claro deslumbra más: mejor oscuro o alternativo.</p>
 
   <h2><svg class="icon"><use href="img/icons.svg#upload"></use></svg>5 · Añadir publicidad (fotos y vídeos)</h2>
   <ol>
@@ -85,7 +94,7 @@
     <li>También puedes copiarlos a mano con <strong>Carpeta de publicidad</strong> (carpetas <strong>banner</strong> y <strong>pantalla-completa</strong>) y pulsar <strong>Actualizar publicidad</strong>.</li>
   </ol>
 
-  <h2><svg class="icon"><use href="img/icons.svg#monitor"></use></svg>6 · Pantallas en otro portátil (pistas lejos)</h2>
+  <h2><svg class="icon"><use href="img/icons.svg#monitor"></use></svg>6 · Otro portátil (pista lejos o segundo moderador)</h2>
   <ol>
     <li>Conecta los dos portátiles a la <strong>misma red</strong> (mejor por cable de red; no hace falta Internet).</li>
     <li>En el portátil de la pista lejana abre StageMaster y, en <strong>Portátiles remotos</strong>, pulsa <strong>Usar este portátil como portátil remoto</strong>.</li>

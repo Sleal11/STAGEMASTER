@@ -60,8 +60,17 @@ function createHistory() {
     }
   }
 
+  // Lo último leído: se reutiliza mientras el archivo no cambie (la estación consulta a menudo)
+  let cached = null;   // { stamp, byUid }
+
   /** Lee el archivo y devuelve el estado actual de cada partido (último evento por uid) */
   function load() {
+    let stamp = null;
+    try {
+      const st = fs.statSync(file);
+      stamp = `${st.size}:${st.mtimeMs}`;
+    } catch (_) { return new Map(); }
+    if (cached && cached.stamp === stamp) return cached.byUid;
     let text = '';
     try { text = fs.readFileSync(file, 'utf8'); } catch (_) { return new Map(); }
     const byUid = new Map();
@@ -72,6 +81,7 @@ function createHistory() {
         if (event && typeof event.uid === 'string') byUid.set(event.uid, event);
       } catch (_) { /* línea dañada (corte de luz al escribir): se ignora */ }
     });
+    cached = { stamp, byUid };
     return byUid;
   }
 

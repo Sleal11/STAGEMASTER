@@ -1,4 +1,4 @@
-# StageMaster · Informe del proyecto (versión 2.10.1)
+# StageMaster · Informe del proyecto (versión 2.11.0)
 
 > Estado a **noviembre de 2026**. Versión que está operando en eventos reales.
 > Resumen corto: [`RESUMEN.md`](../RESUMEN.md). Historial del desarrollo:
@@ -123,7 +123,7 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 - Cada cambio en la rama de trabajo compila el `.exe` y el `.zip` **en un Windows real**
   (GitHub Actions) tras pasar las pruebas, y los publica en el enlace fijo de prueba:
   `releases/download/prueba/StageMaster-prueba.exe` (y `.zip`).
-- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.10.1` → Releases.
+- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.11.0` → Releases.
 - Mientras se valida una versión grande, la prueba se publica en `prueba-nueva`
   (la anterior sigue en `prueba`); variable `PRUEBA_TAG` del flujo de compilación.
 
@@ -150,14 +150,20 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 | Partidos aleatorios | 1 620 partidos · 181 000 acciones | Las 540 modalidades (games 1-6 × 1, 3, 5, 7 y 9 sets × ventaja, punto de oro y FIP 2026 × tie break, súper tie break y sin desempate × saque A o B), con «Deshacer», «Cambiar saque» y «Finalizar» al azar; cada acción se compara con un árbitro de referencia escrito aparte (marcador, saque, fase, sets, ganador, punto de oro, SET/MATCH POINT y estadísticas) |
 | Núcleo del servidor | 76 | Cinta (orden, tamaño, alto, fondo), Partidos, versiones, códigos de pista únicos, tokens, pantallas, publicidad, formatos, migraciones |
 | Monitores | 14 | Qué pantalla va en qué monitor al conectar/desconectar |
-| Integración | 48 | Servidor real + estación + teléfonos (el código decide la pista) + pantallas + portátil remoto por la IP de red |
-| Navegador y Electron (e2e) | 15 conjuntos · 391 comprobaciones | Cinta de logos (orden, tamaño con tiradores, arrastrar, logos fijos, fondo, realce, stickers con fondo de color), set point y match point, estación (zonas, minimizar, pestañas con resumen, Todos/Ninguno, Historial al instante, resolución lenta), teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
+| Integración | 49 | Servidor real + estación + teléfonos (el código decide la pista) + pantallas + portátil remoto por la IP de red |
+| Navegador y Electron (e2e) | 15 conjuntos · 400 comprobaciones | Colores (temas en estación, teléfono, LED y portátil remoto), cinta de logos (orden, tamaño y alto con tiradores, arrastrar, logos fijos, fondo, realce, stickers con fondo de color), set point y match point, estación (zonas, minimizar, pestañas con resumen, Todos/Ninguno, Historial al instante, resolución lenta), teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
 | Windows real (CI) | 2 | Cambio de resolución y firewall en un Windows de verdad |
 
 ## 5. Análisis de errores (y su corrección)
 
 | Problema | Efecto | Corrección |
 |---|---|---|
+| «GANADOR» pequeño en la LED (2.11.0) | Difícil de leer de lejos | Separador más alto, letras grandes y espaciadas, flecha hacia la fila ganadora (también en 416 × 208) |
+| Dos subidas a la vez con el mismo nombre (2.11.0) | La segunda pisaba a la primera | Nombre reservado mientras dura la subida |
+| Caché de logos limpios sin tope (2.11.0) | En un evento largo, probar realces hacía crecer la memoria | Tope de 80 versiones (las menos usadas se olvidan) |
+| El historial se leía entero en cada consulta (2.11.0) | Con años de partidos, consultas lentas | Se reutiliza mientras el archivo no cambie |
+| Inter 800 no se cargaba (2.11.0) | 12 textos «extra negrita» se veían en 700 | Fuente local añadida |
+| El CI subía los vídeos en cada cambio (2.11.0) | 64 MB por compilación | Solo los que cambiaron; un fallo no invalida el .exe |
 | Logos tipo sticker en JPG con fondo negro, rojo o una foto (2.10.1) | Aviador (fondo negro) salía como un rectángulo BLANCO; El Wey y La Condesa, dentro de su recuadro de color; Cielo Rosa con la barra gris de la captura | Se quita el fondo de cualquier color desde los bordes (sin colarse en el logo aunque su borde esté difuminado); las líneas finas del borde y las motas se descartan |
 | La placa negra de un sticker se volvía blanca y se comía su texto blanco (2.10.1) | «EL WEY» y «AUTO REPUESTOS» desaparecían | Solo se aclara lo oscuro que toca la cinta; lo que queda dentro del logo, rodeado de su borde claro, se respeta |
 | «Automático» aplanaba los logos metálicos (2.10.1) | Zumaque quedaba desvaído | Curva suave que conserva el orden de los tonos; «Definir» sigue siendo el modo fuerte |
@@ -207,7 +213,7 @@ ya era atómico y todas las órdenes validan sus datos.
 2. **Router propio** para el evento (sin Internet, con contraseña) y el portátil enchufado a la corriente.
 3. Publicidad en **2:1** (832 × 416 o 1664 × 832, como `marketing/videos-led/`) y vídeos MP4 H.264.
 4. Hacer el **simulacro** de [`SIMULACRO-EVENTO.md`](SIMULACRO-EVENTO.md) antes de cada evento grande.
-5. Publicar la versión para el cliente en **Releases** (`v2.10.1`) y usar ese enlace fijo.
+5. Publicar la versión para el cliente en **Releases** (`v2.11.0`) y usar ese enlace fijo.
 
 ### Mejoras de funcionalidad (por orden de valor)
 | # | Mejora | Valor | Esfuerzo |
@@ -215,7 +221,7 @@ ya era atómico y todas las órdenes validan sus datos.
 | 1 | **Cola de partidos por pista** (cargar los próximos partidos de un torneo y pasar al siguiente con un clic) | Ahorra tiempo entre partidos | Medio |
 | 2 | **Copia de seguridad de la configuración** (pantallas, formatos, publicidad) para pasarla a otro portátil | Montaje más rápido | Bajo |
 | 3 | **Aviso sonoro** en la estación si una pantalla o un teléfono se desconecta | Reacción inmediata | Bajo |
-| 4 | **Colores de marca** del marcador (paleta en `docs/desarrollo/CONTEXTO-DESARROLLO.md`) | Identidad visual | Medio |
+| 4 | **Colores por pantalla** (hoy un tema para todas las LED) | Una LED de interior y otra de exterior | Bajo |
 | 5 | **Brillo físico** desde StageMaster (SDK del procesador LED) | Control total de la LED | Depende del fabricante |
 | 6 | **Firma digital** del `.exe` (certificado OV o servicio de firma) | Sin avisos de Windows | Coste anual |
 | 7 | **Más estadísticas** (duración por set) y exportar PDF del resultado del historial | Valor para organizadores | Medio |

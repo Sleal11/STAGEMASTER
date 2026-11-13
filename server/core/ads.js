@@ -113,13 +113,17 @@ function safeFileName(category, rawName) {
   return base ? base + ext : null;
 }
 
-/** "promo.png" → "promo (2).png" si ya existe (nunca se pisa un archivo) */
-function uniqueFileName(category, name) {
+/**
+ * "promo.png" → "promo (2).png" si ya existe (nunca se pisa un archivo).
+ * @param {Set<string>} [reserved] - nombres de subidas en curso (dos subidas a la vez con el mismo nombre)
+ */
+function uniqueFileName(category, name, reserved = new Set()) {
   const folder = folderOf(category);
   const ext = path.extname(name);
   const base = name.slice(0, -ext.length);
+  const taken = (candidate) => reserved.has(candidate.toLowerCase()) || fs.existsSync(path.join(folder, candidate));
   let candidate = name;
-  for (let n = 2; fs.existsSync(path.join(folder, candidate)); n++) candidate = `${base} (${n})${ext}`;
+  for (let n = 2; taken(candidate); n++) candidate = `${base} (${n})${ext}`;
   return candidate;
 }
 

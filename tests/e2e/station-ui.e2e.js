@@ -164,6 +164,30 @@ const MODES = [[1920, 1080, 100], [1920, 1080, 85], [1920, 1080, 60], [1920, 108
     await st.screen('pantalla-1', { media: { items: [] } });
     await S.waitForSelector(`${card(1)} .st-warning`, { timeout: 3000 });
     T.check('Si el problema se arregla y vuelve, el aviso vuelve a salir', true);
+    // ── Colores: oscuro / claro / alternativo, en la estación y en las pantallas ──
+    const D = await browser.newPage({ viewport: { width: 832, height: 416 } });
+    H.watchErrors(D, 'pantalla', errors);
+    await D.goto('http://localhost:3408/score.html?pantalla=1');
+    await D.waitForSelector('#d-board:not(.hidden)');
+    await S.click('#st-theme');
+    await S.waitForSelector('#dlg-theme[open] .theme-option');
+    T.check('«Colores»: tres temas para la estación y teléfonos y tres para las pantallas LED',
+      (await S.$$('[data-theme-scope="ui"]')).length === 3 && (await S.$$('[data-theme-scope="led"]')).length === 3);
+    await S.click('[data-theme-scope="ui"][data-theme-value="light"]');
+    await S.click('[data-theme-scope="led"][data-theme-value="alt"]');
+    await S.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    await D.waitForFunction(() => document.documentElement.dataset.theme === 'alt');
+    const bg = await S.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    T.check('Claro en la estación y alternativo (índigo) en la pantalla, al instante', bg === 'rgb(240, 248, 252)', bg);
+    await S.screenshot({ path: `${H.OUT}/estacion-tema-claro.png` });
+    await D.screenshot({ path: `${H.OUT}/pantalla-tema-alternativo.png` });
+    await S.reload();
+    await S.waitForSelector('[data-match-card="pista-1"]');
+    T.check('Se recuerda al recargar (sin destello del tema oscuro)', await S.evaluate(() => document.documentElement.dataset.theme) === 'light');
+    await S.click('#st-theme');
+    await S.click('[data-theme-scope="ui"][data-theme-value="dark"]');
+    await S.click('[data-theme-scope="led"][data-theme-value="dark"]');
+    await S.click('#dlg-theme-close');
     T.check('Sin errores de JavaScript', errors.length === 0, errors.join(' | '));
   } catch (err) {
     T.check('La prueba se completa sin excepciones', false, err.message.split('\n')[0]);

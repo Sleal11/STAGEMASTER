@@ -68,7 +68,13 @@ const OUTLINE       = 0.022; // grosor del contorno (fracción del lado menor de
 /** Realces de un logo (el primero es el de por defecto) */
 export const LOGO_EFFECTS = ['auto', 'none', 'define', 'outline', 'both'];
 
+/**
+ * Versiones ya preparadas (logo × fondo × realce). Con un tope: en un evento
+ * largo, probar realces o cambiar logos no hace crecer la memoria sin fin
+ * (se olvidan las menos usadas; si vuelven a hacer falta, se preparan otra vez).
+ */
 const cache = new Map();
+const CACHE_LIMIT = 80;
 
 /**
  * Devuelve (promesa) la URL de la versión limpia, o la original si no hace falta o falla
@@ -79,8 +85,12 @@ export function cleanLogo(url, background = 'dark', effect = 'auto') {
   const bg = BACKGROUNDS[background] ? background : 'dark';
   const fx = LOGO_EFFECTS.includes(effect) ? effect : 'auto';
   const key = bg + '|' + fx + '|' + url;
-  if (!cache.has(key)) cache.set(key, process(url, BACKGROUNDS[bg], fx).catch(() => url));
-  return cache.get(key);
+  let entry = cache.get(key);
+  if (entry) cache.delete(key);   // al final: es la más reciente
+  else entry = process(url, BACKGROUNDS[bg], fx).catch(() => url);
+  cache.set(key, entry);
+  if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value);
+  return entry;
 }
 
 function loadImage(url) {

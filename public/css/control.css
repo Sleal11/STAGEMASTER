@@ -1073,3 +1073,6 @@ body.is-offline .btn-secondary {
   line-height: 1.45;
   color: var(--text-secondary);
 }
+
+/* Última acción registrada (bajo «Deshacer») */
+.last-action { min-height: 1.2em; margin: -4px 0 0; text-align: center; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
