@@ -43,8 +43,9 @@ const TEXT_MIN_SCALE = 0.78;
  * @param {HTMLElement} container
  * @param {Object}   hooks
  * @param {Function} hooks.onChange - Cambió el contenido (p. ej. una imagen falló)
+ * @param {Function} [hooks.onMove] - Pasó a otro elemento o grupo (para sincronizar «En vivo»)
  */
-export function createRibbon(container, { onChange }) {
+export function createRibbon(container, { onChange, onMove = () => {} }) {
   let config    = null;
   let active    = false;
   let signature = '';
@@ -52,6 +53,12 @@ export function createRibbon(container, { onChange }) {
   let animation = null;
   let current   = null;
   let index     = -1;
+  let shownAt   = 0;     // cuándo apareció lo que se ve (para informar y seguir)
+  let fixedView = null;  // «logos fijos»: { show(k), page() }
+  let turnMs    = 0;     // duración del turno que se ve (imagen o mensaje); 0 = no se realinea (vídeo, único)
+  let advanceFn = null;  // qué hacer al acabar el turno (rotateNext o el siguiente grupo)
+  let alignOnShow = null; // «rotar»: realinear cuando aparezca el elemento que se está cargando { elapsed, at }
+  let incoming  = null;  // «rotar»: el elemento que se está cargando (aún no se ve)
   let build     = 0;   // invalida cargas de una configuración anterior
   const failed  = new Set();
 
@@ -84,16 +91,69 @@ export function createRibbon(container, { onChange }) {
     rebuild();
   }
 
+  /**
+   * Vuelve a montar la cinta. Si ya se estaba viendo, SIGUE donde iba (el
+   * mismo logo, grupo o punto del desplazamiento): cambiar un tamaño, el
+   * fondo o el alto no hace que empiece otra vez desde el primero.
+   */
   function rebuild() {
+    const resume = active && current ? position() : null;
     stop();
     container.innerHTML = '';
     build++;
     if (!active || !hasContent()) return;
     container.dataset.motion = config.motion;
     container.dataset.bg = config.background || 'dark';
-    if (config.motion === 'scroll') buildScroll(build);
-    else if (config.motion === 'fixed') buildFixed(build);
-    else rotateNext();
+    const keep = resume && resume.motion === config.motion ? resume : null;
+    if (config.motion === 'scroll') buildScroll(build, keep);
+    else if (config.motion === 'fixed') buildFixed(build, keep);
+    else rotateNext(keep ? keep.key : null);
+  }
+
+  /** Qué se ve ahora: { motion, key (elemento o grupo), elapsed (ms) } */
+  function position() {
+    if (!active || !config) return null;
+    if (config.motion === 'scroll') {
+      return animation ? { motion: 'scroll', key: 0, elapsed: Number(animation.currentTime) || 0 } : null;
+    }
+    if (config.motion === 'fixed') return fixedView ? { motion: 'fixed', key: fixedView.page(), elapsed: Date.now() - shownAt } : null;
+    return current ? { motion: 'rotate', key: index, elapsed: Date.now() - shownAt } : null;
+  }
+
+  /**
+   * Seguir a otra pantalla (vista previa de «En vivo»): mostrar lo mismo que
+   * la pantalla real. Solo cambia si va por otro elemento/grupo, o si el
+   * desplazamiento va desfasado más de medio segundo. Devuelve false si la
+   * cinta aún no está montada como la real (se vuelve a intentar).
+   */
+  function follow(pos) {
+    if (!pos) return true;
+    if (!active || !config || pos.motion !== config.motion) return false;   // aún no está igual: reintentar
+    if (pos.motion === 'scroll') {
+      if (!animation) return false;
+      const duration = animation.effect.getTiming().duration;
+      const target = duration ? pos.elapsed % duration : 0;
+      if (Math.abs((Number(animation.currentTime) || 0) - target) > 500) animation.currentTime = target;
+    } else if (pos.motion === 'fixed') {
+      if (!fixedView) return false;
+      if (fixedView.page() !== pos.key) { clearTimeout(timer); fixedView.show(pos.key); }
+      align(pos.elapsed);
+    } else if (pos.key !== index || (incoming && incoming !== current)) {
+      // El elemento se carga (asíncrono): el turno se ajusta cuando aparezca
+      alignOnShow = { elapsed: pos.elapsed, at: Date.now() };
+      if (pos.key !== index) rotateNext(pos.key);
+    } else {
+      align(pos.elapsed);
+    }
+    return true;
+  }
+
+  /** El turno actual termina cuando termina en la pantalla real (no cuando empezó aquí) */
+  function align(elapsed) {
+    if (!turnMs || !advanceFn || !Number.isFinite(elapsed)) return;
+    clearTimeout(timer);
+    shownAt = Date.now() - elapsed;
+    timer = setTimeout(advanceFn, Math.max(150, turnMs - elapsed));
   }
 
   function stop() {
@@ -102,6 +162,9 @@ export function createRibbon(container, { onChange }) {
     container.querySelectorAll('video').forEach(releaseVideo);
     animation = null;
     current = null;
+    fixedView = null;
+    alignOnShow = null;
+    incoming = null;
     index = -1;
   }
 
@@ -175,26 +238,34 @@ export function createRibbon(container, { onChange }) {
 
   // ── Movimiento "rotate": uno cada vez ───────────────────────────
 
-  function rotateNext() {
+  /** @param {number|null} [target] - elemento que hay que mostrar (seguir / continuar); si no, el siguiente */
+  function rotateNext(target = null) {
     clearTimeout(timer);
     const list = items();
     if (list.length === 0) return;
     if (list.length === 1 && current) return;   // un único elemento: se queda
 
-    index = (index + 1) % list.length;
+    index = Number.isInteger(target) ? ((target % list.length) + list.length) % list.length : (index + 1) % list.length;
     const item = list[index];
     const el = createItem(item, list.length === 1);
     el.classList.add('ribbon-slide');
     container.appendChild(el);
+    incoming = el;
     const myBuild = build;
 
     const show = () => {
       if (myBuild !== build || el.classList.contains('is-visible')) return;
+      clearTimeout(timer);
       if (item.type === 'image') el.style.height = logoPixels(el, item, true) + 'px';
       const previous = current;
       current = el;
+      shownAt = Date.now();
       el.classList.add('is-visible');
       if (previous) setTimeout(() => { if (previous.tagName === 'VIDEO') releaseVideo(previous); previous.remove(); }, FADE_MS + 50);
+      onMove();   // quien sigue a esta pantalla (vista previa) se entera al momento
+      turnMs = 0;
+      const pendingAlign = alignOnShow;
+      alignOnShow = null;
       if (list.length === 1) {
         if (item.type === 'text') fitText(el, true);
         return;
@@ -207,7 +278,10 @@ export function createRibbon(container, { onChange }) {
         return;
       }
       const extraMs = item.type === 'text' ? fitText(el, false) : 0;
-      timer = setTimeout(rotateNext, Math.max(config.interval * 1000, extraMs));
+      turnMs = Math.max(config.interval * 1000, extraMs);
+      advanceFn = () => rotateNext();
+      timer = setTimeout(rotateNext, turnMs);
+      if (pendingAlign) align(pendingAlign.elapsed + (Date.now() - pendingAlign.at));
     };
 
     if (item.type === 'image') {
@@ -248,7 +322,7 @@ export function createRibbon(container, { onChange }) {
 
   // ── Movimiento "fixed": varios logos a la vez, por grupos ────────
 
-  function buildFixed(myBuild) {
+  function buildFixed(myBuild, resume = null) {
     const list = items();
     const logos = list.filter((item) => item.type === 'image');
     const others = list.filter((item) => item.type !== 'image');   // mensajes y vídeos: su propio turno
@@ -278,19 +352,21 @@ export function createRibbon(container, { onChange }) {
       });
 
       let k = -1;
-      const showNext = () => {
+      const showNext = (target = null) => {
         if (myBuild !== build) return;
-        k = (k + 1) % slides.length;
+        k = Number.isInteger(target) ? ((target % slides.length) + slides.length) % slides.length : (k + 1) % slides.length;
         const { el, item } = slides[k];
         const previous = current;
         if (previous === el) return;
         if (!el.isConnected) container.appendChild(el);
         current = el;
+        shownAt = Date.now();
         requestAnimationFrame(() => el.classList.add('is-visible'));
         if (previous) {
           previous.classList.remove('is-visible');
           setTimeout(() => { if (current !== previous) { if (previous.tagName === 'VIDEO') releaseVideo(previous); previous.remove(); } }, FADE_MS + 50);
         }
+        turnMs = 0;
         if (slides.length === 1) { if (item && item.type === 'text') fitText(el, true); return; }
         let ms = config.interval * 1000;
         if (item && item.type === 'text') ms = Math.max(ms, fitText(el, false));
@@ -299,14 +375,17 @@ export function createRibbon(container, { onChange }) {
           ms = (Number.isFinite(el.duration) ? el.duration + 2 : config.interval * 3) * 1000;
         }
         timer = setTimeout(showNext, ms);
+        if (!item || item.type !== 'video') { turnMs = ms; advanceFn = () => showNext(); }
+        onMove();
       };
-      showNext();
+      fixedView = { show: showNext, page: () => k };
+      showNext(resume ? resume.key : null);
     });
   }
 
   // ── Movimiento "scroll": continuo ───────────────────────────────
 
-  function buildScroll(myBuild) {
+  function buildScroll(myBuild, resume = null) {
     const list  = items();
     const track = document.createElement('div');
     track.className = 'ribbon-track';
@@ -335,10 +414,14 @@ export function createRibbon(container, { onChange }) {
       for (let i = 0; i < copies; i++) track.appendChild(group.cloneNode(true));
 
       const pxPerSecond = container.clientHeight * SPEEDS[config.speed];
+      const duration = groupWidth / pxPerSecond * 1000;
       animation = track.animate(
         [{ transform: 'translateX(0)' }, { transform: `translateX(${-groupWidth}px)` }],
-        { duration: groupWidth / pxPerSecond * 1000, iterations: Infinity },
+        { duration, iterations: Infinity },
       );
+      if (resume) animation.currentTime = resume.elapsed % duration;   // sigue donde iba
+      current = track;
+      onMove();
     });
   }
 
@@ -348,6 +431,8 @@ export function createRibbon(container, { onChange }) {
     hasContent,
     /** Recalcula tamaños (cambió la resolución) */
     refresh: () => { if (active) rebuild(); },
+    position,
+    follow,
     errors: () => [...failed],
   };
 }

@@ -22,6 +22,10 @@
  * Los SVG se dibujan a alta resolución antes de procesarlos (nítidos aunque
  * el archivo no indique su tamaño).
  *
+ * Un STICKER (escudo, círculo o placa: una sola forma rellena) conserva sus
+ * colores originales (2.11.1): su propio fondo ya lo separa de la cinta. Los
+ * pasos 4 y 5 y el realce automático solo tocan logos de texto o de líneas.
+ *
  * REALCE de cada logo (2.10, «Realce» en la estación; `effect`):
  *   - 'auto'    (por defecto): si una parte importante del logo apenas se
  *               distingue de la cinta (letras marrones, plateadas…), se aclara
@@ -62,7 +66,9 @@ const SVG_SIDE      = 800;   // lado mayor al dibujar un SVG
  */
 const DEFINE_CONTRAST = { grey: 9, muted: 5, vivid: 2.2 };
 const GENTLE_CONTRAST = 3.5; // «Automático»: contraste al que llega lo más oscuro (curva suave)
-const AUTO_DEFINE   = 0.1;   // «Auto»: se define si al menos esta parte del logo no se lee
+const AUTO_DEFINE   = 0.1;
+const STICKER_FILL  = 0.6;   // sticker: rellena al menos esto de su caja…
+const STICKER_PIECE = 0.85;  // …y casi todo es una sola pieza   // «Auto»: se define si al menos esta parte del logo no se lee
 const OUTLINE       = 0.022; // grosor del contorno (fracción del lado menor del logo)
 
 /** Realces de un logo (el primero es el de por defecto) */
@@ -141,8 +147,12 @@ async function process(url, bg, fx) {
   // Un logo que ya tiene el fondo transparente no necesita quitar el fondo
   // (antes, en un logo BLANCO sobre transparente, se comía el propio logo)
   const removed = hasTransparentBorder(px, width, height) ? false : removeBackground(px, width, height);
-  const recolored = adaptToBackground(px, bg, width, height);
-  const define = fx === 'define' || fx === 'both' || (fx === 'auto' && hiddenShare(px, bg, width, height) >= AUTO_DEFINE);
+  // Un sticker (escudo, círculo, placa: una sola forma rellena) conserva sus colores
+  // ORIGINALES: su propio fondo ya lo separa de la cinta. Solo se ajustan los logos de
+  // texto o de líneas que no se verían (un texto negro sobre la cinta oscura).
+  const sticker = isSticker(px, width, height);
+  const recolored = adaptToBackground(px, bg, width, height, sticker);
+  const define = fx === 'define' || fx === 'both' || (fx === 'auto' && !sticker && hiddenShare(px, bg, width, height) >= AUTO_DEFINE);
   const defined = define && defineParts(px, bg, width, height, fx === 'auto');
   const outline = fx === 'outline' || fx === 'both';
   const box = opaqueBounds(px, width, height);
@@ -314,7 +324,7 @@ const isGrey = (px, i) => Math.max(px[i], px[i + 1], px[i + 2]) - Math.min(px[i]
  *   - Logo de COLORES: solo las partes grises/negras que no se verían pasan a
  *     tinta, y las de color casi invisibles también; el resto conserva su color.
  */
-function adaptToBackground(px, bg, width, height) {
+function adaptToBackground(px, bg, width, height, sticker = false) {
   let count = 0, greys = 0, lum = 0, dark = 0, light = 0;
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] < 128) continue;
@@ -328,6 +338,8 @@ function adaptToBackground(px, bg, width, height) {
     }
   }
   if (!count) return false;
+  // Un sticker se respeta… salvo que entero no se vea (p. ej. un rectángulo negro)
+  if (sticker && contrastWith(lum / count, bg) >= MIN_CONTRAST) return false;
   // Solo lo que se ve CONTRA LA CINTA (toca lo transparente): lo oscuro de dentro
   // de un sticker, rodeado de su propio borde claro, ya se ve y se respeta
   const paint = (test, all = false) => {
@@ -404,6 +416,53 @@ function exposed(px, width, height, test) {
     if (p < total - width) visit(p + width);
   }
   return mark;
+}
+
+/**
+ * ¿Es un STICKER? Una sola pieza (casi todo lo visible conectado) que rellena
+ * la mayor parte de su caja (un círculo rellena un 78 %, un escudo ~75 %).
+ * Un texto, unas alas o un dibujo de líneas no: tienen huecos y piezas sueltas.
+ */
+function isSticker(px, width, height) {
+  const total = width * height;
+  const solid = (p) => px[p * 4 + 3] >= 128;
+  let x0 = width, y0 = height, x1 = -1, y1 = -1, count = 0;
+  for (let p = 0; p < total; p++) {
+    if (!solid(p)) continue;
+    count++;
+    const x = p % width;
+    const y = (p - x) / width;
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+  }
+  if (!count) return false;
+  const fill = count / ((x1 - x0 + 1) * (y1 - y0 + 1));
+  if (fill < STICKER_FILL) return false;
+  // La pieza más grande (4 vecinos)
+  const seen = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let largest = 0;
+  for (let start = 0; start < total; start++) {
+    if (seen[start] || !solid(start)) continue;
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = start;
+    seen[start] = 1;
+    while (head < tail) {
+      const p = queue[head++];
+      const x = p % width;
+      const visit = (q) => { if (!seen[q] && solid(q)) { seen[q] = 1; queue[tail++] = q; } };
+      if (x > 0) visit(p - 1);
+      if (x < width - 1) visit(p + 1);
+      if (p >= width) visit(p - width);
+      if (p < total - width) visit(p + width);
+    }
+    if (tail > largest) largest = tail;
+    if (largest >= count * STICKER_PIECE) break;
+  }
+  return largest >= count * STICKER_PIECE;
 }
 
 /** Contraste que necesita un píxel para leerse (según sea gris, apagado o vivo) */

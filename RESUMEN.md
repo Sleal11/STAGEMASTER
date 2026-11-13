@@ -2,7 +2,7 @@
 
 **Marcador profesional de pádel para pantallas LED.** Un `.exe` para Windows (no se
 instala) que convierte un portátil en la central del evento. Funciona **sin Internet**.
-Versión **2.11.0**.
+Versión **2.11.1**.
 
 ## Las 4 piezas
 

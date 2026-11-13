@@ -160,7 +160,7 @@ const LOGOS = {
       const logo = svgUrl('<rect x="20" y="20" width="360" height="120" fill="#E8455F"/>');
       const plain = await read(await cleanLogo(logo, 'dark', 'none'));
       const ring = await read(await cleanLogo(logo, 'dark', 'outline'));
-      const brownLogo = svgUrl('<rect x="0" y="0" width="200" height="160" fill="#5A2E10"/><rect x="200" y="0" width="200" height="160" fill="#FF7A00"/>');
+      const brownLogo = svgUrl('<rect x="0" y="0" width="180" height="160" fill="#5A2E10"/><rect x="220" y="0" width="180" height="160" fill="#FF7A00"/>');
       const brownNone = (await read(await cleanLogo(brownLogo, 'dark', 'none'))).at(0.25, 0.5);
       const brownAuto = (await read(await cleanLogo(brownLogo, 'dark', 'auto'))).at(0.25, 0.5);
       // Sticker en JPG con fondo de color (2.10.1): rojo → aro blanco → placa negra con texto blanco
@@ -169,7 +169,11 @@ const LOGOS = {
         '<rect x="160" y="70" width="80" height="20" fill="#FFFFFF"/>'), 'dark', 'auto'));
       const blackBg = await read(await cleanLogo(svgUrl('<rect width="400" height="160" fill="#000000"/>' +
         '<rect x="100" y="40" width="200" height="80" fill="#E0B020"/>'), 'dark', 'auto'));
+      // Sticker como el de La Condesa: escudo blanco con borde NEGRO sobre transparente → se respeta tal cual
+      const shield = await read(await cleanLogo(svgUrl('<rect x="40" y="10" width="320" height="140" rx="40" fill="#111111"/>' +
+        '<rect x="56" y="26" width="288" height="108" rx="30" fill="#F2F2F2"/><rect x="150" y="60" width="100" height="40" fill="#E8551E"/>'), 'dark', 'auto'));
       return { grows: ring.w > plain.w && ring.h > plain.h, edge: ring.top(), plainEdge: plain.top(), brownNone, brownAuto,
+        shieldEdge: shield.top(), shieldBody: shield.at(0.5, 0.3),
         sticker: { w: sticker.w, corner: sticker.at(0.02, 0.02), ring: sticker.top(), plate: sticker.at(0.5, 0.25), text: sticker.at(0.5, 0.5) },
         blackBg: { w: blackBg.w, center: blackBg.at(0.5, 0.5), corner: blackBg.at(0.02, 0.02) } };
     });
@@ -181,6 +185,8 @@ const LOGOS = {
       JSON.stringify(sk));
     T.check('Logo sobre fondo NEGRO: se quita el negro (antes quedaba un rectángulo blanco)',
       fx.blackBg.w <= 220 && fx.blackBg.corner[3] === 0 && fx.blackBg.center[0] > 200 && fx.blackBg.center[2] < 100, JSON.stringify(fx.blackBg));
+    T.check('Sticker con borde negro (como La Condesa): conserva sus colores originales (el negro no pasa a blanco)',
+      fx.shieldEdge.slice(0, 3).every((v) => v < 40) && fx.shieldBody.slice(0, 3).every((v) => v > 230), `${fx.shieldEdge} · ${fx.shieldBody}`);
     const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     T.check('«Automático»: la parte marrón oscura se aclara (sigue siendo cálida) y lo vivo se conserva',
       lum(fx.brownAuto) > lum(fx.brownNone) + 60 && fx.brownAuto[0] > fx.brownAuto[2], `${fx.brownNone} → ${fx.brownAuto}`);

@@ -1,7 +1,7 @@
 # StageMaster · Contexto del desarrollo
 
 Resumen para continuar el trabajo sin perder el rumbo (también tras una
-compactación de la conversación). Estado: **versión 2.11.0** (2.10.1 + temas oscuro/claro/alternativo, «GANADOR» grande, alto de la cinta con tirador, portátil remoto renovado y optimizaciones; 2.10.1: 2.10.0 + stickers con fondo de color, partidos aleatorios contra un árbitro de referencia, motor ~20× más rápido y limpieza; 2.10.0: 2.9.0 + realce de logos, tamaño con tiradores, nombres completos en la celebración y abreviados en las estadísticas; 2.9.0: SET/MATCH POINT, cinta de logos con orden, tamaño y fondo, estadísticas animadas, menos amarillo; 2.8.0: panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
+compactación de la conversación). Estado: **versión 2.11.1** (2.11.0 + «En vivo» en tiempo real, estación sin saltos, stickers con sus colores y sin flecha en «GANADOR»; 2.11.0: 2.10.1 + temas oscuro/claro/alternativo, «GANADOR» grande, alto de la cinta con tirador, portátil remoto renovado y optimizaciones; 2.10.1: 2.10.0 + stickers con fondo de color, partidos aleatorios contra un árbitro de referencia, motor ~20× más rápido y limpieza; 2.10.0: 2.9.0 + realce de logos, tamaño con tiradores, nombres completos en la celebración y abreviados en las estadísticas; 2.9.0: SET/MATCH POINT, cinta de logos con orden, tamaño y fondo, estadísticas animadas, menos amarillo; 2.8.0: panel por zonas que se minimizan, pestañas con resumen, celebración de pádel en SVG, historial al instante y resolución sin «no respondió»; 2.7.0: QR único, FIP 2026, final del partido y legibilidad; 2.3.0 + retoques
 estéticos, pestaña «En vivo», teléfonos que no conectaban, publicidad que llena la LED y estación
 desde el portátil remoto, ver sección 8), rama `claude/nice-pasteur-wbpgdz`.
 
@@ -334,10 +334,29 @@ Ronda 13 (versión 2.11.0) — **temas, «GANADOR», alto de la cinta, portátil
   `--st-on-accent`, `--st-raised`, `--st-chip`, `--st-pin-bg`, `--st-zone-bg`…, `--d-text`, `--d-label`,
   `--d-panel-*`, `--d-cel-*`, `--d-ribbon-*`). Logo índigo `img/logo-stagemaster-indigo.png` en el claro
   (CSS `content`). Estación: botón «Colores» (`station/appearance.js`). Ayuda y portátil remoto también.
-- LED: `.display.has-winner` agranda el separador; `#d-divider-label[data-side]` pone ▲/▼.
+- LED: `.display.has-winner` agranda el separador (la flecha ▲/▼ se quitó en 2.11.1).
 - Cinta: `.rb-height-handle` en la vista previa (`initRibbonResize(…, onHeight)`), 14-32 %, doble clic = 0.
 - Portátil remoto: `desktop/remote/remote.html` rehecho (modo remoto/principal, pasos, «¿Cómo usarás este
   portátil?»: Estación del moderador con `autoStation` (abrirla al iniciar) y Pantallas); sigue el tema.
 - Teléfono: vibración al confirmarse un punto; «Último: …» bajo Deshacer (diferencia de `stats.points`).
 - Optimización: caché LRU de logos (80), caché del historial por tamaño+fecha, nombre reservado en subidas
   simultáneas, Inter 800 local, socket.io-client 4.8.4, CI sube solo los vídeos que cambiaron.
+
+Ronda 14 (versión 2.11.1) — **«En vivo» en tiempo real, estación sin saltos, stickers fieles**:
+- «En vivo»: la pantalla REAL emite `display:sync { ribbon, media, phase }` al cambiar (cinta `onMove`,
+  `updateLayout`) y cada 4 s; el servidor lo reenvía a la sala `preview:<id>` como `playbackSync`, solo
+  desde la ventana más antigua (`screens.leaderOf`). Al conectarse una vista previa, `syncRequest` a
+  `screen:<id>` → respuesta inmediata. NO volátil (se perdía con el transporte ocupado).
+  Vista previa (`main.js` `applyFollow`): `ribbon.follow`, `player.follow`, `finale.follow`; cada parte se
+  aplica una vez y, si aún no estaba montada (devuelve false), se reintenta al final de `updateLayout`
+  sumando el tiempo transcurrido. Cinta: `position()` { motion, key, elapsed }; `align()` ajusta el
+  temporizador del turno (`turnMs`, `advanceFn`) al de la real; en «rotar», al aparecer el logo
+  (`alignOnShow`, `incoming`). Lista: `position()` { url, elapsed }, `seekOnReveal`, reajuste de imagen.
+- La cinta sigue donde iba al reconstruirse (`rebuild()` guarda `position()`).
+- Estación: `patch()` de `station/context.js` es un «morph» del DOM (clave por id/data-name/
+  data-screen-card/data-match-card); conserva `[data-ribbon-preview]`, `img[data-cleaned]`, `details`
+  abiertos y el valor del campo con el foco. Ya no se rehace la tarjeta ni salta la página.
+- Logos: `isSticker` (relleno ≥ 60 % y una pieza ≥ 85 %) → colores originales salvo que no se vea nada;
+  sin «definir» automático en stickers.
+- LED: sin flecha en «GANADOR».
+- Pruebas: `tests/e2e/live-sync.e2e.js` (8), `ribbon.e2e.js` (29, sticker con placa), core +1 (`leaderOf`).

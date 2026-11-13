@@ -14,7 +14,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const SUITES = ['history', 'pause', 'brightness', 'screens', 'formats', 'station-ui', 'panel', 'ribbon', 'live', 'media-fit', 'finale', 'layout', 'phone', 'desktop', 'remote'];
+const SUITES = ['history', 'pause', 'brightness', 'screens', 'formats', 'station-ui', 'panel', 'ribbon', 'live', 'live-sync', 'media-fit', 'finale', 'layout', 'phone', 'desktop', 'remote'];
 
 const results = SUITES.map((name) => {
   const started = Date.now();

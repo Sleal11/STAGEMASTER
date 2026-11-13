@@ -89,9 +89,75 @@ export function toast(message, isError = false) {
 }
 
 const lastHtml = new WeakMap();
+
+/**
+ * Pone `html` dentro de `el` cambiando SOLO lo que es distinto (2.11.1).
+ * Antes se reemplazaba todo (innerHTML): con cada cambio del servidor la
+ * página parpadeaba, la vista previa de la cinta se vaciaba y volvía a
+ * dibujarse, el alto de la página cambiaba y el navegador subía solo. Ahora
+ * los elementos que ya están se conservan: no se mueve el scroll, no se
+ * pierde el foco, no se cierra lo que el operador abrió y nada «empieza de
+ * nuevo».
+ *   - [data-ribbon-preview]: su contenido lo dibuja ribbon-editor.js (no se toca).
+ *   - <img data-cleaned>: miniatura ya limpiada (su src no vuelve al original).
+ *   - <details>: abierto o cerrado como lo dejó el operador.
+ *   - Campos con el foco: no se les cambia el valor mientras se escribe.
+ */
 export function patch(el, html) {
   if (lastHtml.get(el) === html) return false;
   lastHtml.set(el, html);
-  el.innerHTML = html;
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  morphChildren(el, template.content);
   return true;
+}
+
+const keyOf = (node) => (node.nodeType === 1
+  ? `${node.nodeName}|${node.id}|${node.getAttribute('data-name') || ''}|${node.getAttribute('data-screen-card') || ''}|${node.getAttribute('data-match-card') || ''}`
+  : node.nodeName);
+
+function morphChildren(from, to) {
+  const target = Array.from(to.childNodes);
+  target.forEach((next, i) => {
+    const current = from.childNodes[i];
+    if (!current) { from.appendChild(next.cloneNode(true)); return; }
+    if (current.nodeType !== next.nodeType || keyOf(current) !== keyOf(next)) {
+      from.replaceChild(next.cloneNode(true), current);
+      return;
+    }
+    if (next.nodeType !== 1) {
+      if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+      return;
+    }
+    morphElement(current, next);
+  });
+  while (from.childNodes.length > target.length) from.removeChild(from.lastChild);
+}
+
+function morphElement(current, next) {
+  const keepSrc = current.tagName === 'IMG' && current.hasAttribute('data-cleaned');
+  const keepOpen = current.tagName === 'DETAILS';
+  const preview = current.hasAttribute('data-ribbon-preview');   // data-key: lo que ya dibujó ribbon-editor.js
+  Array.from(next.attributes).forEach(({ name, value }) => {
+    if ((keepSrc && name === 'src') || (keepOpen && name === 'open')) return;
+    if (current.getAttribute(name) !== value) current.setAttribute(name, value);
+  });
+  Array.from(current.attributes).forEach(({ name }) => {
+    if (next.hasAttribute(name)) return;
+    if ((keepSrc && (name === 'src' || name === 'data-cleaned')) || (keepOpen && name === 'open') || (preview && name === 'data-key')) return;
+    current.removeAttribute(name);
+  });
+  // Estado vivo de los campos (los atributos solo cuentan al crearlos)
+  const focused = current === document.activeElement;
+  if (current.tagName === 'INPUT' && !focused) {
+    if (current.type === 'checkbox' || current.type === 'radio') current.checked = next.hasAttribute('checked');
+    else if (current.value !== (next.getAttribute('value') || '')) current.value = next.getAttribute('value') || '';
+  }
+  if (current.tagName === 'TEXTAREA' && !focused && current.value !== next.textContent) current.value = next.textContent;
+  if (current.hasAttribute('data-ribbon-preview')) return;
+  morphChildren(current, next);
+  if (current.tagName === 'SELECT' && !focused) {
+    const selected = next.querySelector('option[selected]');
+    if (selected && current.value !== selected.value) current.value = selected.value;
+  }
 }

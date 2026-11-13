@@ -428,6 +428,12 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     if (typeof data.soundBlocked === 'boolean') entry.soundBlocked = data.soundBlocked;
   }
 
+  /** La ventana que lleva más tiempo mostrando la pantalla (a la que sigue «En vivo») */
+  function leaderOf(id) {
+    const first = (presence.get(id) || new Map()).keys().next();
+    return first.done ? null : first.value;
+  }
+
   function presenceOf(id) {
     return [...(presence.get(id) || new Map()).values()];
   }
@@ -454,6 +460,7 @@ function createScreenManager({ matchIds, screens = DEFAULT_SCREENS, now = Date.n
     detach,
     report,
     presenceOf,
+    leaderOf,
   };
 }
 

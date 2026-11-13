@@ -141,7 +141,10 @@ export function drawPreviews(override = null) {
         list.dataset.bg = bg;
         files.forEach((f, i) => {
           const row = list.querySelector(`.rb-row[data-name="${CSS.escape(f.name)}"] .rb-thumb img`);
-          if (row && measured[i] && row.getAttribute('src') !== measured[i].src) row.src = measured[i].src;
+          if (row && measured[i] && row.getAttribute('src') !== measured[i].src) {
+            row.src = measured[i].src;
+            row.setAttribute('data-cleaned', '');   // patch() no la devuelve al original
+          }
         });
       }
       const W = box.clientWidth || 600;

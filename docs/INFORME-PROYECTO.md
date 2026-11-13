@@ -1,4 +1,4 @@
-# StageMaster · Informe del proyecto (versión 2.11.0)
+# StageMaster · Informe del proyecto (versión 2.11.1)
 
 > Estado a **noviembre de 2026**. Versión que está operando en eventos reales.
 > Resumen corto: [`RESUMEN.md`](../RESUMEN.md). Historial del desarrollo:
@@ -123,7 +123,7 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 - Cada cambio en la rama de trabajo compila el `.exe` y el `.zip` **en un Windows real**
   (GitHub Actions) tras pasar las pruebas, y los publica en el enlace fijo de prueba:
   `releases/download/prueba/StageMaster-prueba.exe` (y `.zip`).
-- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.11.0` → Releases.
+- Versión para el cliente: fusionar en `main` y crear la etiqueta `v2.11.1` → Releases.
 - Mientras se valida una versión grande, la prueba se publica en `prueba-nueva`
   (la anterior sigue en `prueba`); variable `PRUEBA_TAG` del flujo de compilación.
 
@@ -137,7 +137,7 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 | Final del partido | Celebración de los ganadores (una vez por final) y resumen con estadísticas registradas (juegos, puntos, puntos de oro, breaks, mejor racha, duración sin pausas) en la LED, el teléfono y el historial; la publicidad final espera a la celebración |
 | Publicidad | Cinta (logos sin su fondo —blanco, negro, de color o foto—, vídeos cortos, mensajes, cambio o desplazamiento); lista de reproducción (imágenes y vídeos en bucle, con o sin sonido); publicidad automática en la pausa y al terminar; subir arrastrando; **ajuste a la salida** (llena la LED como el marcador) |
 | Salida | Monitor completo o tamaño exacto de la LED (guardable con nombre) y posición; brillo de la imagen; diagnóstico (píxeles reales, Hz, escala, EDID); cambiar resolución en Windows con vuelta automática |
-| En vivo | Vista previa en movimiento de cada pantalla y su estado real; aviso si alguna no se ve |
+| En vivo | Vista previa en tiempo real de cada pantalla (el mismo logo o grupo de la cinta, la misma imagen o el mismo segundo del vídeo y la misma fase final que la LED) y su estado real; aviso si alguna no se ve |
 | Historial | Partidos terminados por día, rango, pista o jugador; detalle; exportar CSV |
 | Portátiles remotos | Descubrimiento en la red, enlace con código, pantallas por la red, reconexión, sigue al principal si cambia de IP, **estación remota** |
 | Red | Diagnóstico del firewall y «Permitir teléfonos»; página del árbitro comprimida y en caché |
@@ -148,17 +148,23 @@ Todas las reglas se comprueban en el **servidor** (no solo se ocultan botones).
 |---|---|---|
 | Motor del pádel | 65 | Todas las reglas FIP, SET POINT / MATCH POINT, estadísticas (con deshacer) y 4 000 acciones aleatorias |
 | Partidos aleatorios | 1 620 partidos · 181 000 acciones | Las 540 modalidades (games 1-6 × 1, 3, 5, 7 y 9 sets × ventaja, punto de oro y FIP 2026 × tie break, súper tie break y sin desempate × saque A o B), con «Deshacer», «Cambiar saque» y «Finalizar» al azar; cada acción se compara con un árbitro de referencia escrito aparte (marcador, saque, fase, sets, ganador, punto de oro, SET/MATCH POINT y estadísticas) |
-| Núcleo del servidor | 76 | Cinta (orden, tamaño, alto, fondo), Partidos, versiones, códigos de pista únicos, tokens, pantallas, publicidad, formatos, migraciones |
+| Núcleo del servidor | 77 | Cinta (orden, tamaño, alto, fondo), Partidos, versiones, códigos de pista únicos, tokens, pantallas, publicidad, formatos, migraciones |
 | Monitores | 14 | Qué pantalla va en qué monitor al conectar/desconectar |
 | Integración | 49 | Servidor real + estación + teléfonos (el código decide la pista) + pantallas + portátil remoto por la IP de red |
-| Navegador y Electron (e2e) | 15 conjuntos · 400 comprobaciones | Colores (temas en estación, teléfono, LED y portátil remoto), cinta de logos (orden, tamaño y alto con tiradores, arrastrar, logos fijos, fondo, realce, stickers con fondo de color), set point y match point, estación (zonas, minimizar, pestañas con resumen, Todos/Ninguno, Historial al instante, resolución lenta), teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
+| Navegador y Electron (e2e) | 16 conjuntos · 409 comprobaciones | «En vivo» en tiempo real (cinta por grupos, rotar y desplazamiento, publicidad) y estación sin saltos, colores (temas en estación, teléfono, LED y portátil remoto), cinta de logos (orden, tamaño y alto con tiradores, arrastrar, logos fijos, fondo, realce, stickers con fondo de color), set point y match point, estación (zonas, minimizar, pestañas con resumen, Todos/Ninguno, Historial al instante, resolución lenta), teléfono (código, cambio de pista, partido completo), final del partido (celebración, resumen, publicidad), matriz visual 4 formatos × 6 estados, publicidad, En vivo, aplicación de escritorio y portátil remoto reales |
 | Windows real (CI) | 2 | Cambio de resolución y firewall en un Windows de verdad |
 
 ## 5. Análisis de errores (y su corrección)
 
 | Problema | Efecto | Corrección |
 |---|---|---|
-| «GANADOR» pequeño en la LED (2.11.0) | Difícil de leer de lejos | Separador más alto, letras grandes y espaciadas, flecha hacia la fila ganadora (también en 416 × 208) |
+| «En vivo» no enseñaba lo mismo que la LED (2.11.1) | La vista previa iba por otro grupo de logos u otra imagen: cada una llevaba su propio reloj | La pantalla real dice por dónde va (al cambiar y cada 4 s) y sus vistas previas la siguen: mismo grupo o logo, mismo punto del desplazamiento, misma imagen o segundo del vídeo y misma fase final. Al abrir la vista previa se iguala al instante. Si una pantalla está abierta en dos ventanas, se sigue a la más antigua |
+| Avisos de «En vivo» que se perdían (2.11.1) | Al abrir la vista previa, el primer aviso se descartaba si la conexión estaba ocupada | Envío normal (no «volátil»); si llega antes de que la vista previa esté lista, se aplica al terminar de montarse |
+| La estación se recargaba y subía al tocar una opción (2.11.1) | Cada cambio volvía a montar la tarjeta: la cinta empezaba de nuevo y la página saltaba arriba | La estación actualiza solo lo que cambió (sin rehacer la tarjeta): conserva la vista previa, las listas abiertas, el foco y la posición |
+| La cinta empezaba desde el primer logo al cambiar una opción (2.11.1) | Cambiar un tamaño, el fondo o el alto la reiniciaba | Sigue en el mismo logo, grupo o punto del desplazamiento |
+| Stickers recoloreados (2.11.1) | La Condesa (negra sobre su placa) salía blanca | Un sticker (placa rellena de una pieza) conserva sus colores originales; solo se adapta si no se vería en absoluto sobre la cinta |
+| Flecha de «GANADOR» (2.11.1) | Sobraba | Quitada: solo las letras grandes y espaciadas |
+| «GANADOR» pequeño en la LED (2.11.0) | Difícil de leer de lejos | Separador más alto, letras grandes y espaciadas (también en 416 × 208) |
 | Dos subidas a la vez con el mismo nombre (2.11.0) | La segunda pisaba a la primera | Nombre reservado mientras dura la subida |
 | Caché de logos limpios sin tope (2.11.0) | En un evento largo, probar realces hacía crecer la memoria | Tope de 80 versiones (las menos usadas se olvidan) |
 | El historial se leía entero en cada consulta (2.11.0) | Con años de partidos, consultas lentas | Se reutiliza mientras el archivo no cambie |
@@ -213,7 +219,7 @@ ya era atómico y todas las órdenes validan sus datos.
 2. **Router propio** para el evento (sin Internet, con contraseña) y el portátil enchufado a la corriente.
 3. Publicidad en **2:1** (832 × 416 o 1664 × 832, como `marketing/videos-led/`) y vídeos MP4 H.264.
 4. Hacer el **simulacro** de [`SIMULACRO-EVENTO.md`](SIMULACRO-EVENTO.md) antes de cada evento grande.
-5. Publicar la versión para el cliente en **Releases** (`v2.11.0`) y usar ese enlace fijo.
+5. Publicar la versión para el cliente en **Releases** (`v2.11.1`) y usar ese enlace fijo.
 
 ### Mejoras de funcionalidad (por orden de valor)
 | # | Mejora | Valor | Esfuerzo |

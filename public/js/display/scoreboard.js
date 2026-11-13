@@ -51,8 +51,7 @@ export function createScoreboard(root) {
     renderBadge(state, finished);
     const winner = finished && state.winner ? state.winner : null;
     dom.dividerLabel.textContent = winner ? 'GANADOR' : '';
-    // Flecha hacia la fila ganadora (arriba A, abajo B) y separador más alto, para leerse de lejos
-    dom.dividerLabel.dataset.side = winner || '';
+    // Separador más alto con «GANADOR» grande, para leerse de lejos
     root.classList.toggle('has-winner', !!winner);
     root.classList.toggle('is-paused', !!state.paused && !finished);
     renderHistory(state, finished);

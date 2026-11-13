@@ -54,9 +54,12 @@ if (preview) document.body.classList.add('is-preview');
 // Portátil remoto enlazado: su token viene en el enlace (score.html?pantalla=N#remoto=TOKEN)
 const remoteToken = new URLSearchParams(window.location.hash.slice(1)).get('remoto') || undefined;
 const board    = createScoreboard(dom.display);
-const ribbon   = createRibbon(dom.ribbon, { onChange: () => updateLayout() });
+const ribbon   = createRibbon(dom.ribbon, { onChange: () => updateLayout(), onMove: () => sendSync() });
 const player   = createMediaPlayer(dom.media, { onChange: () => updateLayout() });
-const finale   = createFinale({ summary: dom.summary, celebrate: dom.celebrate }, () => updateLayout());
+const finale   = createFinale({ summary: dom.summary, celebrate: dom.celebrate }, () => updateLayout(), () => sendSync());
+
+/** Cada cuánto la pantalla real dice por dónde va (además de en cada cambio) */
+const SYNC_EVERY_MS = 4000;
 
 let socket         = null;
 let config         = null;   // Configuración enviada por la estación
@@ -119,6 +122,55 @@ function connectToServer() {
     updateLayout();
   });
   if (!preview) socket.on('identify', showIdentify);
+  // «En vivo» en tiempo real: la vista previa sigue a la pantalla real (misma cinta,
+  // mismo vídeo en el mismo momento, marcador o estadísticas a la vez)
+  if (preview) {
+    socket.on('playbackSync', (sync) => {
+      if (!sync) return;
+      lastFollow = { sync, at: Date.now(), todo: ['ribbon', 'media', 'phase'] };
+      applyFollow();
+    });
+  } else {
+    socket.on('syncRequest', () => sendSync(true));
+    setInterval(() => sendSync(true), SYNC_EVERY_MS);
+  }
+}
+
+/**
+ * Vista previa: aplicar lo que dijo la pantalla real. Cada parte (cinta,
+ * publicidad, fase final) se aplica una vez; si aún no estaba lista (el aviso
+ * llegó antes de montarse), se reintenta al terminar de montarse, contando el
+ * tiempo que ha pasado desde el aviso.
+ */
+let lastFollow = null;
+function applyFollow() {
+  if (!lastFollow) return;
+  const age = Date.now() - lastFollow.at;
+  if (age > SYNC_EVERY_MS * 2) { lastFollow = null; return; }
+  const later = (pos) => (pos && Number.isFinite(pos.elapsed) ? { ...pos, elapsed: pos.elapsed + age } : pos);
+  const { sync, todo } = lastFollow;
+  lastFollow.todo = [];   // antes de seguir: lo que provoque un nuevo montaje no lo repite
+  const retry = todo.filter((part) => {
+    if (part === 'ribbon') return !ribbon.follow(later(sync.ribbon));
+    if (part === 'media') return !player.follow(later(sync.media));
+    return !finale.follow(sync.phase);
+  });
+  if (lastFollow) lastFollow.todo = [...new Set([...lastFollow.todo, ...retry])];
+}
+
+/**
+ * La pantalla REAL informa por dónde va: qué elemento o grupo de la cinta, qué
+ * vídeo y en qué segundo, y si está en el marcador o en las estadísticas. El
+ * servidor se lo pasa SOLO a sus vistas previas (no recalcula nada más).
+ */
+let lastSync = '';
+function sendSync(force = false) {
+  if (preview || !socket || !socket.connected || !config) return;
+  const sync = { ribbon: ribbon.position(), media: player.position(), phase: finale.phase() };
+  const key = JSON.stringify([sync.ribbon && [sync.ribbon.motion, sync.ribbon.key], sync.media && sync.media.url, sync.phase]);
+  if (!force && key === lastSync) return;
+  lastSync = key;
+  socket.emit('display:sync', sync);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -240,6 +292,8 @@ function updateLayout() {
   if (ribbonChanged || showScore) board.fitAll();
   if (showScore && (stats || finale.isCelebrating())) finale.fit();
   sendReport();
+  if (preview) applyFollow();
+  else sendSync();
 }
 
 // ─────────────────────────────────────────────────────────────────

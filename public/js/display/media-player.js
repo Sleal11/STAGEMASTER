@@ -56,6 +56,8 @@ export function createMediaPlayer(container, { onChange }) {
   let pending  = null;    // { el, item } el que se está cargando
   let soundBlocked = false;
   let fit      = 'auto';
+  let revealedAt = 0;        // cuándo apareció lo que se ve
+  let seekOnReveal = null;   // seguir a otra pantalla: { url, elapsed, at } al aparecer
   const failed = new Set();   // URLs que no se pueden reproducir
 
   const backdrop = document.createElement('canvas');
@@ -188,11 +190,21 @@ export function createMediaPlayer(container, { onChange }) {
 
     const previous = current;
     current = entry;
+    revealedAt = Date.now();
     applyFit(entry);
     entry.el.classList.add('is-visible');
     if (previous) setTimeout(() => release(previous.el), FADE_MS + 50);
 
-    if (entry.item.kind === 'image') scheduleImage(imageMs);
+    // Siguiendo a la pantalla real: el mismo punto del vídeo o el tiempo que le queda a la imagen
+    const seek = seekOnReveal && seekOnReveal.url === entry.item.url ? seekOnReveal : null;
+    seekOnReveal = null;
+    const behind = seek ? seek.elapsed + (Date.now() - seek.at) : 0;
+    if (seek && entry.item.kind === 'video' && Number.isFinite(entry.el.duration) && entry.el.duration > 0) {
+      entry.el.currentTime = (behind / 1000) % entry.el.duration;
+    }
+    if (seek && entry.item.kind === 'image') revealedAt = Date.now() - behind;
+
+    if (entry.item.kind === 'image') scheduleImage(Math.max(500, imageMs - behind));
     else watchStall(entry.el);
     onChange();
   }
@@ -349,11 +361,49 @@ export function createMediaPlayer(container, { onChange }) {
     showBackdrop(null);
   }
 
+  /** Qué se ve y desde cuándo: { url, elapsed (ms) } o null */
+  function position() {
+    if (!active || !current) return null;
+    const elapsed = current.item.kind === 'video' ? current.el.currentTime * 1000 : Date.now() - revealedAt;
+    return { url: current.item.url, elapsed: Math.round(elapsed) };
+  }
+
+  /**
+   * Seguir a la pantalla real (vista previa de «En vivo»): el mismo elemento
+   * y, en un vídeo, el mismo momento (si va desfasado más de 1,5 s).
+   */
+  function follow(pos) {
+    if (!pos || !pos.url) return true;
+    if (!active) return false;   // aún no está reproduciendo: reintentar
+    if (current && current.item.url === pos.url) {
+      if (current.item.kind === 'video' && Number.isFinite(current.el.duration) && current.el.duration > 0 &&
+          Math.abs(current.el.currentTime * 1000 - pos.elapsed) > 1500) {
+        current.el.currentTime = (pos.elapsed / 1000) % current.el.duration;
+      }
+      // Imagen: que cambie a la siguiente cuando cambie la real
+      if (current.item.kind === 'image' && !paused && Math.abs(Date.now() - revealedAt - pos.elapsed) > 300) {
+        revealedAt = Date.now() - pos.elapsed;
+        scheduleImage(Math.max(150, imageMs - pos.elapsed));
+      }
+      return true;
+    }
+    seekOnReveal = { url: pos.url, elapsed: pos.elapsed, at: Date.now() };
+    if (pending && pending.item.url === pos.url) return true;   // ya se está cargando
+    const target = items.findIndex((item) => item.url === pos.url);
+    if (target === -1 || failed.has(pos.url)) return true;
+    clearTimeout(timers.image);
+    index = target - 1;
+    advance();
+    return true;
+  }
+
   return {
     configure,
     setActive,
     setFit,
     relayout,
+    position,
+    follow,
     hasPlayable: () => playable().length > 0,
     errors:      () => [...failed],
     soundBlocked: () => soundBlocked,

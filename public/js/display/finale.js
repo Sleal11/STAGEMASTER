@@ -85,7 +85,7 @@ const EMBLEM_SVG = `
  * @param {Object} dom - { summary, celebrate }
  * @param {Function} onChange - Empezó o terminó la celebración (redibujar capas)
  */
-export function createFinale({ summary, celebrate }, onChange) {
+export function createFinale({ summary, celebrate }, onChange, onPhase = () => {}) {
   let state = null;
   let celebratedKey = null;
   let celebrating = false;
@@ -122,6 +122,7 @@ export function createFinale({ summary, celebrate }, onChange) {
       phase = phase === 'score' ? 'stats' : 'score';
       cycleTimer = setTimeout(next, phase === 'score' ? SCORE_MS : STATS_MS);
       onChange();
+      onPhase();
       if (phase === 'stats') requestAnimationFrame(countUp);
     };
     cycleTimer = setTimeout(next, phase === 'score' ? SCORE_MS : STATS_MS);
@@ -329,6 +330,17 @@ export function createFinale({ summary, celebrate }, onChange) {
     isShowingStats: () => statsEnabled && !!state && state.status === 'finished' && !celebrating && phase === 'stats',
     /** Opción de la pantalla: sin estadísticas, se queda el marcador con el ganador */
     setStatsEnabled: (enabled) => { statsEnabled = enabled !== false; },
+    /** Marcador o estadísticas ahora (para que la vista previa vaya igual) */
+    phase: () => (state && state.status === 'finished' && !celebrating ? phase : null),
+    /** Seguir a la pantalla real: misma fase (marcador o estadísticas) */
+    follow(target) {
+      if (!target || target === phase) return true;
+      if (!state || state.status !== 'finished' || celebrating) return false;   // aún no va igual: reintentar
+      startCycle(target);
+      onChange();
+      if (phase === 'stats') requestAnimationFrame(countUp);
+      return true;
+    },
     /** Cambió el tamaño de la salida o se mostraron las estadísticas: reajustar los nombres */
     fit,
   };

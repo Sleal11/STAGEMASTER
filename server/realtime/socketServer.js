@@ -67,6 +67,7 @@
  *   remote:pair { code, name }                      portátil remoto → { token, remoteId, name }
  *   remote:report { monitors, screens }             portátil remoto: dónde muestra cada pantalla
  *   display:report { viewport, renderedMatchId, renderedVersion, adErrors, playing, soundBlocked }   pantalla
+ *   display:sync { ribbon, media, phase }           pantalla: por dónde va (se reenvía a sus vistas previas)
  *
  * EVENTOS servidor → cliente:
  *   matchUpdate { matchId, state }                  sala del partido (state.paused: partido en pausa)
@@ -74,6 +75,8 @@
  *   controllerRevoked { reason, message }           teléfono que pierde el permiso
  *   screenConfig { ... }                            pantalla
  *   identify { label }                              pantalla
+ *   syncRequest                                     pantalla: una vista previa acaba de abrirse (decir por dónde va)
+ *   playbackSync { ribbon, media, phase }           vista previa: lo que muestra la pantalla real («En vivo»)
  *   screenRemoved                                   pantalla que el operador ha quitado
  *   stationState { matches, screens, ads, network } estación
  *   historyChanged { court, saved }                 estación: se guardó (saved) o anuló un partido del historial
@@ -493,6 +496,16 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
       scheduleStationState();
     });
 
+    // «En vivo» en tiempo real: lo que muestra la pantalla real, solo a sus vistas previas.
+    // Si la misma pantalla está abierta en dos ventanas, se sigue a la más antigua.
+    socket.on('display:sync', (data) => {
+      if (socket.data.role !== 'display' || !data || typeof data !== 'object') return;
+      if (screens.leaderOf(socket.data.screenId) !== socket.id) return;
+      socket.to(`preview:${socket.data.screenId}`).emit('playbackSync', {
+        ribbon: data.ribbon || null, media: data.media || null, phase: data.phase || null,
+      });
+    });
+
     socket.on('disconnect', (reason) => {
       console.log(`[-] ${roleLabel(socket)} desconectado (${reason})`);
       if (role === 'display') screens.detach(socket.data.screenId, socket.id);
@@ -586,9 +599,12 @@ function attachSocketServer(io, { registry, screens, getNetworkInfo, desktop = n
     const { screenId } = socket.data;
     const config = screens.effective(screenId);
     socket.join(`screen:${screenId}`);
+    socket.join(`preview:${screenId}`);
     socket.join(`match:${config.matchId}`);
     socket.emit('screenConfig', buildScreenConfig(screenId));
     socket.emit('matchUpdate', matchPayload(registry.get(config.matchId)));
+    // La pantalla real dice al momento por dónde va (sin esperar a su próximo aviso)
+    io.to(`screen:${screenId}`).emit('syncRequest');
   }
 
   function onControllerConnected(socket) {

@@ -819,6 +819,17 @@ test('Informe de pantalla: guarda resolución y versión dibujada (datos saneado
   assert.strictEqual(screens.presenceOf('pantalla-1').length, 0);
 });
 
+test('«En vivo» sigue a la ventana más antigua de cada pantalla', () => {
+  const screens = freshScreens();
+  assert.strictEqual(screens.leaderOf('pantalla-1'), null, 'Sin ventanas no hay a quién seguir');
+  screens.attach('pantalla-1', 's1');
+  screens.attach('pantalla-1', 's2');
+  assert.strictEqual(screens.leaderOf('pantalla-1'), 's1');
+  screens.detach('pantalla-1', 's1');
+  assert.strictEqual(screens.leaderOf('pantalla-1'), 's2', 'Si se cierra, pasa a la siguiente');
+  assert.strictEqual(screens.leaderOf('no-existe'), null);
+});
+
 // ═════════════════════════════════════════════════════════════════
 console.log('\nHISTORIAL DE PARTIDOS');
 // ═════════════════════════════════════════════════════════════════
